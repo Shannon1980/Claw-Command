@@ -14,9 +14,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Claw Command — Vorentoe Mission Control",
-  description:
-    "Real-time command center for Vorentoe autonomous agent operations",
+  title: "Vorentoe Command",
+  description: "Command center for Vorentoe operations",
 };
 
 export default function RootLayout({
