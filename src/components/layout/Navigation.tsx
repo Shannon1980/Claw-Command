@@ -8,6 +8,7 @@ const navItems = [
   { href: "/brief", label: "Daily Brief", icon: "📊" },
   { href: "/pipeline", label: "Pipeline", icon: "🔄" },
   { href: "/skyward", label: "Skyward", icon: "🌤️" },
+  { href: "/docs", label: "Docs", icon: "📄" },
 ];
 
 export default function Navigation() {
