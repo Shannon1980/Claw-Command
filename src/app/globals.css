@@ -30,3 +30,14 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #4b5563;
 }
+
+/* Protected event stripe pattern */
+.bg-stripe {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(0, 0, 0, 0.2) 10px,
+    rgba(0, 0, 0, 0.2) 20px
+  );
+}
