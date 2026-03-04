@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveIndicator } from "./LiveIndicator";
+import { useAgents } from "@/lib/hooks/useAgents";
 
 export default function CommandHeader() {
   const [time, setTime] = useState<string>("");
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const { agents, error } = useAgents();
 
   useEffect(() => {
     const update = () => {
@@ -21,6 +25,13 @@ export default function CommandHeader() {
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Update lastRefresh when agents data changes
+  useEffect(() => {
+    if (agents && agents.length > 0) {
+      setLastRefresh(new Date());
+    }
+  }, [agents]);
 
   return (
     <header className="border-b border-gray-800 bg-gray-950/90 backdrop-blur-sm sticky top-0 z-50">
@@ -40,13 +51,11 @@ export default function CommandHeader() {
         </div>
 
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-            </span>
-            <span className="text-xs font-mono text-gray-400">OPERATIONAL</span>
-          </div>
+          <LiveIndicator
+            isOnline={!error}
+            lastRefresh={lastRefresh}
+            showPulse={false}
+          />
           <span className="text-sm font-mono text-gray-400 tabular-nums">
             {time}
           </span>

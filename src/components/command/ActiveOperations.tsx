@@ -1,18 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { DOMAIN_COLORS, STATUS_CONFIG } from "@/lib/mock-data";
 import AgentCard from "./AgentCard";
-
-interface Agent {
-  id: string;
-  name: string;
-  emoji: string;
-  domain: string;
-  status: string;
-  current_task_id: string | null;
-  updated_at: string;
-}
+import { useAgents } from "@/lib/hooks/useAgents";
 
 const DOMAIN_ORDER = ["vorentoe", "skyward", "community", "teaching"] as const;
 const DOMAIN_LABELS: Record<string, string> = {
@@ -23,28 +13,7 @@ const DOMAIN_LABELS: Record<string, string> = {
 };
 
 export default function ActiveOperations() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchAgents() {
-      try {
-        const res = await fetch("/api/agents");
-        if (res.ok) {
-          const data = await res.json();
-          setAgents(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch agents:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchAgents();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchAgents, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const { agents, loading } = useAgents();
 
   const grouped = DOMAIN_ORDER.map((domain) => ({
     domain,
