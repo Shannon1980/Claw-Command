@@ -8,7 +8,11 @@ const navItems = [
   { href: "/brief", label: "Daily Brief", icon: "📊" },
   { href: "/pipeline", label: "Pipeline", icon: "🔄" },
   { href: "/skyward", label: "Skyward", icon: "🌤️" },
+<<<<<<< feature/docs-manager
+  { href: "/docs", label: "Docs", icon: "📄" },
+=======
   { href: "/calendar", label: "Calendar", icon: "📅" },
+>>>>>>> main
 ];
 
 export default function Navigation() {
