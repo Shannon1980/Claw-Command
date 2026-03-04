@@ -3,9 +3,9 @@ import { dismissAlert } from '@/lib/mock-alerts';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id: alertId } = await params;
+  const alertId = params.id;
   
   const success = dismissAlert(alertId);
   
