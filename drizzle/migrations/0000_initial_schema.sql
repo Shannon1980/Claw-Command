@@ -1,0 +1,79 @@
+-- Claw Command: Initial Schema
+-- 7 core entities for Vorentoe Command Center
+
+CREATE TABLE IF NOT EXISTS agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  emoji TEXT NOT NULL DEFAULT '🤖',
+  domain TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'idle',
+  current_task_id TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS opportunities (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  stage TEXT NOT NULL DEFAULT 'identify',
+  value_usd INTEGER NOT NULL DEFAULT 0,
+  probability INTEGER NOT NULL DEFAULT 0,
+  owner_agent_id TEXT NOT NULL REFERENCES agents(id),
+  shannon_approval BOOLEAN,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS applications (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  stage TEXT NOT NULL DEFAULT 'concept',
+  description TEXT NOT NULL DEFAULT '',
+  owner_agent_id TEXT NOT NULL REFERENCES agents(id),
+  dependencies TEXT NOT NULL DEFAULT '[]',
+  shannon_approval BOOLEAN,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  assigned_to_agent_id TEXT NOT NULL REFERENCES agents(id),
+  depends_on_shannon BOOLEAN NOT NULL DEFAULT false,
+  status TEXT NOT NULL DEFAULT 'backlog',
+  due_date TEXT,
+  parent_opportunity_id TEXT REFERENCES opportunities(id),
+  parent_application_id TEXT REFERENCES applications(id),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS skyward_workstreams (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'on_track',
+  owner_agent_id TEXT NOT NULL REFERENCES agents(id),
+  key_dates TEXT NOT NULL DEFAULT '[]',
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS activities (
+  id TEXT PRIMARY KEY,
+  actor_agent_id TEXT REFERENCES agents(id),
+  event_type TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'info',
+  trigger_type TEXT NOT NULL,
+  resource_id TEXT NOT NULL,
+  due_date TEXT,
+  dismissed_at TEXT,
+  created_at TEXT NOT NULL
+);
