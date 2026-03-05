@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useTasks } from "@/lib/hooks/useTasks";
 
-function getUrgency(dueDate: string): { class: string; label: string } {
+function getUrgency(dueDate: string | null): { class: string; label: string } {
+  if (!dueDate)
+    return {
+      class: "text-gray-500 bg-gray-500/10 border-gray-500/30",
+      label: "NO DATE",
+    };
+
   const now = new Date();
   const due = new Date(dueDate);
   const hoursLeft = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -24,7 +30,8 @@ function getUrgency(dueDate: string): { class: string; label: string } {
   };
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "No Date";
   const date = new Date(dateStr);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
@@ -50,9 +57,12 @@ export default function DependenciesPanel() {
     }
   };
 
-  const sorted = [...tasks].sort(
-    (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-  );
+  const sorted = [...tasks].sort((a, b) => {
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+  });
 
   return (
     <div className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
