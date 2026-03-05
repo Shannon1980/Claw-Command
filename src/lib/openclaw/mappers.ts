@@ -44,7 +44,7 @@ function resolveAgent(
 /**
  * Map OpenClaw sessions to agent status updates
  */
-function mapSessionsToAgentStatus(
+export function mapSessionsToAgentStatus(
   sessions: OpenClawSession[]
 ): AgentStatusUpdate[] {
   const agentUpdates = new Map<string, AgentStatusUpdate>();
@@ -81,7 +81,7 @@ function mapSessionsToAgentStatus(
 /**
  * Map session messages to activity events
  */
-function mapSessionsToActivities(
+export function mapSessionsToActivities(
   sessions: OpenClawSession[]
 ): ActivityEvent[] {
   const activities: ActivityEvent[] = [];
@@ -122,5 +122,3 @@ function mapSessionsToActivities(
 
   return activities;
 }
-
-export { mapSessionsToAgentStatus, mapSessionsToActivities };

@@ -34,14 +34,14 @@ async function fetchGateway<T>(
 /**
  * Get gateway status
  */
-async function getGatewayStatus(): Promise<OpenClawGatewayStatus | null> {
+export async function getGatewayStatus(): Promise<OpenClawGatewayStatus | null> {
   return fetchGateway<OpenClawGatewayStatus>("/api/status");
 }
 
 /**
  * List all active sessions
  */
-async function listSessions(): Promise<OpenClawSession[]> {
+export async function listSessions(): Promise<OpenClawSession[]> {
   const result = await fetchGateway<OpenClawSession[]>("/api/sessions");
   return result || [];
 }
@@ -49,7 +49,7 @@ async function listSessions(): Promise<OpenClawSession[]> {
 /**
  * Get session history
  */
-async function getSessionHistory(
+export async function getSessionHistory(
   sessionKey: string
 ): Promise<OpenClawSession | null> {
   return fetchGateway<OpenClawSession>(
@@ -60,14 +60,7 @@ async function getSessionHistory(
 /**
  * Check if gateway is reachable
  */
-async function isGatewayOnline(): Promise<boolean> {
+export async function isGatewayOnline(): Promise<boolean> {
   const status = await getGatewayStatus();
   return status !== null && status.status === "online";
 }
-
-export {
-  getGatewayStatus,
-  listSessions,
-  getSessionHistory,
-  isGatewayOnline,
-};
