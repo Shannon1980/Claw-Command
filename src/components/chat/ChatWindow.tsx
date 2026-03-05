@@ -70,11 +70,11 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.sender === "shannon" ? "justify-end" : "justify-start"}`}
+            className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
               className={`max-w-[70%] ${
-                msg.sender === "shannon"
+                msg.sender === "user"
                   ? "bg-blue-600 text-white"
                   : "bg-gray-800 text-gray-100"
               } rounded-lg px-4 py-3 shadow-lg relative group`}
@@ -89,7 +89,7 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
 
               {/* Message content */}
               <div className="prose prose-invert prose-sm max-w-none break-words">
-                <MarkdownRenderer content={msg.message} />
+                <MarkdownRenderer content={msg.content} />
               </div>
 
               {/* Attachments */}
@@ -108,14 +108,14 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
               <div className="mt-2 text-xs opacity-70 flex items-center justify-end gap-1">
                 <span>{formatTimestamp(msg.timestamp)}</span>
                 
-                {msg.sender === "shannon" && (
+                {msg.sender === "user" && (
                   <span className="ml-1 font-bold">
                     {msg.status === "sending" && "..."}
                     {msg.status === "sent" && "✓"}
                     {msg.status === "read" && "✓✓"}
                     {msg.status === "failed" && (
                       <button 
-                        onClick={() => handleSend(msg.message, msg.attachments || [])}
+                        onClick={() => handleSend(msg.content, msg.attachments || [])}
                         className="text-red-300 hover:text-red-100 underline ml-1"
                         title="Retry"
                       >
