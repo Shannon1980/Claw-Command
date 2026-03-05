@@ -24,7 +24,12 @@ const eventTypeColors: Record<string, string> = {
   meeting_scheduled: 'text-pink-400'
 };
 
-export default function ActivityFeed() {
+interface ActivityFeedProps {
+  /** When true, fills container height (for flyout) */
+  fillHeight?: boolean;
+}
+
+export default function ActivityFeed({ fillHeight }: ActivityFeedProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
@@ -145,9 +150,9 @@ export default function ActivityFeed() {
   }
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-lg overflow-hidden">
+    <div className={`bg-gray-950 border border-gray-800 overflow-hidden ${fillHeight ? "flex flex-col h-full rounded-none border-0" : "rounded-lg border"}`}>
       {/* Header with Filters */}
-      <div className="border-b border-gray-800 p-4">
+      <div className="border-b border-gray-800 p-4 shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="text-xl">📡</span>
@@ -214,7 +219,7 @@ export default function ActivityFeed() {
       {/* Activity List */}
       <div 
         ref={feedRef}
-        className="max-h-[600px] overflow-y-auto"
+        className={`overflow-y-auto ${fillHeight ? "flex-1 min-h-0" : "max-h-[600px]"}`}
       >
         {filteredActivities.length === 0 ? (
           <div className="p-8 text-center text-gray-400">
