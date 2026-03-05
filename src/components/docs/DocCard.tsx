@@ -105,7 +105,7 @@ export default function DocCard({ document, onClick }: DocCardProps) {
 
       {/* Type Badge */}
       <div className="mb-3">
-        <span
+        {typeCfg && <span
           className={`${typeCfg.bg} ${typeCfg.color} px-2 py-0.5 rounded text-xs font-medium`}
         >
           {typeCfg.label}

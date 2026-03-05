@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/layout/Navigation";
-import ToastProvider from "@/components/notifications/ToastProvider";
+import { Providers } from "@/components/layout/Providers";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
 });
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,14 +27,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark h-full">
       <body
-        className={`${inter.variable} ${mono.variable} font-sans antialiased bg-gray-950 text-gray-100`}
+        className={`${inter.variable} ${mono.variable} font-sans antialiased bg-gray-950 text-gray-100 h-full flex flex-col`}
       >
-        <ToastProvider>
+        <Providers>
           <Navigation />
-          {children}
-        </ToastProvider>
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );
