@@ -18,11 +18,11 @@ const navItems: NavItem[] = [
     children: [
       { href: "/brief", label: "General Brief" },
       { href: "/brief/skyward", label: "Skyward Brief" },
+      { href: "/skyward", label: "Skyward" },
     ],
   },
   { href: "/tasks", label: "Tasks" },
   { href: "/pipeline", label: "Pipeline" },
-  { href: "/skyward", label: "Skyward" },
   {
     label: "Docs",
     children: [
@@ -61,7 +61,7 @@ export default function Navigation() {
   }, []);
 
   return (
-    <nav className="bg-gray-950/95 border-b border-gray-800/80 backdrop-blur-sm">
+    <nav className="sticky top-0 z-[100] bg-gray-950/95 border-b border-gray-800/80 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center h-12">
           <Link
@@ -100,7 +100,7 @@ export default function Navigation() {
                       </svg>
                     </button>
                     {isOpen && (
-                      <div className="absolute top-full left-0 mt-0.5 py-1 min-w-[140px] bg-gray-900 border border-gray-800 rounded-lg shadow-xl z-50">
+                      <div className="absolute top-full left-0 mt-0.5 py-1 min-w-[140px] bg-gray-900 border border-gray-800 rounded-lg shadow-xl z-[110]">
                         {item.children.map((child) => (
                           <Link
                             key={child.href}
