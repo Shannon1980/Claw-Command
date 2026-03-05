@@ -17,8 +17,7 @@ const navItems: NavItem[] = [
     label: "Brief",
     children: [
       { href: "/brief", label: "General Brief" },
-      { href: "/brief/skyward", label: "Skyward Brief" },
-      { href: "/skyward", label: "Skyward" },
+      { href: "/skyward", label: "Skyward Brief" },
     ],
   },
   { href: "/tasks", label: "Tasks" },
@@ -48,11 +47,15 @@ function isActiveInDropdown(
 export default function Navigation() {
   const pathname = usePathname();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const isInsideAnyDropdown = Object.values(dropdownRefs.current).some(
+        (el) => el?.contains(target)
+      );
+      if (!isInsideAnyDropdown) {
         setOpenDropdown(null);
       }
     };
@@ -78,7 +81,9 @@ export default function Navigation() {
                 return (
                   <div
                     key={item.label}
-                    ref={dropdownRef}
+                    ref={(el) => {
+                      dropdownRefs.current[item.label] = el;
+                    }}
                     className="relative"
                   >
                     <button
