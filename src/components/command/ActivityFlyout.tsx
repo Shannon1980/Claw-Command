@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import ActivityFeed from "./ActivityFeed";
 
 interface ActivityFlyoutProps {
@@ -10,6 +11,9 @@ interface ActivityFlyoutProps {
 
 export default function ActivityFlyout({ badgeCount }: ActivityFlyoutProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   // Close on Escape
   useEffect(() => {
@@ -37,56 +41,57 @@ export default function ActivityFlyout({ badgeCount }: ActivityFlyoutProps) {
         )}
       </button>
 
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[100] backdrop-blur-sm"
-          onClick={() => setIsOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Flyout panel */}
-      <div
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-gray-950 border-l border-gray-800 shadow-2xl z-[101] transform transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-        aria-modal="true"
-        aria-label="Activity feed"
-      >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
-            <h2 className="text-lg font-semibold text-gray-100">
-              Activity Feed
-            </h2>
-            <button
+      {/* Portal flyout to body - ensures it renders above all content */}
+      {isOpen &&
+        mounted &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 bg-black/60"
               onClick={() => setIsOpen(false)}
-              className="p-2 rounded-lg text-gray-400 hover:text-gray-100 hover:bg-gray-800 transition-colors"
-              aria-label="Close"
+              aria-hidden="true"
+              style={{ zIndex: 9998 }}
+            />
+            <div
+              className="fixed top-0 right-0 h-full w-full max-w-md bg-gray-950 border-l border-gray-800 shadow-2xl transform transition-transform duration-300 ease-out translate-x-0"
+              aria-modal="true"
+              aria-label="Activity feed"
+              style={{ zIndex: 9999 }}
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
-            <ActivityFeed fillHeight />
-          </div>
-        </div>
-      </div>
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
+                  <h2 className="text-lg font-semibold text-gray-100">
+                    Activity Feed
+                  </h2>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 rounded-lg text-gray-400 hover:text-gray-100 hover:bg-gray-800 transition-colors"
+                    aria-label="Close"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
+                  <ActivityFeed fillHeight />
+                </div>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
     </>
   );
 }
