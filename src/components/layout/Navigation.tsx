@@ -9,6 +9,9 @@ const navItems = [
   { href: "/pipeline", label: "Pipeline", icon: "🔄" },
   { href: "/skyward", label: "Skyward", icon: "🌤️" },
   { href: "/certifications", label: "Certifications", icon: "📋" },
+  { href: "/chat", label: "Chat", icon: "💬" },
+  { href: "/docs", label: "Docs", icon: "📄" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
 ];
 
 export default function Navigation() {
