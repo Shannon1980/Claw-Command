@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LiveIndicator } from "./LiveIndicator";
 import { useAgents } from "@/lib/hooks/useAgents";
+import ActivityFlyout from "./ActivityFlyout";
 
 export default function CommandHeader() {
   const [time, setTime] = useState<string>("");
@@ -51,6 +52,7 @@ export default function CommandHeader() {
         </div>
 
         <div className="flex items-center gap-6">
+          <ActivityFlyout />
           <LiveIndicator
             isOnline={!error}
             lastRefresh={lastRefresh}
