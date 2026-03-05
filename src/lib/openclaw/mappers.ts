@@ -138,3 +138,64 @@ export function mapSessionsToActivities(
 
   return activities;
 }
+
+// ─── Map OpenClaw sessions to tasks (for sync) ──────────────────────────────
+
+export type OpenClawTaskRecord = {
+  id: string;
+  title: string;
+  assigned_to_agent_id: string;
+  depends_on_shannon: boolean;
+  status: string;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function sessionStatusToTaskStatus(
+  status: OpenClawSession["status"]
+): "backlog" | "in_progress" | "blocked" | "done" {
+  switch (status) {
+    case "active":
+    case "running":
+      return "in_progress";
+    case "completed":
+      return "done";
+    case "error":
+    case "failed":
+      return "blocked";
+    case "queued":
+    default:
+      return "backlog";
+  }
+}
+
+export function mapSessionsToTasks(
+  sessions: OpenClawSession[]
+): OpenClawTaskRecord[] {
+  const tasks: OpenClawTaskRecord[] = [];
+
+  for (const session of sessions) {
+    const agent = resolveAgent(session);
+    if (!agent) continue;
+
+    const sessionId = session.session_id || session.key || `sess-${Date.now()}`;
+    const taskId = `oc-${sessionId}`;
+    const now = new Date().toISOString();
+    const createdAt = session.created_at || now;
+    const updatedAt = session.updated_at || createdAt;
+
+    tasks.push({
+      id: taskId,
+      title: session.label || session.key || "OpenClaw session",
+      assigned_to_agent_id: agent.id,
+      depends_on_shannon: false,
+      status: sessionStatusToTaskStatus(session.status),
+      due_date: null,
+      created_at: createdAt,
+      updated_at: updatedAt,
+    });
+  }
+
+  return tasks;
+}
