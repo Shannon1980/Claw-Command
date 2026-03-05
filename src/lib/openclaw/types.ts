@@ -81,3 +81,11 @@ export type ActivityEvent = {
   details: string;
   createdAt: string;
 };
+
+export type SyncResult = {
+  agentsUpdated: number;
+  tasksSynced: number;
+  activitiesCreated: number;
+  timestamp: string;
+  error?: string;
+};
