@@ -97,41 +97,64 @@ export function mapSessionsToActivities(
 
   for (const session of sessions) {
     const agent = resolveAgent(session);
-    if (!session.messages) continue;
+    const sessionKey = session.key || session.session_id;
+    const updatedAt = session.updated_at || session.created_at;
 
-    for (const msg of session.messages) {
-      if (msg.role !== "assistant") continue;
+    // From messages (when OpenClaw returns them)
+    if (session.messages?.length) {
+      for (const msg of session.messages) {
+        if (msg.role !== "assistant") continue;
 
-      const content = msg.content.toLowerCase();
-      let eventType = "task_started";
+        const content = msg.content.toLowerCase();
+        let eventType = "task_started";
 
-      if (
-        content.includes("completed") ||
-        content.includes("done") ||
-        content.includes("finished")
-      ) {
-        eventType = "task_completed";
-      } else if (
-        content.includes("approval") ||
-        content.includes("review")
-      ) {
-        eventType = "approval_requested";
-      } else if (content.includes("alert") || content.includes("warning")) {
-        eventType = "alert_fired";
+        if (
+          content.includes("completed") ||
+          content.includes("done") ||
+          content.includes("finished")
+        ) {
+          eventType = "task_completed";
+        } else if (
+          content.includes("approval") ||
+          content.includes("review")
+        ) {
+          eventType = "approval_requested";
+        } else if (content.includes("alert") || content.includes("warning")) {
+          eventType = "alert_fired";
+        }
+
+        activities.push({
+          id: `act-${sessionKey}-${msg.timestamp || Date.now()}`,
+          actorAgentId: agent?.id || null,
+          eventType,
+          resourceType: "task",
+          resourceId: sessionKey,
+          details: JSON.stringify({
+            message: msg.content.slice(0, 200),
+            session_key: sessionKey,
+          }),
+          createdAt: msg.timestamp || new Date().toISOString(),
+        });
       }
-
-      const sessionKey = session.key || session.session_id;
+    } else {
+      // Fallback: one activity per session when no messages (most OpenClaw sessions don't include messages)
+      const label = session.label || session.key || "Session active";
+      const eventType =
+        session.status === "completed" || session.status === "failed"
+          ? "task_completed"
+          : "task_started";
       activities.push({
-        id: `act-${sessionKey}-${msg.timestamp || Date.now()}`,
+        id: `act-${sessionKey}-${updatedAt}`,
         actorAgentId: agent?.id || null,
         eventType,
         resourceType: "task",
         resourceId: sessionKey,
         details: JSON.stringify({
-          message: msg.content.slice(0, 200),
+          message: label,
           session_key: sessionKey,
+          status: session.status,
         }),
-        createdAt: msg.timestamp || new Date().toISOString(),
+        createdAt: updatedAt,
       });
     }
   }
