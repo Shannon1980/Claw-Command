@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ConnectionStatus from "./ConnectionStatus";
 
 const navItems = [
   { href: "/", label: "Command" },

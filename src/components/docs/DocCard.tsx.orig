@@ -73,7 +73,6 @@ function getRelativeTime(dateString: string): string {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (!Number.isFinite(diffInSeconds) || diffInSeconds < 0) return "";
   if (diffInSeconds < 60) return "just now";
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -83,12 +82,8 @@ function getRelativeTime(dateString: string): string {
 }
 
 export default function DocCard({ document, onClick }: DocCardProps) {
-  const statusCfg =
-    (document.status && statusConfig[document.status as DocumentStatus]) ??
-    statusConfig.draft;
-  const typeCfg =
-    (document.type && typeConfig[document.type as DocumentType]) ??
-    typeConfig.report;
+  const statusCfg = statusConfig[document.status];
+  const typeCfg = typeConfig[document.type];
 
   return (
     <div
@@ -109,7 +104,7 @@ export default function DocCard({ document, onClick }: DocCardProps) {
 
       {/* Type Badge */}
       <div className="mb-3">
-        {typeCfg && <span
+        <span
           className={`${typeCfg.bg} ${typeCfg.color} px-2 py-0.5 rounded text-xs font-medium`}
         >
           {typeCfg.label}
@@ -118,8 +113,7 @@ export default function DocCard({ document, onClick }: DocCardProps) {
 
       {/* Content Preview */}
       <p className="text-xs text-gray-400 mb-3 line-clamp-2">
-        {(document.content || "").slice(0, 120)}
-        {(document.content || "").length > 120 ? "..." : ""}
+        {document.content.substring(0, 120)}...
       </p>
 
       {/* Footer */}
@@ -129,7 +123,7 @@ export default function DocCard({ document, onClick }: DocCardProps) {
           <span>{document.agent}</span>
         </div>
         <div className="text-gray-500 font-mono">
-          {getRelativeTime(document.updatedAt || document.createdAt || "")}
+          {getRelativeTime(document.updatedAt)}
         </div>
       </div>
     </div>

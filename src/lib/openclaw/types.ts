@@ -1,69 +1,83 @@
-// ─── OpenClaw Gateway Response Types ────────────────────────────────────────
+// ─── OpenClaw Gateway Types ─────────────────────────────────────────────────
 
-export interface OpenClawSession {
-  key: string;
-  kind: string;
+export type OpenClawNode = {
+  node_id: string;
+  name: string;
+  description?: string;
+  status: "active" | "idle" | "offline";
+  capabilities?: string[];
+  model?: string;
+  metadata?: Record<string, unknown>;
+  activeTasks?: number;
+  lastHeartbeat?: string;
+};
+
+export type OpenClawSession = {
+  session_id: string;
+  node_id?: string;
+  created_at: string;
+  updated_at?: string;
+  status: "active" | "completed" | "error" | "queued" | "running" | "failed";
   label?: string;
   agentId?: string;
-  status: "active" | "idle" | "completed" | "failed";
-  createdAt: string;
-  updatedAt: string;
+  key?: string;
   messages?: OpenClawMessage[];
-}
+};
 
-export interface OpenClawMessage {
+export type OpenClawMessage = {
   role: "user" | "assistant" | "system";
   content: string;
-  timestamp: string;
-}
+  timestamp?: string;
+};
 
-export interface OpenClawGatewayStatus {
-  status: "online" | "offline";
-  version: string;
-  uptime: number;
-  sessions: number;
-}
+export type OpenClawChatRequest = {
+  model?: string;
+  messages: { role: "user" | "assistant" | "system"; content: string }[];
+  stream?: boolean;
+  max_tokens?: number;
+  temperature?: number;
+};
 
-// ─── Mapped Claw Command Types ──────────────────────────────────────────────
+export type OpenClawChatChoice = {
+  index: number;
+  message?: { role: string; content: string };
+  delta?: { role?: string; content?: string };
+  finish_reason: string | null;
+};
 
-export interface AgentStatusUpdate {
+export type OpenClawChatResponse = {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: OpenClawChatChoice[];
+};
+
+export type SubagentRun = {
+  id: string;
+  label?: string;
+  status: "running" | "pending" | "completed" | "failed" | "cancelled";
+  startTime?: string;
+  endTime?: string;
+  runtime?: string;
+  taskLabel?: string;
+  progressPercent?: number;
+};
+
+export type AgentStatusUpdate = {
   id: string;
   name: string;
-  status: "idle" | "active" | "blocked" | "waiting_for_shannon";
+  status: "active" | "idle";
   currentTask: string | null;
   updatedAt: string;
-}
+};
 
-export interface ActivityEvent {
+export type ActivityEvent = {
   id: string;
   actorAgentId: string | null;
   eventType: string;
   resourceType: string;
   resourceId: string;
-  details: string; // JSON
+  details: string;
   createdAt: string;
-}
-
-export interface SyncResult {
-  agentsUpdated: number;
-  tasksSynced: number;
-  activitiesCreated: number;
-  timestamp: string;
-  error?: string;
-}
-
-// ─── SSE Event Types ────────────────────────────────────────────────────────
-
-export type SSEEventType =
-  | "agent_update"
-  | "new_activity"
-  | "new_alert"
-  | "sync_complete"
-  | "heartbeat";
-
-export interface SSEEvent {
-  id: string;
-  type: SSEEventType;
-  data: unknown;
-  timestamp: string;
-}
+};

@@ -65,7 +65,9 @@ function titleFromFilename(filename) {
 const docs = files.map(f => {
   const filePath = path.join(workspace, f);
   let content = '';
-  try { content = fs.readFileSync(filePath, 'utf8'); } catch(e) {}
+  try { 
+    content = fs.readFileSync(filePath, 'utf8').replace(/\0/g, ''); 
+  } catch(e) {}
   
   return {
     id: 'ws-' + f.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase(),
