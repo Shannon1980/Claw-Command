@@ -24,8 +24,9 @@ export default function DocsPage() {
     fetch("/api/docs")
       .then((res) => res.json())
       .then((data) => {
-        setDocuments(data);
-        setFilteredDocs(data);
+        const docs = Array.isArray(data) ? data : data?.docs ?? [];
+        setDocuments(docs);
+        setFilteredDocs(docs);
       });
   }, []);
 
