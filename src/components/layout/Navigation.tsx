@@ -1,22 +1,64 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import ConnectionStatus from "./ConnectionStatus";
 
-const navItems = [
+type NavItem =
+  | { href: string; label: string }
+  | {
+      label: string;
+      children: { href: string; label: string }[];
+    };
+
+const navItems: NavItem[] = [
   { href: "/", label: "Command" },
-  { href: "/brief", label: "Brief" },
+  {
+    label: "Brief",
+    children: [
+      { href: "/brief", label: "General Brief" },
+      { href: "/brief/skyward", label: "Skyward Brief" },
+    ],
+  },
+  { href: "/tasks", label: "Tasks" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/skyward", label: "Skyward" },
-  { href: "/certifications", label: "Certs" },
+  {
+    label: "Docs",
+    children: [
+      { href: "/docs", label: "Documents" },
+      { href: "/certifications", label: "Certifications" },
+    ],
+  },
   { href: "/chat", label: "Chat" },
-  { href: "/docs", label: "Docs" },
   { href: "/calendar", label: "Calendar" },
 ];
 
+function isDropdown(item: NavItem): item is { label: string; children: { href: string; label: string }[] } {
+  return "children" in item && Array.isArray(item.children);
+}
+
+function isActiveInDropdown(
+  pathname: string,
+  children: { href: string; label: string }[]
+): boolean {
+  return children.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
+}
+
 export default function Navigation() {
   const pathname = usePathname();
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <nav className="bg-gray-950/95 border-b border-gray-800/80 backdrop-blur-sm">
@@ -30,6 +72,54 @@ export default function Navigation() {
           </Link>
           <div className="flex items-center gap-0.5">
             {navItems.map((item) => {
+              if (isDropdown(item)) {
+                const isOpen = openDropdown === item.label;
+                const active = isActiveInDropdown(pathname, item.children);
+                return (
+                  <div
+                    key={item.label}
+                    ref={dropdownRef}
+                    className="relative"
+                  >
+                    <button
+                      onClick={() => setOpenDropdown(isOpen ? null : item.label)}
+                      className={`px-3 py-2 rounded text-[13px] font-medium transition-colors flex items-center gap-1 ${
+                        active
+                          ? "text-white bg-gray-800/80"
+                          : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
+                      }`}
+                    >
+                      {item.label}
+                      <svg
+                        className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {isOpen && (
+                      <div className="absolute top-full left-0 mt-0.5 py-1 min-w-[140px] bg-gray-900 border border-gray-800 rounded-lg shadow-xl z-50">
+                        {item.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setOpenDropdown(null)}
+                            className={`block px-4 py-2 text-[13px] transition-colors ${
+                              pathname === child.href
+                                ? "text-white bg-gray-800"
+                                : "text-gray-400 hover:text-gray-100 hover:bg-gray-800/60"
+                            }`}
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
               const isActive = pathname === item.href;
               return (
                 <Link
