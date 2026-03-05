@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { listSessions, isGatewayOnline } from "@/lib/openclaw/client";
-import {
-  mapSessionsToAgentStatus,
-  mapSessionsToActivities,
-} from "@/lib/openclaw/mappers";
+import { mapSessionsToAgentStatus, mapSessionsToActivities } from "@/lib/openclaw/mappers";
 import type { SyncResult } from "@/lib/openclaw/types";
 
 export async function POST() {
