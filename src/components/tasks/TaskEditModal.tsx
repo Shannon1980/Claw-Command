@@ -3,8 +3,15 @@
 import { useState } from "react";
 import type { Task } from "@/lib/hooks/useTasks";
 
+interface Agent {
+  id: string;
+  name: string;
+  emoji: string;
+}
+
 interface TaskEditModalProps {
-  task: Task;
+  task: Task | null;
+  agents: Agent[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -18,35 +25,69 @@ const STATUS_OPTIONS = [
 
 export default function TaskEditModal({
   task,
+  agents,
   onClose,
   onSaved,
 }: TaskEditModalProps) {
-  const [status, setStatus] = useState(task.status);
-  const [title, setTitle] = useState(task.title);
-  const [dueDate, setDueDate] = useState(task.due_date || "");
+  const isCreate = task === null;
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [status, setStatus] = useState(task?.status ?? "backlog");
+  const [dueDate, setDueDate] = useState(task?.due_date ?? "");
   const [dependsOnShannon, setDependsOnShannon] = useState(
-    task.depends_on_shannon
+    task?.depends_on_shannon ?? false
+  );
+  const [assignedToAgentId, setAssignedToAgentId] = useState(
+    task?.assigned_to_agent_id ?? agents[0]?.id ?? ""
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("Title is required");
+      return;
+    }
+    if (!assignedToAgentId) {
+      setError("Please assign to an agent");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status,
-          title: title.trim() || task.title,
-          due_date: dueDate || null,
-          depends_on_shannon: dependsOnShannon,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `HTTP ${res.status}`);
+      if (isCreate) {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: trimmedTitle,
+            assigned_to_agent_id: assignedToAgentId,
+            status,
+            due_date: dueDate || null,
+            depends_on_shannon: dependsOnShannon,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+      } else {
+        const res = await fetch(`/api/tasks/${task.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: trimmedTitle,
+            status,
+            due_date: dueDate || null,
+            depends_on_shannon: dependsOnShannon,
+            assigned_to_agent_id: assignedToAgentId,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
       }
       onSaved();
     } catch (err) {
@@ -66,7 +107,7 @@ export default function TaskEditModal({
       <div className="relative w-full max-w-lg bg-gray-900 border border-gray-800 rounded-lg p-6 shadow-xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-gray-100">
-            Edit Task
+            {isCreate ? "Add Task" : "Edit Task"}
           </h2>
           <button
             onClick={onClose}
@@ -88,8 +129,30 @@ export default function TaskEditModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Task title"
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">
+              Assigned to
+            </label>
+            <select
+              value={assignedToAgentId}
+              onChange={(e) => setAssignedToAgentId(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {agents.length === 0 ? (
+                <option value="">No agents available</option>
+              ) : (
+                agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.emoji} {a.name}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
           <div>
@@ -133,10 +196,6 @@ export default function TaskEditModal({
               Needs my approval
             </label>
           </div>
-
-          <div className="text-xs text-gray-500">
-            Assigned to: {task.agent_emoji} {task.agent_name}
-          </div>
         </div>
 
         {error && (
@@ -157,7 +216,7 @@ export default function TaskEditModal({
             disabled={saving}
             className="px-4 py-2 text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : isCreate ? "Add Task" : "Save"}
           </button>
         </div>
       </div>

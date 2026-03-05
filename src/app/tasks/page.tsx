@@ -87,6 +87,7 @@ export default function TasksPage() {
         ) : (
           <TaskKanban
             tasks={tasks}
+            agents={agents ?? []}
             onStatusChange={handleStatusChange}
             refresh={refresh}
           />

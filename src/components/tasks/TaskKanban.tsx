@@ -19,19 +19,28 @@ const STAGE_COLORS: Record<string, string> = {
   done: "border-t-green-500",
 };
 
+interface Agent {
+  id: string;
+  name: string;
+  emoji: string;
+}
+
 interface TaskKanbanProps {
   tasks: Task[];
+  agents: Agent[];
   onStatusChange: (taskId: string, newStatus: string) => Promise<void>;
   refresh: () => void;
 }
 
 export default function TaskKanban({
   tasks,
+  agents,
   onStatusChange,
   refresh,
 }: TaskKanbanProps) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
 
   const handleDrop = async (taskId: string, newStage: string) => {
     setDragOver(null);
@@ -40,11 +49,23 @@ export default function TaskKanban({
 
   const handleEditComplete = () => {
     setEditingTask(null);
+    setAddTaskOpen(false);
     refresh();
   };
 
   return (
     <>
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setAddTaskOpen(true)}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Task
+        </button>
+      </div>
       <div className="flex gap-3 overflow-x-auto pb-4">
         {TASK_STAGES.map((stage) => {
           const stageTasks = tasks.filter((t) => t.status === stage);
@@ -102,10 +123,14 @@ export default function TaskKanban({
         })}
       </div>
 
-      {editingTask && (
+      {(editingTask || addTaskOpen) && (
         <TaskEditModal
-          task={editingTask}
-          onClose={() => setEditingTask(null)}
+          task={addTaskOpen ? null : editingTask}
+          agents={agents}
+          onClose={() => {
+            setEditingTask(null);
+            setAddTaskOpen(false);
+          }}
           onSaved={handleEditComplete}
         />
       )}
