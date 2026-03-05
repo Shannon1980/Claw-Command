@@ -73,6 +73,7 @@ function getRelativeTime(dateString: string): string {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
+  if (!Number.isFinite(diffInSeconds) || diffInSeconds < 0) return "";
   if (diffInSeconds < 60) return "just now";
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -82,8 +83,8 @@ function getRelativeTime(dateString: string): string {
 }
 
 export default function DocCard({ document, onClick }: DocCardProps) {
-  const statusCfg = statusConfig[document.status];
-  const typeCfg = typeConfig[document.type];
+  const statusCfg = statusConfig[document.status] ?? statusConfig.draft;
+  const typeCfg = typeConfig[document.type] ?? typeConfig.report;
 
   return (
     <div
@@ -113,7 +114,8 @@ export default function DocCard({ document, onClick }: DocCardProps) {
 
       {/* Content Preview */}
       <p className="text-xs text-gray-400 mb-3 line-clamp-2">
-        {document.content.substring(0, 120)}...
+        {(document.content || "").slice(0, 120)}
+        {(document.content || "").length > 120 ? "..." : ""}
       </p>
 
       {/* Footer */}
@@ -123,7 +125,7 @@ export default function DocCard({ document, onClick }: DocCardProps) {
           <span>{document.agent}</span>
         </div>
         <div className="text-gray-500 font-mono">
-          {getRelativeTime(document.updatedAt)}
+          {getRelativeTime(document.updatedAt || document.createdAt || "")}
         </div>
       </div>
     </div>

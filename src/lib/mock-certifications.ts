@@ -25,6 +25,7 @@ export interface Certification {
   expiresDate?: string;
   documents: Document[];
   description?: string;
+  notes?: string;
 }
 
 export const mockCertifications: Certification[] = [
@@ -100,7 +101,9 @@ export const mockCertifications: Certification[] = [
   },
 ];
 
-export function getCertificationHealth(): {
+export function getCertificationHealth(
+  certs: Certification[] = mockCertifications
+): {
   total: number;
   onTrack: number;
   atRisk: number;
@@ -110,7 +113,7 @@ export function getCertificationHealth(): {
   let atRisk = 0;
   let critical = 0;
 
-  mockCertifications.forEach((cert) => {
+  certs.forEach((cert) => {
     if (cert.status === "APPROVED") {
       onTrack++;
     } else if (cert.status === "EXPIRED" || cert.status === "EXPIRING") {
@@ -132,7 +135,7 @@ export function getCertificationHealth(): {
   });
 
   return {
-    total: mockCertifications.length,
+    total: certs.length,
     onTrack,
     atRisk,
     critical,

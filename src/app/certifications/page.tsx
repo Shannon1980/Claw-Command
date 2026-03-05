@@ -1,13 +1,57 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   mockCertifications,
   getCertificationHealth,
+  Certification,
 } from "@/lib/mock-certifications";
 import CertCard from "@/components/certifications/CertCard";
+import CertEditModal from "@/components/certifications/CertEditModal";
+
+const STORAGE_KEY = "claw-command-certifications";
+
+function loadCertifications(): Certification[] {
+  if (typeof window === "undefined") return mockCertifications;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Certification[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return mockCertifications;
+}
+
+function saveCertifications(certs: Certification[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(certs));
+  } catch {
+    // ignore
+  }
+}
 
 export default function CertificationsPage() {
-  const health = getCertificationHealth();
+  const [certifications, setCertifications] = useState<Certification[]>([]);
+  const [editingCert, setEditingCert] = useState<Certification | null>(null);
+
+  useEffect(() => {
+    setCertifications(loadCertifications());
+  }, []);
+
+  const health = getCertificationHealth(certifications);
+
+  const handleSave = (updated: Certification) => {
+    setCertifications((prev) => {
+      const next = prev.map((c) => (c.id === updated.id ? updated : c));
+      saveCertifications(next);
+      return next;
+    });
+    setEditingCert(null);
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -61,10 +105,22 @@ export default function CertificationsPage() {
 
         {/* Certification Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {mockCertifications.map((cert) => (
-            <CertCard key={cert.id} certification={cert} />
+          {certifications.map((cert) => (
+            <CertCard
+              key={cert.id}
+              certification={cert}
+              onEdit={() => setEditingCert(cert)}
+            />
           ))}
         </div>
+
+        {editingCert && (
+          <CertEditModal
+            certification={editingCert}
+            onSave={handleSave}
+            onClose={() => setEditingCert(null)}
+          />
+        )}
 
         {/* Legend */}
         <div className="mt-8 p-4 bg-gray-900 border border-gray-800 rounded-lg">
