@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
+import { getSortedAgents } from "@/lib/mock-chat";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -8,12 +9,37 @@ const pool = new Pool({
 
 export async function GET() {
   try {
-    const result = await pool.query(
-      "SELECT id, name, emoji, domain, status, current_task_id, updated_at FROM agents ORDER BY domain, name"
-    );
-    return NextResponse.json(result.rows);
+    if (process.env.DATABASE_URL) {
+      const result = await pool.query(
+        "SELECT id, name, emoji, domain, status, current_task_id, updated_at FROM agents ORDER BY domain, name"
+      );
+      if (result.rows.length > 0) {
+        return NextResponse.json(result.rows);
+      }
+    }
+    // Fallback to mock agents when DB is empty or unavailable
+    const mockAgents = getSortedAgents().map((a) => ({
+      id: a.id,
+      name: a.name,
+      emoji: a.emoji,
+      domain: "vorentoe",
+      status: a.status,
+      current_task_id: null,
+      updated_at: a.lastActivity?.toISOString() ?? new Date().toISOString(),
+    }));
+    return NextResponse.json(mockAgents);
   } catch (error) {
     console.error("[Agents API] Error:", error);
-    return NextResponse.json([], { status: 500 });
+    // Fallback to mock agents on DB error
+    const mockAgents = getSortedAgents().map((a) => ({
+      id: a.id,
+      name: a.name,
+      emoji: a.emoji,
+      domain: "vorentoe",
+      status: a.status,
+      current_task_id: null,
+      updated_at: a.lastActivity?.toISOString() ?? new Date().toISOString(),
+    }));
+    return NextResponse.json(mockAgents);
   }
 }
