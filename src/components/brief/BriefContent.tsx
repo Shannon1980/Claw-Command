@@ -5,8 +5,16 @@ import BriefSummaryCard from "./BriefSummaryCard";
 import DomainSection from "./DomainSection";
 import PriorityList from "./PriorityList";
 
-export default function BriefContent() {
-  const { data, loading, error, refresh } = useBrief();
+interface BriefContentProps {
+  domainFilter?: string;
+  title?: string;
+}
+
+export default function BriefContent({
+  domainFilter,
+  title = "Good morning, Shannon 👋",
+}: BriefContentProps) {
+  const { data, loading, error, refresh } = useBrief(domainFilter);
 
   const currentDate = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -20,7 +28,7 @@ export default function BriefContent() {
       <div className="min-h-screen bg-gray-950 text-gray-100 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Good morning, Shannon 👋</h1>
+            <h1 className="text-4xl font-bold mb-2">{title}</h1>
             <p className="text-gray-400 text-lg">{currentDate}</p>
           </div>
           <div className="flex items-center gap-3 text-gray-400">
@@ -50,9 +58,7 @@ export default function BriefContent() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">
-              Good morning, Shannon 👋
-            </h1>
+            <h1 className="text-4xl font-bold mb-2">{title}</h1>
             <p className="text-gray-400 text-lg">{currentDate}</p>
           </div>
           <button

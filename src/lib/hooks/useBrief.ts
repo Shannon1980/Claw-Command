@@ -18,7 +18,7 @@ export type BriefData = {
   priorities: Priority[];
 };
 
-export function useBrief() {
+export function useBrief(domainFilter?: string) {
   const [data, setData] = useState<BriefData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,10 @@ export function useBrief() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/brief");
+      const url = domainFilter
+        ? `/api/brief?domain=${encodeURIComponent(domainFilter)}`
+        : "/api/brief";
+      const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
         setData({
@@ -36,24 +39,51 @@ export function useBrief() {
           priorities: json.priorities,
         });
       } else {
-        // Fallback to mock when DB not configured (503) or other error
+        const domains = getDomainStatuses();
+        const priorities = getPriorities();
         setData({
           summary: getOvernightSummary(),
-          domains: getDomainStatuses(),
-          priorities: getPriorities(),
+          domains: domainFilter
+            ? domains.filter(
+                (d) =>
+                  d.name.toLowerCase() === domainFilter.toLowerCase() ||
+                  d.name.toLowerCase().includes(domainFilter.toLowerCase())
+              )
+            : domains,
+          priorities: domainFilter
+            ? priorities.filter(
+                (p) =>
+                  p.domain.toLowerCase() === domainFilter.toLowerCase() ||
+                  p.domain.toLowerCase().includes(domainFilter.toLowerCase())
+              )
+            : priorities,
         });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load brief");
+      const domains = getDomainStatuses();
+      const priorities = getPriorities();
       setData({
         summary: getOvernightSummary(),
-        domains: getDomainStatuses(),
-        priorities: getPriorities(),
+        domains: domainFilter
+          ? domains.filter(
+              (d) =>
+                d.name.toLowerCase() === domainFilter.toLowerCase() ||
+                d.name.toLowerCase().includes(domainFilter.toLowerCase())
+            )
+          : domains,
+        priorities: domainFilter
+          ? priorities.filter(
+              (p) =>
+                p.domain.toLowerCase() === domainFilter.toLowerCase() ||
+                p.domain.toLowerCase().includes(domainFilter.toLowerCase())
+            )
+          : priorities,
       });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [domainFilter]);
 
   useEffect(() => {
     fetchBrief();

@@ -29,13 +29,16 @@ function getOvernightCutoff(): string {
   return d.toISOString();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!pool || !connectionString) {
     return NextResponse.json(
       { error: "Database not configured" },
       { status: 503 }
     );
   }
+
+  const { searchParams } = new URL(request.url);
+  const domainFilter = searchParams.get("domain"); // e.g. "skyward"
 
   try {
     const cutoff = getOvernightCutoff();
@@ -119,7 +122,7 @@ export async function GET() {
       }
     }
 
-    const domains: DomainStatus[] = Object.entries(DOMAIN_CONFIG).map(
+    let domains: DomainStatus[] = Object.entries(DOMAIN_CONFIG).map(
       ([key, config]) => {
         const entry = domainMap.get(key) ?? {
           activeTasks: 0,
@@ -135,6 +138,12 @@ export async function GET() {
         };
       }
     );
+    if (domainFilter) {
+      const d = domainFilter.toLowerCase();
+      domains = domains.filter(
+        (x) => x.name.toLowerCase() === d || x.name.toLowerCase().includes(d)
+      );
+    }
 
     // 4. Priorities (tasks needing attention, ordered by urgency)
     const prioritiesRes = await pool.query(
@@ -148,7 +157,7 @@ export async function GET() {
        LIMIT 10`
     );
 
-    const priorities: Priority[] = (prioritiesRes.rows as Array<{
+    let priorities: Priority[] = (prioritiesRes.rows as Array<{
       id: string;
       title: string;
       due_date: string | null;
@@ -175,6 +184,13 @@ export async function GET() {
         dueDate: row.due_date ?? undefined,
       };
     });
+    if (domainFilter) {
+      const d = domainFilter.toLowerCase();
+      priorities = priorities.filter(
+        (p) =>
+          p.domain.toLowerCase() === d || p.domain.toLowerCase().includes(d)
+      );
+    }
 
     return NextResponse.json({
       summary,
