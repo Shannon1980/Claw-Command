@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 import { getSortedAgents } from "@/lib/mock-chat";
+import { connectionString } from "@/lib/db/config";
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: { rejectUnauthorized: false },
 });
 
 export async function GET() {
   try {
-    if (process.env.DATABASE_URL) {
+    if (connectionString) {
       const result = await pool.query(
         "SELECT id, name, emoji, domain, status, current_task_id, updated_at FROM agents ORDER BY domain, name"
       );
