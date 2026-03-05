@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import FileAttachment from "./FileAttachment";
 
-interface AttachmentFile {
+export interface AttachmentFile {
   name: string;
   type: string;
   size: number;
