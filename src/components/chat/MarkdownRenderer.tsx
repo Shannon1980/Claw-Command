@@ -6,7 +6,7 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const renderMarkdown = (text: string): string => {
-    let html = text;
+    let html = text ?? "";
 
     // Code blocks (must come before inline code)
     html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
@@ -46,7 +46,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <div
       className="markdown-content prose prose-invert max-w-none"
-      dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+      dangerouslySetInnerHTML={{ __html: renderMarkdown(content ?? "") }}
       style={{
         wordBreak: 'break-word',
       }}

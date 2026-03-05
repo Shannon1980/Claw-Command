@@ -51,7 +51,8 @@ const statusConfig: Record<
 };
 
 export default function CertCard({ certification, onEdit }: CertCardProps) {
-  const config = statusConfig[certification.status];
+  const config =
+    statusConfig[certification.status as CertStatus] ?? statusConfig.NOT_STARTED;
   const completedDocs = certification.documents.filter((d) => d.completed).length;
   const totalDocs = certification.documents.length;
   const progressPercent = totalDocs > 0 ? (completedDocs / totalDocs) * 100 : 0;

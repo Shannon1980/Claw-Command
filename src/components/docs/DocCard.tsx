@@ -83,8 +83,12 @@ function getRelativeTime(dateString: string): string {
 }
 
 export default function DocCard({ document, onClick }: DocCardProps) {
-  const statusCfg = statusConfig[document.status] ?? statusConfig.draft;
-  const typeCfg = typeConfig[document.type] ?? typeConfig.report;
+  const statusCfg =
+    (document.status && statusConfig[document.status as DocumentStatus]) ??
+    statusConfig.draft;
+  const typeCfg =
+    (document.type && typeConfig[document.type as DocumentType]) ??
+    typeConfig.report;
 
   return (
     <div

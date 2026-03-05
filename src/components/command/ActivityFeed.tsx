@@ -80,7 +80,9 @@ export default function ActivityFeed() {
   };
 
   const formatEventType = (eventType: string) => {
-    return eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return (eventType ?? "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   // Get unique agents and event types for filters
