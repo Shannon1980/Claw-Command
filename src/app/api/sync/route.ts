@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listSessions, isGatewayOnline } from "@/lib/openclaw/client";
 import { mapSessionsToAgentStatus, mapSessionsToActivities } from "@/lib/openclaw/mappers";
+import { syncTasksFromSessions } from "@/lib/tasks/sync";
 import type { SyncResult } from "@/lib/openclaw/types";
 
 export async function POST() {
@@ -27,17 +28,19 @@ export async function POST() {
     const agentUpdates = mapSessionsToAgentStatus(sessions);
     const activities = mapSessionsToActivities(sessions);
 
-    // TODO: Upsert to database when DB is connected
-    // For now, return the mapped data
+    // Sync tasks to DB (upserts agents + tasks)
+    const taskSyncResult = await syncTasksFromSessions(sessions);
+
     console.log(
-      `[Sync] ${agentUpdates.length} agent updates, ${activities.length} activities from ${sessions.length} sessions`
+      `[Sync] ${agentUpdates.length} agent updates, ${activities.length} activities, ${taskSyncResult.tasksSynced} tasks synced from ${sessions.length} sessions`
     );
 
     const result: SyncResult = {
       agentsUpdated: agentUpdates.length,
-      tasksSynced: 0, // TODO: implement task sync
+      tasksSynced: taskSyncResult.tasksSynced,
       activitiesCreated: activities.length,
       timestamp,
+      ...(taskSyncResult.error && { taskSyncError: taskSyncResult.error }),
     };
 
     return NextResponse.json(result);
