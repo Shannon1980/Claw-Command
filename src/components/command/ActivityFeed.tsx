@@ -62,6 +62,12 @@ export default function ActivityFeed({ fillHeight }: ActivityFeedProps) {
       .catch(() => {});
   }, [fetchActivities]);
 
+  // Polling fallback: refetch every 10s so feed updates even when SSE doesn't push
+  useEffect(() => {
+    const interval = setInterval(fetchActivities, 10_000);
+    return () => clearInterval(interval);
+  }, [fetchActivities]);
+
   // Real-time SSE stream
   useEffect(() => {
     const es = new EventSource('/api/activities/stream', {
