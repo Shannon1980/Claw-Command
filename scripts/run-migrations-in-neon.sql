@@ -106,3 +106,15 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chat_agent ON chat_messages(agent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_status ON chat_messages(status);
+
+-- 4. Activities archive (7-day retention)
+CREATE TABLE IF NOT EXISTS activities_archive (
+  id TEXT PRIMARY KEY,
+  actor_agent_id TEXT,
+  event_type TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  archived_at TEXT NOT NULL DEFAULT NOW()::text
+);

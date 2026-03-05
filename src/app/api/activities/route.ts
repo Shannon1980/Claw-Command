@@ -24,7 +24,27 @@ export async function GET(request: NextRequest) {
       [limit]
     );
 
-    return NextResponse.json(result.rows);
+    // Transform for ActivityFeed: agent_name, agent_emoji, description, timestamp
+    const rows = result.rows.map((row: Record<string, unknown>) => {
+      let description = (row.event_type as string)?.replace(/_/g, " ") ?? "";
+      try {
+        const d = JSON.parse((row.details as string) || "{}");
+        if (d?.message) description = d.message;
+      } catch {
+        /* ignore */
+      }
+      return {
+        id: row.id,
+        agent_name: row.actor_name || "System",
+        agent_emoji: row.actor_emoji || "⚙️",
+        event_type: row.event_type,
+        description,
+        timestamp: row.created_at,
+        metadata: {},
+      };
+    });
+
+    return NextResponse.json(rows);
   } catch (error) {
     console.error("[Activities API] Error:", error);
     return NextResponse.json([], { status: 500 });

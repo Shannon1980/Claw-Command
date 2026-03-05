@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface Activity {
   id: string;
@@ -9,7 +9,7 @@ interface Activity {
   event_type: string;
   description: string;
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 const eventTypeColors: Record<string, string> = {
@@ -17,6 +17,7 @@ const eventTypeColors: Record<string, string> = {
   task_completed: 'text-green-400',
   approval_requested: 'text-amber-400',
   alert_created: 'text-red-400',
+  alert_fired: 'text-red-400',
   opportunity_added: 'text-purple-400',
   document_generated: 'text-cyan-400',
   research_completed: 'text-indigo-400',
@@ -29,30 +30,12 @@ export default function ActivityFeed() {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [selectedEventType, setSelectedEventType] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLive, setIsLive] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchActivities();
-  }, []);
-
-  useEffect(() => {
-    // Filter activities when filters change
-    let filtered = [...activities];
-    
-    if (selectedAgent) {
-      filtered = filtered.filter(a => a.agent_name === selectedAgent);
-    }
-    
-    if (selectedEventType) {
-      filtered = filtered.filter(a => a.event_type === selectedEventType);
-    }
-    
-    setFilteredActivities(filtered);
-  }, [activities, selectedAgent, selectedEventType]);
-
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
-      const response = await fetch('/api/activities?limit=50');
+      const response = await fetch('/api/activities?limit=100');
       const data = await response.json();
       setActivities(data);
       setFilteredActivities(data);
@@ -61,7 +44,71 @@ export default function ActivityFeed() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
+
+  // Trigger sync on mount to pull latest from OpenClaw
+  useEffect(() => {
+    fetch('/api/activities/sync', { method: 'POST' })
+      .then(() => fetchActivities())
+      .catch(() => {});
+  }, [fetchActivities]);
+
+  // Real-time SSE stream
+  useEffect(() => {
+    const es = new EventSource('/api/activities/stream', {
+      withCredentials: true,
+    });
+
+    es.addEventListener('connected', () => setIsLive(true));
+    es.addEventListener('error', () => setIsLive(false));
+
+    es.addEventListener('new_activity', (e) => {
+      try {
+        const { activities: newItems } = JSON.parse(e.data) as {
+          activities: Activity[];
+        };
+        if (newItems?.length) {
+          setActivities((prev) => {
+            const seen = new Set(prev.map((a) => a.id));
+            const merged = [
+              ...newItems.filter((a) => !seen.has(a.id)),
+              ...prev,
+            ].slice(0, 200);
+            return merged;
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    });
+
+    es.addEventListener('archived', () => {
+      fetchActivities();
+    });
+
+    return () => {
+      es.close();
+    };
+  }, [fetchActivities]);
+
+  useEffect(() => {
+    // Filter activities when filters change
+    let filtered = [...activities];
+
+    if (selectedAgent) {
+      filtered = filtered.filter((a) => a.agent_name === selectedAgent);
+    }
+
+    if (selectedEventType) {
+      filtered = filtered.filter((a) => a.event_type === selectedEventType);
+    }
+
+    setFilteredActivities(filtered);
+  }, [activities, selectedAgent, selectedEventType]);
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -108,6 +155,12 @@ export default function ActivityFeed() {
             <span className="px-2 py-1 bg-gray-800 text-gray-300 text-sm rounded-full">
               {filteredActivities.length}
             </span>
+            {isLive && (
+              <span className="flex items-center gap-1.5 text-xs text-green-400">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                Live
+              </span>
+            )}
           </div>
         </div>
 
