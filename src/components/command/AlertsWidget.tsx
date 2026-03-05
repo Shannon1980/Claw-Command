@@ -155,7 +155,7 @@ export default function AlertsWidget() {
                     <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
                       <span className="flex items-center gap-1">
                         <span className="text-gray-500">Type:</span>
-                        {alert.trigger_type.replace(/_/g, ' ')}
+                        {(alert.trigger_type ?? "").replace(/_/g, " ")}
                       </span>
                       <span className="text-gray-600">•</span>
                       <span className={`font-medium ${
