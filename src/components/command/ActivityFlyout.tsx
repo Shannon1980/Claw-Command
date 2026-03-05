@@ -40,7 +40,7 @@ export default function ActivityFlyout({ badgeCount }: ActivityFlyoutProps) {
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 z-[100] backdrop-blur-sm"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
@@ -48,7 +48,7 @@ export default function ActivityFlyout({ badgeCount }: ActivityFlyoutProps) {
 
       {/* Flyout panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-gray-950 border-l border-gray-800 shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-gray-950 border-l border-gray-800 shadow-2xl z-[101] transform transition-transform duration-300 ease-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
         aria-modal="true"
