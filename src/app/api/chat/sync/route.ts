@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { chatMessages } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
   try {
@@ -28,7 +27,7 @@ export async function POST(request: Request) {
 
     // Insert agent reply
     await db.insert(chatMessages).values({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       agentId,
       sender: 'agent',
       content,

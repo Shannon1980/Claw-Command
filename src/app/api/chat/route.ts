@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { chatMessages, activities } from '@/lib/db/schema';
-import { v4 as uuidv4 } from 'uuid';
+// Removed uuid import
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const messageId = uuidv4();
+    const messageId = crypto.randomUUID();
 
     await db.insert(chatMessages).values({
       id: messageId,
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     // Log the activity
     await db.insert(activities).values({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       eventType: 'message_sent',
       resourceType: 'chat',
       resourceId: messageId,
