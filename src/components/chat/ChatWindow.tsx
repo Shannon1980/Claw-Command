@@ -1,24 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import RichInput from "./RichInput";
-
-interface AttachmentFile {
-  name: string;
-  type: string;
-  size: number;
-}
-
-interface Message {
-  id: string;
-  agentId: string;
-  sender: "shannon" | "agent";
-  message: string;
-  timestamp: string;
-  hasAttachments?: boolean;
-  attachments?: AttachmentFile[];
-}
+import { useChat, AttachmentFile } from "@/lib/hooks/useChat";
 
 interface ChatWindowProps {
   agentId: string;
@@ -27,88 +12,19 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindowProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+  const { messages, loading, sendMessage } = useChat(agentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    loadMessages();
-  }, [agentId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const loadMessages = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/chat/${agentId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data.messages || []);
-      }
-    } catch (error) {
-      console.error("Failed to load messages:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSend = async (message: string, attachments: AttachmentFile[]) => {
-    setSending(true);
-    const tempId = `temp_${Date.now()}`;
-
-    // Optimistic update
-    const tempMessage: Message = {
-      id: tempId,
-      agentId,
-      sender: "shannon",
-      message,
-      timestamp: new Date().toISOString(),
-      hasAttachments: attachments.length > 0,
-      attachments,
-    };
-    setMessages((prev) => [...prev, tempMessage]);
-
-    try {
-      const response = await fetch("/api/chat/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId,
-          message,
-          attachments,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setLastMessageId(data.id);
-
-        // Update temp message with real ID
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === tempId ? { ...msg, id: data.id } : msg
-          )
-        );
-      } else {
-        // Remove temp message on failure
-        setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
-        alert("Failed to send message");
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
-      alert("Failed to send message");
-    } finally {
-      setSending(false);
-    }
+  const handleSend = (message: string, attachments: AttachmentFile[]) => {
+    sendMessage(message, attachments);
   };
 
   const formatTimestamp = (timestamp: string): string => {
@@ -128,7 +44,7 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
     });
   };
 
-  if (loading) {
+  if (loading && messages.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-gray-400">Loading messages...</div>
@@ -161,7 +77,7 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
                 msg.sender === "shannon"
                   ? "bg-blue-600 text-white"
                   : "bg-gray-800 text-gray-100"
-              } rounded-lg px-4 py-3 shadow-lg`}
+              } rounded-lg px-4 py-3 shadow-lg relative group`}
             >
               {/* Agent header for agent messages */}
               {msg.sender === "agent" && (
@@ -172,7 +88,7 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
               )}
 
               {/* Message content */}
-              <div className="prose prose-invert prose-sm max-w-none">
+              <div className="prose prose-invert prose-sm max-w-none break-words">
                 <MarkdownRenderer content={msg.message} />
               </div>
 
@@ -188,14 +104,25 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
                 </div>
               )}
 
-              {/* Timestamp */}
-              <div className="mt-2 text-xs opacity-70">
-                {formatTimestamp(msg.timestamp)}
-                {msg.sender === "shannon" && msg.id === lastMessageId && (
-                  <span className="ml-2">✓</span>
-                )}
-                {msg.sender === "shannon" && sending && msg.id.startsWith("temp_") && (
-                  <span className="ml-2 italic">Sending...</span>
+              {/* Timestamp and Status */}
+              <div className="mt-2 text-xs opacity-70 flex items-center justify-end gap-1">
+                <span>{formatTimestamp(msg.timestamp)}</span>
+                
+                {msg.sender === "shannon" && (
+                  <span className="ml-1 font-bold">
+                    {msg.status === "sending" && "..."}
+                    {msg.status === "sent" && "✓"}
+                    {msg.status === "read" && "✓✓"}
+                    {msg.status === "failed" && (
+                      <button 
+                        onClick={() => handleSend(msg.message, msg.attachments || [])}
+                        className="text-red-300 hover:text-red-100 underline ml-1"
+                        title="Retry"
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </span>
                 )}
               </div>
             </div>
@@ -208,7 +135,7 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
       <div className="px-6 py-4 border-t border-gray-800 bg-gray-900/50">
         <RichInput
           onSend={handleSend}
-          disabled={sending}
+          disabled={false}
           placeholder={`Message ${agentName}...`}
         />
       </div>

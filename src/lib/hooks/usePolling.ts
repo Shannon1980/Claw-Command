@@ -15,7 +15,7 @@ interface UsePollingResult<T> {
   refresh: () => Promise<void>;
 }
 
-export function usePolling<T = any>({
+export function usePolling<T = unknown>({
   url,
   interval = 15000,
   enabled = true,
@@ -29,18 +29,12 @@ export function usePolling<T = any>({
   const isFetchingRef = useRef<boolean>(false);
 
   const fetchData = useCallback(async () => {
-    // Skip if already fetching (deduplicate)
-    if (isFetchingRef.current) {
-      return;
-    }
-
+    if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
-    // Cancel any existing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -49,19 +43,14 @@ export function usePolling<T = any>({
         signal: controller.signal,
         cache: "no-store",
       });
-
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-
       const json = await response.json();
       setData(json);
       setError(null);
     } catch (err) {
-      // Ignore abort errors
-      if (err instanceof Error && err.name === "AbortError") {
-        return;
-      }
+      if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
@@ -69,40 +58,21 @@ export function usePolling<T = any>({
     }
   }, [url]);
 
-  // Initial fetch + polling loop
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
-    // Immediate fetch
+    if (!enabled) return;
     fetchData();
-
-    // Set up polling interval
     const poll = () => {
       timeoutRef.current = setTimeout(() => {
         fetchData().then(poll);
       }, interval);
     };
-
     poll();
-
-    // Cleanup on unmount or when dependencies change
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       isFetchingRef.current = false;
     };
   }, [url, interval, enabled, fetchData]);
 
-  return {
-    data,
-    loading,
-    error,
-    refresh: fetchData,
-  };
+  return { data, loading, error, refresh: fetchData };
 }

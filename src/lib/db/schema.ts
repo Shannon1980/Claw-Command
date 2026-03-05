@@ -108,3 +108,15 @@ export const alerts = pgTable("alerts", {
   dismissedAt: text("dismissed_at"), // null = active
   createdAt: text("created_at").notNull(),
 });
+
+// ─── CHAT MESSAGES ──────────────────────────────────────────────────────────
+
+export const chatMessages = pgTable("chat_messages", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id").notNull(),
+  sender: text("sender").notNull(), // 'user' | 'agent'
+  content: text("content").notNull(),
+  status: text("status").default("sent"), // sent | delivered | read
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});

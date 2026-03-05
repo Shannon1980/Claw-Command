@@ -1,23 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { chatMessages, activities } from '@/lib/db/schema';
+import { v4 as uuidv4 } from 'uuid';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { agentId, message } = body;
+    const { agentId, content } = await request.json();
 
-    // TODO: Integrate with OpenClaw to route messages to actual agents
-    // For now, return an echo response
-    return NextResponse.json({
-      id: Date.now().toString(),
+    if (!agentId || !content) {
+      return NextResponse.json(
+        { error: 'agentId and content are required' },
+        { status: 400 }
+      );
+    }
+
+    const messageId = uuidv4();
+
+    await db.insert(chatMessages).values({
+      id: messageId,
       agentId,
-      sender: "agent",
-      content: `[Echo from ${agentId}] Received: ${message}`,
-      timestamp: new Date().toISOString(),
+      sender: 'user',
+      content,
+      status: 'sent',
     });
+
+    // Log the activity
+    await db.insert(activities).values({
+      id: uuidv4(),
+      eventType: 'message_sent',
+      resourceType: 'chat',
+      resourceId: messageId,
+      details: JSON.stringify({ agentId, content }),
+      createdAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ success: true, messageId });
   } catch (error) {
-    console.error("[Chat API] Error:", error);
+    console.error('Error sending message:', error);
     return NextResponse.json(
-      { error: "Failed to send message" },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }
