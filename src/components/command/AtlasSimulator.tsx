@@ -28,9 +28,8 @@ export default function AtlasSimulator() {
           status: next >= 100 ? 'completed' : 'running',
           progress: next,
           updatedAt: new Date().toISOString(),
-          message: next >= 100 ? 'Atlas simulation complete' : \`Atlas building Phase 2... \${next}%\`
+          message: next >= 100 ? 'Atlas simulation complete' : `Atlas building Phase 2... ${next}%`,
         });
-        
         if (next >= 100) {
           clearInterval(timer);
           setRunning(false);
@@ -55,7 +54,7 @@ export default function AtlasSimulator() {
       <div className="flex items-center gap-4">
         {percent > 0 && percent < 100 && (
           <div className="w-32 bg-gray-900 rounded-full h-2 overflow-hidden border border-gray-800">
-             <div className="bg-blue-500 h-full transition-all duration-300" style={{width: \`\${percent}%\`}} />
+             <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${percent}%` }} />
           </div>
         )}
         
