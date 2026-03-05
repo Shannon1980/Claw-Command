@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface DependencyTask {
-  id: string;
-  title: string;
-  agent_name: string;
-  agent_emoji: string;
-  status: string;
-  due_date: string;
-}
+import { useState } from "react";
+import { useTasks } from "@/lib/hooks/useTasks";
 
 function getUrgency(dueDate: string): { class: string; label: string } {
   const now = new Date();
@@ -38,30 +30,10 @@ function formatDate(dateStr: string): string {
 }
 
 export default function DependenciesPanel() {
-  const [tasks, setTasks] = useState<DependencyTask[]>([]);
+  const { tasks, loading } = useTasks(true);
   const [actioned, setActioned] = useState<
     Record<string, "approved" | "rejected">
   >({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchTasks() {
-      try {
-        const res = await fetch("/api/tasks?depends_on_shannon=true");
-        if (res.ok) {
-          const data = await res.json();
-          setTasks(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch tasks:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchTasks();
-    const interval = setInterval(fetchTasks, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleAction = async (
     taskId: string,
