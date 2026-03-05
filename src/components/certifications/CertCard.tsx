@@ -5,6 +5,7 @@ import CertCountdown from "./CertCountdown";
 
 interface CertCardProps {
   certification: Certification;
+  onEdit?: () => void;
 }
 
 const statusConfig: Record<
@@ -49,14 +50,27 @@ const statusConfig: Record<
   },
 };
 
-export default function CertCard({ certification }: CertCardProps) {
+export default function CertCard({ certification, onEdit }: CertCardProps) {
   const config = statusConfig[certification.status];
   const completedDocs = certification.documents.filter((d) => d.completed).length;
   const totalDocs = certification.documents.length;
-  const progressPercent = (completedDocs / totalDocs) * 100;
+  const progressPercent = totalDocs > 0 ? (completedDocs / totalDocs) * 100 : 0;
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 hover:border-gray-700 transition-colors">
+    <div
+      role={onEdit ? "button" : undefined}
+      tabIndex={onEdit ? 0 : undefined}
+      onClick={onEdit}
+      onKeyDown={(e) => {
+        if (onEdit && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onEdit();
+        }
+      }}
+      className={`bg-gray-900 border border-gray-800 rounded-lg p-4 transition-colors ${
+        onEdit ? "hover:border-cyan-500/50 cursor-pointer" : "hover:border-gray-700"
+      }`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
@@ -67,11 +81,16 @@ export default function CertCard({ certification }: CertCardProps) {
             {certification.level} / {certification.authority}
           </p>
         </div>
-        <span
+        <div className="flex items-center gap-2">
+          {onEdit && (
+            <span className="text-xs text-gray-500">Click to edit</span>
+          )}
+          <span
           className={`${config.bg} ${config.border} ${config.color} border px-2 py-1 rounded text-xs font-medium`}
         >
           {config.label}
         </span>
+        </div>
       </div>
 
       {/* Description */}
@@ -123,6 +142,16 @@ export default function CertCard({ certification }: CertCardProps) {
           ))}
         </div>
       </div>
+
+      {/* Notes preview */}
+      {certification.notes && (
+        <div className="mb-3 p-2 bg-gray-800/50 rounded border border-gray-700/50">
+          <div className="text-xs text-gray-500 mb-1 font-medium">Notes</div>
+          <p className="text-xs text-gray-400 line-clamp-2">
+            {certification.notes}
+          </p>
+        </div>
+      )}
 
       {/* Key Dates */}
       {(certification.appliedDate ||

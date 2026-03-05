@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Document, DocumentType, DocumentStatus } from "@/lib/mock-docs";
+import {
+  Document,
+  DocumentType,
+  DocumentStatus,
+  mockDocuments,
+} from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -11,6 +16,7 @@ type ViewMode = "grid" | "list";
 export default function DocsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocs, setFilteredDocs] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
@@ -21,13 +27,20 @@ export default function DocsPage() {
 
   // Fetch documents
   useEffect(() => {
+    setLoading(true);
     fetch("/api/docs")
       .then((res) => res.json())
       .then((data) => {
         const docs = Array.isArray(data) ? data : data?.docs ?? [];
-        setDocuments(docs);
-        setFilteredDocs(docs);
-      });
+        setDocuments(docs.length > 0 ? docs : mockDocuments);
+        setFilteredDocs(docs.length > 0 ? docs : mockDocuments);
+      })
+      .catch((err) => {
+        console.error("Failed to load documents:", err);
+        setDocuments(mockDocuments);
+        setFilteredDocs(mockDocuments);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   // Apply filters
@@ -179,26 +192,29 @@ export default function DocsPage() {
         </div>
 
         {/* Document Grid/List */}
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-              : "space-y-3"
-          }
-        >
-          {filteredDocs.map((doc) => (
-            <DocCard
-              key={doc.id}
-              document={doc}
-              onClick={() => setSelectedDoc(doc)}
-            />
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredDocs.length === 0 && (
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-sm">Loading documents...</p>
+          </div>
+        ) : filteredDocs.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-sm">No documents found</p>
+          </div>
+        ) : (
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+                : "space-y-3"
+            }
+          >
+            {filteredDocs.map((doc) => (
+              <DocCard
+                key={doc.id}
+                document={doc}
+                onClick={() => setSelectedDoc(doc)}
+              />
+            ))}
           </div>
         )}
       </div>
