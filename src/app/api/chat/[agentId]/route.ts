@@ -8,7 +8,18 @@ export async function GET(
   try {
     const { agentId } = await context.params;
     const history = getAgentChatHistory(agentId);
-    return NextResponse.json(history);
+    // Transform to ChatWindow format: content→message, user→shannon
+    const messages = history.map((msg) => ({
+      id: msg.id,
+      agentId: msg.agentId,
+      sender: msg.sender === "user" ? "shannon" : "agent",
+      message: msg.content,
+      timestamp:
+        msg.timestamp instanceof Date
+          ? msg.timestamp.toISOString()
+          : String(msg.timestamp),
+    }));
+    return NextResponse.json({ messages });
   } catch (error) {
     console.error("[Chat History API] Error:", error);
     return NextResponse.json(

@@ -10,6 +10,15 @@ interface Agent {
   role: string;
 }
 
+function toChatAgent(row: { id: string; name: string; emoji: string; domain?: string }): Agent {
+  return {
+    id: row.id,
+    name: row.name,
+    emoji: row.emoji,
+    role: row.domain || "agent",
+  };
+}
+
 export default function ChatPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -25,10 +34,12 @@ export default function ChatPage() {
       const response = await fetch("/api/agents");
       if (response.ok) {
         const data = await response.json();
-        setAgents(data.agents || []);
-        // Auto-select first agent if available
-        if (data.agents && data.agents.length > 0) {
-          setSelectedAgent(data.agents[0]);
+        // API returns array directly, not { agents: [...] }
+        const rows = Array.isArray(data) ? data : (data?.agents ?? []);
+        const list = rows.map(toChatAgent);
+        setAgents(list);
+        if (list.length > 0) {
+          setSelectedAgent(list[0]);
         }
       }
     } catch (error) {
