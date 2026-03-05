@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAgentChatHistory } from "@/lib/mock-chat";
+import { db } from "@/lib/db";
+import { chatMessages } from "@/lib/db/schema";
+import { eq, asc } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { agentId: string } }
+  context: { params: Promise<{ agentId: string }> }
 ) {
   try {
-    const agentId = params.agentId;
-    const history = getAgentChatHistory(agentId);
-    return NextResponse.json(history);
+    const { agentId } = await context.params;
+
+    const messages = await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.agentId, agentId))
+      .orderBy(asc(chatMessages.createdAt));
+
+    return NextResponse.json(messages);
   } catch (error) {
     console.error("[Chat History API] Error:", error);
     return NextResponse.json(
