@@ -24,9 +24,10 @@ export default function DocsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Fetch documents
-  useEffect(() => {
+  const fetchDocuments = () => {
     setLoading(true);
     fetch("/api/docs")
       .then((res) => res.json())
@@ -41,7 +42,30 @@ export default function DocsPage() {
         setFilteredDocs(mockDocuments);
       })
       .finally(() => setLoading(false));
+  };
+
+  // Fetch documents
+  useEffect(() => {
+    fetchDocuments();
   }, []);
+
+  const handleRefresh = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const res = await fetch("/api/sync/docs/trigger", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setSyncError(data.error || "Sync failed");
+        return;
+      }
+      fetchDocuments();
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Apply filters
   useEffect(() => {
@@ -107,13 +131,28 @@ export default function DocsPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded text-sm font-medium hover:bg-cyan-500/30 transition-colors"
-          >
-            + New Document
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={syncing}
+              className="px-4 py-2 bg-gray-800 text-gray-300 border border-gray-700 rounded text-sm font-medium hover:bg-gray-700 hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {syncing ? "Syncing..." : "Refresh"}
+            </button>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded text-sm font-medium hover:bg-cyan-500/30 transition-colors"
+            >
+              + New Document
+            </button>
+          </div>
         </div>
+
+        {syncError && (
+          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded text-sm text-amber-400">
+            {syncError}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex items-center gap-3 mb-6 flex-wrap">

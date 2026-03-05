@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { mockDocuments } from "@/lib/mock-docs";
+import { connectionString } from "@/lib/db/config";
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: { rejectUnauthorized: false },
 });
 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search");
 
   try {
-    if (process.env.DATABASE_URL) {
+    if (connectionString) {
       let query = `
         SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, 
                d.status, d.file_path, d.created_at, d.updated_at,

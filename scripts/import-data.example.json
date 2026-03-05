@@ -1,0 +1,40 @@
+{
+  "_comment": "Copy to import-data.json, fill with your real data, then run: curl -X POST -H 'Content-Type: application/json' -d @import-data.json https://your-app.vercel.app/api/import",
+  "agents": [
+    {
+      "id": "shannon",
+      "name": "Shannon",
+      "emoji": "👤",
+      "domain": "vorentoe",
+      "status": "active"
+    },
+    {
+      "id": "agent-1",
+      "name": "Your Agent Name",
+      "emoji": "📋",
+      "domain": "vorentoe",
+      "status": "idle"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "title": "Real task from your workflow",
+      "assignedToAgentId": "shannon",
+      "dependsOnShannon": true,
+      "status": "in_progress",
+      "dueDate": "2026-03-15"
+    }
+  ],
+  "opportunities": [
+    {
+      "id": "opp-1",
+      "title": "Real opportunity name",
+      "stage": "qualify",
+      "valueUsd": 500000,
+      "probability": 40,
+      "ownerAgentId": "shannon",
+      "shannonApproval": null
+    }
+  ]
+}
