@@ -21,6 +21,20 @@ export function isConfigured(): boolean {
 
 // ─── Gateway RPC helpers ────────────────────────────────────────────────────
 
+export async function isGatewayOnline(): Promise<boolean> {
+  try {
+    const res = await fetch(getBaseUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", method: "node.list", id: Date.now() }),
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function rpc<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
   const base = getBaseUrl();
   try {
