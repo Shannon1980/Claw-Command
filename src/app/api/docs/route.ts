@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY d.updated_at DESC";
 
     const result = await pool.query(query, params);
-    return NextResponse.json(result.rows);
+    return NextResponse.json({ docs: result.rows, total: result.rows.length });
   } catch (error) {
     console.error("[Docs API] Error:", error);
     return NextResponse.json([], { status: 500 });
