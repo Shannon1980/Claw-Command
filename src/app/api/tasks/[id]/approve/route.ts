@@ -8,9 +8,9 @@ const pool = new Pool({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id } = await context.params;
 
   try {
     // Update task: set status to in_progress, clear depends_on_shannon flag

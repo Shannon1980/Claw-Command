@@ -3,10 +3,10 @@ import { getAgentChatHistory } from "@/lib/mock-chat";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  context: { params: Promise<{ agentId: string }> }
 ) {
   try {
-    const { agentId } = await params;
+    const { agentId } = await context.params;
     const history = getAgentChatHistory(agentId);
     return NextResponse.json(history);
   } catch (error) {
