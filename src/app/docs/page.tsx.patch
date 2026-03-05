@@ -1,0 +1,11 @@
+--- Claw-Command/src/app/docs/page.tsx
++++ Claw-Command/src/app/docs/page.tsx
+@@ -75,7 +75,7 @@
+         <div className="flex items-center justify-between mb-6">
+           <div>
+             <h1 className="text-lg font-bold text-gray-100">Documents</h1>
+             <p className="text-xs text-gray-500 font-mono">
+-              {filteredDocs.length} document{filteredDocs.length !== 1 ? "s" : ""}
++              {filteredDocs?.length || 0} document{filteredDocs?.length !== 1 ? "s" : ""}
+             </p>
+           </div>
