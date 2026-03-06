@@ -70,6 +70,10 @@ export async function PATCH(
       updates.push(`depends_on_shannon = $${paramIndex++}`);
       values.push(body.depends_on_shannon);
     }
+    if (body.assigned_to_agent_id !== undefined) {
+      updates.push(`assigned_to_agent_id = $${paramIndex++}`);
+      values.push(body.assigned_to_agent_id);
+    }
 
     if (updates.length === 0) {
       return NextResponse.json(
