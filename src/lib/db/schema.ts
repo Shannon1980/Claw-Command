@@ -151,6 +151,60 @@ export const emailActions = pgTable("email_actions", {
   createdAt: text("created_at").notNull(),
 });
 
+// ─── MISSION CONTROL (MC Shell) ──────────────────────────────────────────────
+
+export const mcOpportunities = pgTable("mc_opportunities", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  stage: text("stage").notNull().default("identify"),
+  valueUsd: integer("value_usd"),
+  probability: integer("probability"),
+  ownerAgentId: text("owner_agent_id"),
+  notes: text("notes"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const mcTeachingTasks = pgTable("mc_teaching_tasks", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  status: text("status").notNull().default("backlog"),
+  priority: text("priority"),
+  assignedToAgentId: text("assigned_to_agent_id"),
+  dueDate: text("due_date"),
+  notes: text("notes"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const mcBlockers = pgTable("mc_blockers", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  type: text("type").notNull().default("note"),
+  status: text("status").notNull().default("open"),
+  notes: text("notes"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const mcSchedule = pgTable("mc_schedule", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  start: text("start").notNull(),
+  end: text("end").notNull(),
+  agentId: text("agent_id"),
+  type: text("type"),
+  notes: text("notes"),
+});
+
+export const mcMemories = pgTable("mc_memories", {
+  id: text("id").primaryKey(),
+  content: text("content").notNull(),
+  source: text("source"),
+  tags: text("tags"), // JSON array
+  createdAt: text("created_at").notNull(),
+});
+
 // ─── CHAT MESSAGES ──────────────────────────────────────────────────────────
 
 export const chatMessages = pgTable("chat_messages", {

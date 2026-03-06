@@ -3,16 +3,24 @@ import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    })
+  : null;
 
 function generateTaskId(): string {
   return `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool || !connectionString) {
+    return NextResponse.json(
+      { error: "Database not configured. Set DATABASE_URL or POSTGRES_URL." },
+      { status: 503 }
+    );
+  }
   try {
     const body = await request.json();
     const title = (body.title as string)?.trim();
@@ -93,6 +101,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!pool || !connectionString) {
+    return NextResponse.json([], { status: 200 });
+  }
   const { searchParams } = new URL(request.url);
   const dependsOnShannon = searchParams.get("depends_on_shannon");
   const agent = searchParams.get("agent");
@@ -135,6 +146,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(rows);
   } catch (error) {
     console.error("[Tasks API] Error:", error);
-    return NextResponse.json([], { status: 500 });
+    return NextResponse.json([], { status: 200 });
   }
 }

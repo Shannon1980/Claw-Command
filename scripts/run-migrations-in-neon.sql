@@ -212,7 +212,60 @@ CREATE TABLE IF NOT EXISTS task_comments (
 
 CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
--- 10. Activities archive (7-day retention)
+-- 10. Mission Control (MC Shell) tables
+CREATE TABLE IF NOT EXISTS mc_opportunities (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  stage TEXT NOT NULL DEFAULT 'identify',
+  value_usd INTEGER,
+  probability INTEGER,
+  owner_agent_id TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mc_teaching_tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'backlog',
+  priority TEXT,
+  assigned_to_agent_id TEXT,
+  due_date TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mc_blockers (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'note',
+  status TEXT NOT NULL DEFAULT 'open',
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mc_schedule (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  start TEXT NOT NULL,
+  end TEXT NOT NULL,
+  agent_id TEXT,
+  type TEXT,
+  notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS mc_memories (
+  id TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  source TEXT,
+  tags TEXT,
+  created_at TEXT NOT NULL
+);
+
+-- 11. Activities archive (7-day retention)
 CREATE TABLE IF NOT EXISTS activities_archive (
   id TEXT PRIMARY KEY,
   actor_agent_id TEXT,

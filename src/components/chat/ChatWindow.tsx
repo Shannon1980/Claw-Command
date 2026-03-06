@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import RichInput from "./RichInput";
 import { useChat, AttachmentFile } from "@/lib/hooks/useChat";
+import { recall, remember } from "@/lib/mission-control/extensionBridge";
 
 interface ChatWindowProps {
   agentId: string;
@@ -14,6 +15,7 @@ interface ChatWindowProps {
 export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindowProps) {
   const { messages, loading, error, sendMessage } = useChat(agentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [mcResult, setMcResult] = useState<string | null>(null);
 
   useEffect(() => {
     scrollToBottom();
@@ -23,7 +25,35 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSend = (message: string, attachments: AttachmentFile[]) => {
+  const handleSend = async (message: string, attachments: AttachmentFile[]) => {
+    const trimmed = message.trim();
+    if (trimmed.startsWith("/recall ")) {
+      const query = trimmed.slice(8).trim();
+      setMcResult(null);
+      try {
+        const { results } = await recall(query);
+        const text = Array.isArray(results) && results.length > 0
+          ? (results as { content?: string }[]).map((r) => r.content ?? JSON.stringify(r)).join("\n\n")
+          : "No memories found.";
+        setMcResult(`**Recall:** ${query}\n\n${text}`);
+        setTimeout(() => setMcResult(null), 8000);
+      } catch (err) {
+        setMcResult(`Recall failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+      return;
+    }
+    if (trimmed.startsWith("/remember ")) {
+      const content = trimmed.slice(10).trim();
+      setMcResult(null);
+      try {
+        await remember(content, "chat");
+        setMcResult(`Remembered: "${content}"`);
+        setTimeout(() => setMcResult(null), 5000);
+      } catch (err) {
+        setMcResult(`Remember failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+      return;
+    }
     sendMessage(message, attachments);
   };
 
@@ -136,8 +166,27 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
         <div ref={messagesEndRef} />
       </div>
 
+      {/* MC Result */}
+      {mcResult && (
+        <div className="mx-6 mb-2 px-4 py-3 bg-gray-800/80 border border-gray-700 rounded-lg">
+          <div className="prose prose-invert prose-sm max-w-none">
+            <MarkdownRenderer content={mcResult} />
+          </div>
+          <button
+            onClick={() => setMcResult(null)}
+            className="mt-2 text-xs text-gray-500 hover:text-gray-300"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="px-6 py-4 border-t border-gray-800 bg-gray-900/50">
+        <p className="text-xs text-gray-500 mb-2">
+          MC commands: <kbd className="px-1.5 py-0.5 bg-gray-800 rounded">/recall &lt;query&gt;</kbd>{" "}
+          <kbd className="px-1.5 py-0.5 bg-gray-800 rounded">/remember &lt;text&gt;</kbd>
+        </p>
         <RichInput
           onSend={handleSend}
           disabled={false}
