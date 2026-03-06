@@ -201,7 +201,18 @@ CREATE TABLE IF NOT EXISTS calendar_events (
 CREATE INDEX IF NOT EXISTS idx_calendar_start ON calendar_events(start_time);
 CREATE INDEX IF NOT EXISTS idx_calendar_end ON calendar_events(end_time);
 
--- 8. Activities archive (7-day retention)
+-- 9. Task comments (Mission Control-style)
+CREATE TABLE IF NOT EXISTS task_comments (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  author TEXT NOT NULL DEFAULT 'shannon',
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+
+-- 10. Activities archive (7-day retention)
 CREATE TABLE IF NOT EXISTS activities_archive (
   id TEXT PRIMARY KEY,
   actor_agent_id TEXT,

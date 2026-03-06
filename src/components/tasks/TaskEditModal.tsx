@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Task } from "@/lib/hooks/useTasks";
 
 interface Agent {
   id: string;
   name: string;
   emoji: string;
+}
+
+interface TaskComment {
+  id: string;
+  task_id: string;
+  author: string;
+  content: string;
+  created_at: string;
 }
 
 interface TaskEditModalProps {
@@ -20,6 +28,7 @@ const STATUS_OPTIONS = [
   { value: "backlog", label: "Backlog" },
   { value: "ready", label: "Ready" },
   { value: "in_progress", label: "In Progress" },
+  { value: "review", label: "Review" },
   { value: "blocked", label: "Blocked" },
   { value: "done", label: "Done" },
 ];
@@ -49,6 +58,41 @@ export default function TaskEditModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [addingComment, setAddingComment] = useState(false);
+
+  useEffect(() => {
+    if (task?.id) {
+      fetch(`/api/tasks/${task.id}/comments`)
+        .then((res) => res.json())
+        .then((data) => setComments(Array.isArray(data) ? data : []))
+        .catch(() => setComments([]));
+    } else {
+      setComments([]);
+    }
+  }, [task?.id]);
+
+  const handleAddComment = async () => {
+    if (!task?.id || !newComment.trim()) return;
+    setAddingComment(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newComment.trim() }),
+      });
+      if (res.ok) {
+        const c = await res.json();
+        setComments((prev) => [...prev, c]);
+        setNewComment("");
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAddingComment(false);
+    }
+  };
 
   const handleSave = async () => {
     const trimmedTitle = title.trim();
@@ -217,6 +261,45 @@ export default function TaskEditModal({
               Needs my approval
             </label>
           </div>
+
+          {!isCreate && (
+            <div className="border-t border-gray-800 pt-4">
+              <label className="block text-xs font-medium text-gray-400 mb-2">
+                Comments
+              </label>
+              <div className="space-y-2 max-h-32 overflow-y-auto mb-2">
+                {comments.map((c) => (
+                  <div
+                    key={c.id}
+                    className="text-sm px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50"
+                  >
+                    <div className="text-xs text-gray-500 mb-1">
+                      {c.author} · {new Date(c.created_at).toLocaleString()}
+                    </div>
+                    <div className="text-gray-200 whitespace-pre-wrap">{c.content}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAddComment()}
+                  placeholder="Add a comment..."
+                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm placeholder-gray-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim() || addingComment}
+                  className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {error && (
