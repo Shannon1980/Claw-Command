@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
 
 const pool = new Pool({
   connectionString,
@@ -90,8 +91,12 @@ export async function GET(request: NextRequest) {
       conditions.push("t.depends_on_shannon = true");
     }
     if (agent) {
-      conditions.push(`t.assigned_to_agent_id = $${paramIndex++}`);
-      values.push(agent);
+      if (agent === "shannon") {
+        conditions.push("t.assigned_to_agent_id IS NULL");
+      } else {
+        conditions.push(`t.assigned_to_agent_id = $${paramIndex++}`);
+        values.push(agent);
+      }
     }
     if (conditions.length > 0) {
       query += " WHERE " + conditions.join(" AND ");
@@ -99,7 +104,12 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY t.due_date ASC NULLS LAST, t.updated_at DESC";
 
     const result = await pool.query(query, values);
-    return NextResponse.json(result.rows);
+    const rows = result.rows.map((row: Record<string, unknown>) => ({
+      ...row,
+      agent_name: row.agent_name ?? "Shannon",
+      agent_emoji: row.agent_emoji ?? "👤",
+    }));
+    return NextResponse.json(rows);
   } catch (error) {
     console.error("[Tasks API] Error:", error);
     return NextResponse.json([], { status: 500 });

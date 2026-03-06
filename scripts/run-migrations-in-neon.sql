@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS applications (
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
-  assigned_to_agent_id TEXT NOT NULL REFERENCES agents(id),
+  assigned_to_agent_id TEXT REFERENCES agents(id),
   depends_on_shannon BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'backlog',
   due_date TEXT,
@@ -49,14 +49,32 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at TEXT NOT NULL
 );
 
+-- Allow null for assigned_to_agent_id (null = assigned to Shannon/me)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'tasks'
+    AND column_name = 'assigned_to_agent_id' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE tasks ALTER COLUMN assigned_to_agent_id DROP NOT NULL;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS skyward_workstreams (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'on_track',
   owner_agent_id TEXT NOT NULL REFERENCES agents(id),
   key_dates TEXT NOT NULL DEFAULT '[]',
+  description TEXT DEFAULT '',
+  risk_factors TEXT DEFAULT '[]',
   updated_at TEXT NOT NULL
 );
+
+-- Add columns if table already exists (idempotent)
+ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS risk_factors TEXT DEFAULT '[]';
 
 CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
@@ -107,7 +125,45 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS idx_chat_agent ON chat_messages(agent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_status ON chat_messages(status);
 
--- 4. Activities archive (7-day retention)
+-- 5. Email automation (Option 3: API + worker)
+CREATE TABLE IF NOT EXISTS email_accounts (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  email TEXT NOT NULL,
+  access_token TEXT,
+  refresh_token TEXT,
+  token_expires_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS email_rules (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  actions TEXT NOT NULL DEFAULT '[]',
+  ai_prompt TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS email_actions (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+  rule_id TEXT REFERENCES email_rules(id) ON DELETE SET NULL,
+  message_id TEXT NOT NULL,
+  thread_id TEXT,
+  action TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  details TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_actions_account ON email_actions(account_id);
+CREATE INDEX IF NOT EXISTS idx_email_actions_created ON email_actions(created_at);
+
+-- 6. Activities archive (7-day retention)
 CREATE TABLE IF NOT EXISTS activities_archive (
   id TEXT PRIMARY KEY,
   actor_agent_id TEXT,

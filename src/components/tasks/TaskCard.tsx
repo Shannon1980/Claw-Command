@@ -29,7 +29,7 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
       </h4>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-xs text-gray-400">
-          {task.agent_emoji} {task.agent_name}
+          {task.agent_emoji ?? "👤"} {task.agent_name ?? "Shannon"}
         </span>
         {task.due_date && (
           <span className="text-[10px] text-gray-500 font-mono">

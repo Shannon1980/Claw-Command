@@ -5,7 +5,7 @@ import { usePolling } from "./usePolling";
 export interface Task {
   id: string;
   title: string;
-  assigned_to_agent_id: string;
+  assigned_to_agent_id: string | null;
   depends_on_shannon: boolean;
   status: string;
   due_date: string | null;
@@ -16,7 +16,7 @@ export interface Task {
   agent_domain?: string;
 }
 
-export type TaskFilter = "all" | "my_approvals" | { agent: string };
+export type TaskFilter = "all" | "my_approvals" | "my_tasks" | { agent: string };
 
 function buildTasksUrl(filter: TaskFilter): string {
   const params = new URLSearchParams();
@@ -24,6 +24,8 @@ function buildTasksUrl(filter: TaskFilter): string {
     params.set("all", "true");
   } else if (filter === "my_approvals") {
     params.set("depends_on_shannon", "true");
+  } else if (filter === "my_tasks") {
+    params.set("agent", "shannon");
   } else {
     params.set("agent", filter.agent);
   }

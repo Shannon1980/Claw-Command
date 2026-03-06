@@ -97,18 +97,17 @@ function KanbanColumn<T>({
 export function OpportunityKanban({
   stages,
   opportunities,
+  onStageChange,
 }: {
   stages: readonly string[];
   opportunities: Opportunity[];
+  onStageChange?: (id: string, stage: string) => void | Promise<boolean>;
 }) {
-  const [items, setItems] = useState(opportunities);
-
-  const handleDrop = (id: string, newStage: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, stage: newStage } : item
-      )
-    );
+  const handleDrop = async (id: string, newStage: string) => {
+    if (onStageChange) {
+      const ok = await onStageChange(id, newStage);
+      if (!ok) return;
+    }
   };
 
   return (
@@ -117,7 +116,7 @@ export function OpportunityKanban({
         <KanbanColumn
           key={stage}
           stage={stage}
-          items={items.filter((o) => o.stage === stage)}
+          items={opportunities.filter((o) => o.stage === stage)}
           renderCard={(opp) => <OpportunityCard opp={opp} />}
           getKey={(o) => o.id}
           getValue={(o) => o.valueUsd}
@@ -131,18 +130,17 @@ export function OpportunityKanban({
 export function ApplicationKanban({
   stages,
   applications,
+  onStageChange,
 }: {
   stages: readonly string[];
   applications: Application[];
+  onStageChange?: (id: string, stage: string) => void | Promise<boolean>;
 }) {
-  const [items, setItems] = useState(applications);
-
-  const handleDrop = (id: string, newStage: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, stage: newStage } : item
-      )
-    );
+  const handleDrop = async (id: string, newStage: string) => {
+    if (onStageChange) {
+      const ok = await onStageChange(id, newStage);
+      if (!ok) return;
+    }
   };
 
   return (
@@ -151,7 +149,7 @@ export function ApplicationKanban({
         <KanbanColumn
           key={stage}
           stage={stage}
-          items={items.filter((a) => a.stage === stage)}
+          items={applications.filter((a) => a.stage === stage)}
           renderCard={(app) => <ApplicationCard app={app} />}
           getKey={(a) => a.id}
           onDrop={handleDrop}

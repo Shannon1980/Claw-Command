@@ -46,23 +46,27 @@ export default function TasksPage() {
                   ? "all"
                   : filter === "my_approvals"
                     ? "my_approvals"
-                    : filter.agent
+                    : filter === "my_tasks"
+                      ? "my_tasks"
+                      : filter.agent
               }
               onChange={(e) => {
                 const v = e.target.value;
                 if (v === "all") setFilter("all");
                 else if (v === "my_approvals") setFilter("my_approvals");
+                else if (v === "my_tasks") setFilter("my_tasks");
                 else setFilter({ agent: v });
               }}
               className="px-3 py-1.5 text-sm bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All tasks</option>
               <option value="my_approvals">My approvals</option>
+              <option value="my_tasks">👤 My tasks</option>
               {agents?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.emoji} {a.name}
-                </option>
-              ))}
+                  <option key={a.id} value={a.id}>
+                    {a.emoji} {a.name}
+                  </option>
+                ))}
             </select>
             <button
               onClick={refresh}
