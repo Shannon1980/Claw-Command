@@ -39,3 +39,22 @@ Optional: Set `SYNC_SECRET_KEY` in Vercel env vars and include `syncKey` in payl
 - **idle**: No recent session activity
 - **blocked**: Manually set when a task is blocked
 - **waiting_for_shannon**: Set when a task requires Shannon's approval
+
+### Agent Context (Certifications, Tasks, Alerts)
+
+When tasks are pushed to OpenClaw, we include a `context_url` so agents can fetch live data:
+
+- **Endpoint:** `GET /api/agent-context?agentId=veronica&scope=all&format=text`
+- **Returns:** Certifications, active alerts, and tasks (filtered by agent).
+
+See [docs/AGENT_CONTEXT.md](docs/AGENT_CONTEXT.md) for full details.
+
+### Mission Control Compatibility
+
+Claw-Command exposes Mission Control–compatible APIs under `/api/mc/`:
+
+- **Task queue:** `GET /api/mc/tasks/queue?agent=veronica`
+- **Heartbeat:** `POST /api/mc/agents/veronica/heartbeat`
+- **Spawn:** `POST /api/mc/spawn`
+
+See [docs/MISSION_CONTROL.md](docs/MISSION_CONTROL.md) for full integration details.

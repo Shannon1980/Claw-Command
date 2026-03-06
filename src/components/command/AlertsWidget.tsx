@@ -49,9 +49,10 @@ export default function AlertsWidget() {
     try {
       const response = await fetch('/api/alerts?active=true');
       const data = await response.json();
+      const list = Array.isArray(data) ? data : [];
       
       // Sort by severity (critical first), then by due date
-      const sorted = data.sort((a: Alert, b: Alert) => {
+      const sorted = list.sort((a: Alert, b: Alert) => {
         const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
         if (severityDiff !== 0) return severityDiff;
         return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
@@ -80,6 +81,7 @@ export default function AlertsWidget() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "No due date";
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = date.getTime() - now.getTime();

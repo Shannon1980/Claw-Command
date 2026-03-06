@@ -130,9 +130,24 @@ export async function sendToSession(
 
 export type PushTaskResult = { ok: boolean; sessionId?: string; error?: string };
 
+/** Base URL for Claw Command (for context URL in task push) */
+function getClawCommandBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
+/**
+ * Build the agent context URL that OpenClaw can fetch for certifications, tasks, alerts.
+ */
+export function getAgentContextUrl(agentId: string, format: "text" | "json" = "text"): string {
+  const base = getClawCommandBaseUrl();
+  return `${base}/api/agent-context?agentId=${encodeURIComponent(agentId)}&scope=all&format=${format}`;
+}
+
 /**
  * Push a Claw Command task to OpenClaw so the agent can pick it up.
- * Tries sessions_spawn RPC; if unavailable, logs and returns { ok: false }.
+ * Includes context_url pointing to /api/agent-context so agents can fetch certifications, tasks, alerts.
  */
 export async function pushTaskToOpenClaw(params: {
   taskId: string;
@@ -151,6 +166,8 @@ export async function pushTaskToOpenClaw(params: {
       ? `${params.title} (due ${params.dueDate})`
       : params.title;
 
+    const contextUrl = getAgentContextUrl(params.agentId);
+
     const result = await rpc<{ session_id?: string; sessionId?: string }>(
       "sessions_spawn",
       {
@@ -158,6 +175,8 @@ export async function pushTaskToOpenClaw(params: {
         label,
         agent_id: params.agentId,
         agentId: params.agentId,
+        context_url: contextUrl,
+        contextUrl,
       }
     );
 

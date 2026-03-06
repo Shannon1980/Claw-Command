@@ -167,7 +167,41 @@ CREATE TABLE IF NOT EXISTS email_actions (
 CREATE INDEX IF NOT EXISTS idx_email_actions_account ON email_actions(account_id);
 CREATE INDEX IF NOT EXISTS idx_email_actions_created ON email_actions(created_at);
 
--- 6. Activities archive (7-day retention)
+-- 6. Certifications
+CREATE TABLE IF NOT EXISTS certifications (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  level TEXT NOT NULL DEFAULT 'Federal',
+  authority TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'NOT_STARTED',
+  due_date TEXT,
+  applied_date TEXT,
+  decision_expected TEXT,
+  expires_date TEXT,
+  description TEXT,
+  notes TEXT,
+  documents TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- 7. Calendar events
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  domain TEXT NOT NULL DEFAULT 'vorentoe',
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  protected BOOLEAN NOT NULL DEFAULT false,
+  description TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_start ON calendar_events(start_time);
+CREATE INDEX IF NOT EXISTS idx_calendar_end ON calendar_events(end_time);
+
+-- 8. Activities archive (7-day retention)
 CREATE TABLE IF NOT EXISTS activities_archive (
   id TEXT PRIMARY KEY,
   actor_agent_id TEXT,

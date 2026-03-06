@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
+import { connectionString } from "@/lib/db/config";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    })
+  : null;
 
 export async function GET(request: NextRequest) {
+  if (!pool || !connectionString) {
+    return NextResponse.json(
+      { docs: [], total: 0, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const docType = searchParams.get("type");
   const search = searchParams.get("search");
@@ -62,6 +72,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool || !connectionString) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
   try {
     const body = await request.json();
     const now = new Date().toISOString();
