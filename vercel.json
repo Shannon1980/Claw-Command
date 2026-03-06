@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/email/worker/run",
-      "schedule": "0 9 * * *"
+      "schedule": "0 */6 * * *"
     }
   ]
 }
