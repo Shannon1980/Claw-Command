@@ -4,8 +4,17 @@ import React, { useState } from "react";
 import { Workstream, WorkstreamStatus } from "@/lib/mock-workstreams";
 import MilestoneTimeline from "./MilestoneTimeline";
 
+interface WorkstreamTask {
+  id: string;
+  title: string;
+  status: string;
+  due_date: string | null;
+  agent_name: string;
+  agent_emoji: string;
+}
+
 interface WorkstreamCardProps {
-  workstream: Workstream;
+  workstream: Workstream & { tasks?: WorkstreamTask[] };
 }
 
 const statusConfig: Record<
@@ -37,13 +46,19 @@ const statusConfig: Record<
 
 export default function WorkstreamCard({ workstream }: WorkstreamCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const config = statusConfig[workstream.status];
+  const config =
+    statusConfig[workstream.status as WorkstreamStatus] ||
+    statusConfig.on_track;
 
-  const completedMilestones = workstream.milestones.filter(
+  const completedMilestones = (workstream.milestones || []).filter(
     (m) => m.completed
   ).length;
-  const totalMilestones = workstream.milestones.length;
-  const progress = Math.round((completedMilestones / totalMilestones) * 100);
+  const totalMilestones = (workstream.milestones || []).length;
+  const progress =
+    totalMilestones > 0
+      ? Math.round((completedMilestones / totalMilestones) * 100)
+      : 0;
+  const tasks = workstream.tasks || [];
 
   return (
     <div
@@ -59,9 +74,16 @@ export default function WorkstreamCard({ workstream }: WorkstreamCardProps) {
               <span className={`text-sm font-bold ${config.text}`}>
                 {config.icon} {config.label}
               </span>
-              <span className="text-xs text-gray-500">
-                {completedMilestones}/{totalMilestones} milestones
-              </span>
+              {totalMilestones > 0 && (
+                <span className="text-xs text-gray-500">
+                  {completedMilestones}/{totalMilestones} milestones
+                </span>
+              )}
+              {tasks.length > 0 && (
+                <span className="text-xs text-gray-500">
+                  {tasks.length} task{tasks.length !== 1 ? "s" : ""}
+                </span>
+              )}
             </div>
             <h3 className="text-lg font-semibold text-gray-100 mb-1">
               {workstream.name}
@@ -91,12 +113,37 @@ export default function WorkstreamCard({ workstream }: WorkstreamCardProps) {
 
       {isExpanded && (
         <div className="px-6 pb-6 space-y-4">
-          <div>
-            <h4 className="text-sm font-medium text-gray-300 mb-3">
-              Timeline
-            </h4>
-            <MilestoneTimeline milestones={workstream.milestones} />
-          </div>
+          {tasks.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-300 mb-3">
+                Tasks
+              </h4>
+              <ul className="space-y-2">
+                {tasks.map((t) => (
+                  <li
+                    key={t.id}
+                    className="text-sm text-gray-200 flex items-center justify-between gap-2"
+                  >
+                    <span>
+                      {t.agent_emoji} {t.title}
+                    </span>
+                    <span className="text-xs text-gray-500 shrink-0">
+                      {t.due_date ? `Due ${t.due_date}` : t.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {totalMilestones > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-300 mb-3">
+                Timeline
+              </h4>
+              <MilestoneTimeline milestones={workstream.milestones} />
+            </div>
+          )}
 
           {workstream.riskFactors && workstream.riskFactors.length > 0 && (
             <div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
 
 const pool = new Pool({
   connectionString,
@@ -31,7 +32,12 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(result.rows[0]);
+    const row = result.rows[0];
+    return NextResponse.json({
+      ...row,
+      agent_name: row.agent_name ?? "Shannon",
+      agent_emoji: row.agent_emoji ?? "👤",
+    });
   } catch (error) {
     console.error("[Tasks API] Get task error:", error);
     return NextResponse.json(
@@ -72,7 +78,12 @@ export async function PATCH(
     }
     if (body.assigned_to_agent_id !== undefined) {
       updates.push(`assigned_to_agent_id = $${paramIndex++}`);
-      values.push(body.assigned_to_agent_id);
+      const raw = body.assigned_to_agent_id;
+      const assignedToMe =
+        raw == null ||
+        raw === "" ||
+        String(raw).toLowerCase() === "shannon";
+      values.push(assignedToMe ? null : raw);
     }
 
     if (updates.length === 0) {
@@ -106,18 +117,40 @@ export async function PATCH(
       );
     }
 
-    // Fetch agent info for response
     const task = result.rows[0];
-    const agentResult = await pool.query(
-      "SELECT name, emoji FROM agents WHERE id = $1",
-      [task.assigned_to_agent_id]
-    );
+    let agentName = "Shannon";
+    let agentEmoji = "👤";
+    if (task.assigned_to_agent_id) {
+      const agentResult = await pool.query(
+        "SELECT name, emoji FROM agents WHERE id = $1",
+        [task.assigned_to_agent_id]
+      );
+      agentName = agentResult.rows[0]?.name ?? agentName;
+      agentEmoji = agentResult.rows[0]?.emoji ?? agentEmoji;
+    }
 
     const response = {
       ...task,
-      agent_name: agentResult.rows[0]?.name,
-      agent_emoji: agentResult.rows[0]?.emoji,
+      agent_name: agentName,
+      agent_emoji: agentEmoji,
     };
+
+    // Push to OpenClaw when assigned to an agent (not to me)
+    if (
+      body.assigned_to_agent_id !== undefined &&
+      task.assigned_to_agent_id
+    ) {
+      const pushResult = await pushTaskToOpenClaw({
+        taskId: id,
+        title: task.title,
+        agentId: task.assigned_to_agent_id,
+        status: task.status,
+        dueDate: task.due_date,
+      });
+      if (!pushResult.ok) {
+        console.warn("[Tasks API] OpenClaw push failed:", pushResult.error);
+      }
+    }
 
     return NextResponse.json(response);
   } catch (error) {

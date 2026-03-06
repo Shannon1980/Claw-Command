@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
 
 const pool = new Pool({
   connectionString,
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const title = (body.title as string)?.trim();
-    const assignedToAgentId = body.assigned_to_agent_id as string;
+    const rawAssigned = body.assigned_to_agent_id as string | null | undefined;
 
     if (!title) {
       return NextResponse.json(
@@ -23,9 +24,17 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!assignedToAgentId) {
+
+    // Empty, null, or "shannon" = assign to me (Shannon)
+    const assignedToMe =
+      rawAssigned == null ||
+      rawAssigned === "" ||
+      String(rawAssigned).toLowerCase() === "shannon";
+    const assignedToAgentId = assignedToMe ? null : rawAssigned;
+
+    if (!assignedToMe && !assignedToAgentId) {
       return NextResponse.json(
-        { error: "Assigned agent is required" },
+        { error: "Please assign to an agent or yourself" },
         { status: 400 }
       );
     }
@@ -42,10 +51,30 @@ export async function POST(request: NextRequest) {
       [id, title, assignedToAgentId, dependsOnShannon, status, dueDate, now]
     );
 
-    const agentRes = await pool.query(
-      "SELECT name, emoji FROM agents WHERE id = $1",
-      [assignedToAgentId]
-    );
+    // Push to OpenClaw only when assigned to an agent (not to me)
+    if (assignedToAgentId) {
+      const pushResult = await pushTaskToOpenClaw({
+        taskId: id,
+        title,
+        agentId: assignedToAgentId,
+        status,
+        dueDate: dueDate,
+      });
+      if (!pushResult.ok) {
+        console.warn("[Tasks API] OpenClaw push failed:", pushResult.error);
+      }
+    }
+
+    let agentName = "Shannon";
+    let agentEmoji = "👤";
+    if (assignedToAgentId) {
+      const agentRes = await pool.query(
+        "SELECT name, emoji FROM agents WHERE id = $1",
+        [assignedToAgentId]
+      );
+      agentName = agentRes.rows[0]?.name ?? agentName;
+      agentEmoji = agentRes.rows[0]?.emoji ?? agentEmoji;
+    }
 
     return NextResponse.json({
       id,
@@ -56,8 +85,8 @@ export async function POST(request: NextRequest) {
       due_date: dueDate,
       created_at: now,
       updated_at: now,
-      agent_name: agentRes.rows[0]?.name,
-      agent_emoji: agentRes.rows[0]?.emoji,
+      agent_name: agentName,
+      agent_emoji: agentEmoji,
     });
   } catch (error) {
     console.error("[Tasks API] Create error:", error);
@@ -90,8 +119,12 @@ export async function GET(request: NextRequest) {
       conditions.push("t.depends_on_shannon = true");
     }
     if (agent) {
-      conditions.push(`t.assigned_to_agent_id = $${paramIndex++}`);
-      values.push(agent);
+      if (agent === "shannon") {
+        conditions.push("t.assigned_to_agent_id IS NULL");
+      } else {
+        conditions.push(`t.assigned_to_agent_id = $${paramIndex++}`);
+        values.push(agent);
+      }
     }
     if (conditions.length > 0) {
       query += " WHERE " + conditions.join(" AND ");
@@ -99,7 +132,12 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY t.due_date ASC NULLS LAST, t.updated_at DESC";
 
     const result = await pool.query(query, values);
-    return NextResponse.json(result.rows);
+    const rows = result.rows.map((row: Record<string, unknown>) => ({
+      ...row,
+      agent_name: row.agent_name ?? "Shannon",
+      agent_emoji: row.agent_emoji ?? "👤",
+    }));
+    return NextResponse.json(rows);
   } catch (error) {
     console.error("[Tasks API] Error:", error);
     return NextResponse.json([], { status: 500 });

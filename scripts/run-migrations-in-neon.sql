@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS applications (
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
-  assigned_to_agent_id TEXT NOT NULL REFERENCES agents(id),
+  assigned_to_agent_id TEXT REFERENCES agents(id),
   depends_on_shannon BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'backlog',
   due_date TEXT,
@@ -49,14 +49,32 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at TEXT NOT NULL
 );
 
+-- Allow null for assigned_to_agent_id (null = assigned to Shannon/me)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'tasks'
+    AND column_name = 'assigned_to_agent_id' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE tasks ALTER COLUMN assigned_to_agent_id DROP NOT NULL;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS skyward_workstreams (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'on_track',
   owner_agent_id TEXT NOT NULL REFERENCES agents(id),
   key_dates TEXT NOT NULL DEFAULT '[]',
+  description TEXT DEFAULT '',
+  risk_factors TEXT DEFAULT '[]',
   updated_at TEXT NOT NULL
 );
+
+-- Add columns if table already exists (idempotent)
+ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS risk_factors TEXT DEFAULT '[]';
 
 CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,

@@ -126,6 +126,50 @@ export async function sendToSession(
   }
 }
 
+// ─── Push task from Claw Command to OpenClaw ────────────────────────────────
+
+export type PushTaskResult = { ok: boolean; sessionId?: string; error?: string };
+
+/**
+ * Push a Claw Command task to OpenClaw so the agent can pick it up.
+ * Tries sessions_spawn RPC; if unavailable, logs and returns { ok: false }.
+ */
+export async function pushTaskToOpenClaw(params: {
+  taskId: string;
+  title: string;
+  agentId: string;
+  status?: string;
+  dueDate?: string | null;
+}): Promise<PushTaskResult> {
+  try {
+    const online = await isGatewayOnline();
+    if (!online) {
+      return { ok: false, error: "Gateway offline" };
+    }
+
+    const label = params.dueDate
+      ? `${params.title} (due ${params.dueDate})`
+      : params.title;
+
+    const result = await rpc<{ session_id?: string; sessionId?: string }>(
+      "sessions_spawn",
+      {
+        task: label,
+        label,
+        agent_id: params.agentId,
+        agentId: params.agentId,
+      }
+    );
+
+    const sessionId = result?.session_id || result?.sessionId;
+    return { ok: true, sessionId };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[OpenClaw] pushTaskToOpenClaw failed:", msg);
+    return { ok: false, error: msg };
+  }
+}
+
 // ─── Subagent Operations ────────────────────────────────────────────────────
 
 export type SubagentRun = {

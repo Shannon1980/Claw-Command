@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ChatFlyout from "@/components/chat/ChatFlyout";
 
 type NavItem =
   | { href: string; label: string }
@@ -29,7 +30,6 @@ const navItems: NavItem[] = [
       { href: "/certifications", label: "Certifications" },
     ],
   },
-  { href: "/chat", label: "Chat" },
   { href: "/calendar", label: "Calendar" },
 ];
 
@@ -74,6 +74,7 @@ export default function Navigation() {
             Vorentoe
           </Link>
           <div className="flex items-center gap-0.5">
+            <ChatFlyout />
             {navItems.map((item) => {
               if (isDropdown(item)) {
                 const isOpen = openDropdown === item.label;
