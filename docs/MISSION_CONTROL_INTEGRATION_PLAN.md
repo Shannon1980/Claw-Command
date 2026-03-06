@@ -563,27 +563,75 @@ CLAUDE_PROJECTS_DIR=~/.claude/projects
 
 ---
 
-## What Already Exists in Claw Command (Do Not Duplicate)
+## Override Decisions: Best Implementation Wins
 
-- Task CRUD + Kanban (`/tasks`, `/api/tasks/*`)
-- Agent cards + heartbeat (`/api/agents/*`, `/api/mc/agents/*/heartbeat`)
-- MC-compatible task queue (`/api/mc/tasks/queue`)
-- MC spawn (`/api/mc/spawn`)
-- Activity feed (`/activity`, `/api/activities/*`)
-- Alerts (`/api/alerts/*`)
-- Token page (`/tokens`, `/api/tokens`)
-- Mission Control shell (`/mission-control` with Kanban, Schedule, Memory, Dependencies)
-- Chat flyout + agent chat (`/chat`, `/api/chat/*`)
-- SSE feed (`/api/sse/feed`)
-- OpenClaw RPC client (`src/lib/openclaw/client.ts`)
-- Extension bridge (`src/lib/mission-control/extensionBridge.ts`)
-- Email automation (`/email`, `/api/email/*`)
-- Calendar (`/calendar`, `/api/calendar/*`)
-- Certifications (`/certifications`, `/api/certifications/*`)
-- Pipeline (`/pipeline`, `/api/opportunities/*`, `/api/applications/*`)
-- Brief (`/brief`, `/api/brief`)
-- Docs (`/docs`, `/api/docs`)
-- Drizzle ORM schema with 15+ tables
+For every overlapping feature, choose the strongest implementation. If Mission Control's approach is superior, replace the Claw Command version. If Claw Command's domain-specific features have no MC equivalent, keep them.
+
+### OVERRIDE with MC approach (replace existing Claw Command code)
+
+| Feature | Current CC Problem | MC Advantage | Action |
+|---------|-------------------|--------------|--------|
+| **Task Kanban** (`TaskKanban.tsx`) | Native HTML drag-and-drop (janky UX), no inline create per column, no bulk ops | Proper DnD library, 6-column workflow (adds inbox), inline creation, bulk actions | **Replace** `src/components/tasks/TaskKanban.tsx` with MC-style Kanban using `@hello-pangea/dnd` |
+| **Task API** (`/api/tasks/route.ts`) | Raw `pg.Pool` queries, no input validation, no Zod, hand-built SQL | Zod validation on all mutations, structured errors, outcome tracking | **Replace** with Drizzle ORM queries + Zod input validation |
+| **Agent API** (`/api/agents/route.ts`) | GET-only, falls back to `mock-chat.ts` data, no CRUD, no lifecycle | Full lifecycle: register, heartbeat, retire, SOUL, spawn, capabilities | **Replace** with full agent CRUD + lifecycle management |
+| **Alerts** (`/api/alerts/route.ts`) | Falls back to `mock-alerts.ts` with 5 hardcoded alerts, no rule engine | Configurable alert rules, channels (dashboard/webhook/email), auto-fire on conditions | **Replace** with rule-based alert system, delete `mock-alerts.ts` |
+| **Token tracking** (`/api/tokens/route.ts`) | Just proxies Prometheus metrics endpoint, no per-agent/model breakdown, no history | Per-agent, per-model, per-session cost tracking with DB, charts, budget alerts | **Replace** with `token_usage` table + reporting endpoints + Recharts |
+| **SSE feed** (`/api/sse/feed/route.ts`) | Stub: sends one hardcoded demo event after 5s, `// TODO` comments, no real events | Real event bus dispatching actual events, `Last-Event-ID` resumption, multi-type | **Replace** with event bus + multi-event-type SSE connected to DB writes |
+| **Chat send** (`/api/chat/send/route.ts`) | In-memory `Map` store, no persistence, data lost on restart | DB-backed messages, delivery tracking, @mentions, read receipts | **Replace** — wire to existing `chat_messages` table (already in DB schema but send endpoint ignores it) |
+| **Activity feed** (`/api/activities/route.ts`) | Basic query with limit only, no filtering by agent/type/time range | Filterable by agent/type/time, SSE-connected, richer event types, pagination | **Upgrade** with filters, cursor pagination, SSE push on new events |
+| **State management** (polling hooks) | Each hook polls independently (15s intervals), no shared state, stale data between tabs | Zustand store with SSE-driven real-time updates, single source of truth, optimistic mutations | **Replace** `usePolling`-based hooks with Zustand stores fed by SSE |
+| **MC Shell** (`/mission-control` page) | Separate sidecar dashboard duplicating features from main app (its own Kanban, Schedule, etc.) | Single unified dashboard — orchestration features ARE the main features | **Remove** `/mission-control` as separate page; absorb MC_KanbanBoard, MC_SchedulePanel, MC_MemoryRecall, MC_Dependencies into the main nav |
+| **All mock data files** (8 files) | `mock-alerts.ts`, `mock-activities.ts`, `mock-chat.ts`, `mock-data.ts`, etc. used as fallbacks, mask missing real functionality | No mocks — real data from DB or clean empty states | **Delete all** `src/lib/mock-*.ts` files; replace with proper empty-state UI components |
+
+### KEEP Claw Command implementation (MC has no equivalent)
+
+| Feature | Why Keep |
+|---------|----------|
+| **Certifications** (`/certifications`, `/api/certifications/*`) | Domain-specific to government contracting — MC has nothing like this |
+| **Pipeline / Opportunities** (`/pipeline`, `/api/opportunities/*`, `/api/applications/*`) | BD pipeline with stages (identify/qualify/capture/propose/win) is Claw Command's core domain |
+| **Brief** (`/brief`, `/api/brief`) | Daily operations brief — unique to Claw Command's business context |
+| **Skyward** (`/skyward`, workstreams) | Program-specific workstream tracking |
+| **Email automation** (`/email`, `/api/email/*`) | Gmail OAuth + AI-driven rules — MC doesn't have email |
+| **Calendar** (`/calendar`, `/api/calendar/*`) | Business calendar with conflict detection |
+| **Docs** (`/docs`, `/api/docs`) | Document management for certifications/proposals |
+| **OpenClaw RPC client** (`src/lib/openclaw/client.ts`) | Well-structured, type-safe RPC layer — MC uses similar; ours is fine |
+| **Drizzle ORM + Postgres** (`src/lib/db/*`) | Better than MC's SQLite for production scale; keep as our DB layer |
+| **Agent context API** (`/api/agent-context`) | Unique domain context injection for agents (certs, tasks, alerts) |
+
+### MERGE (combine best of both)
+
+| Feature | CC Strength | MC Strength | Merged Approach |
+|---------|-------------|-------------|-----------------|
+| **Task schema** | `parentOpportunityId`, `parentApplicationId` (domain links), `dependsOnShannon` | `outcome` tracking, `project` grouping, `ticket_ref`, `quality_review` status | Add MC fields to existing tasks table; keep CC's domain FK fields |
+| **Agent schema** | `domain`, `currentTaskId` | `soul`, `capabilities`, `api_key`, `retired_at` | Add MC fields to existing agents table |
+| **Task statuses** | `backlog, ready, in_progress, review, blocked, done` | `inbox, assigned, in_progress, review, quality_review, done` | Superset: `inbox, backlog, in_progress, review, quality_review, blocked, done` |
+| **Extension bridge** | Simple recall/create dispatch | Richer action types, inter-agent messaging | Extend bridge with MC actions while keeping existing API |
+| **MC-compatible APIs** (`/api/mc/*`) | Existing endpoints work | MC's native shape is the same | Keep paths, upgrade internals to Zustand/Drizzle layer |
+| **Chat system** | Chat flyout UI, ChatWindow, agent-scoped threads | DB persistence, @mentions, delivery tracking, inter-agent messaging | Keep CC's chat UI components; rewire backend to DB + add MC's messaging features |
+
+### DELETE after migration (dead code cleanup)
+
+| File/Path | Reason |
+|-----------|--------|
+| `src/lib/mock-activities.ts` | Replaced by real DB activities |
+| `src/lib/mock-alerts.ts` | Replaced by alert rules engine |
+| `src/lib/mock-brief.ts` | Replace with real brief data |
+| `src/lib/mock-calendar.ts` | Replace with real calendar data |
+| `src/lib/mock-certifications.ts` | Replace with DB certifications |
+| `src/lib/mock-chat.ts` | Replace with DB chat messages |
+| `src/lib/mock-data.ts` | General mock data — remove |
+| `src/lib/mock-docs.ts` | Replace with DB docs |
+| `src/lib/mock-pipeline.ts` | Replace with DB pipeline |
+| `src/lib/mock-workstreams.ts` | Replace with DB workstreams |
+| `src/app/mission-control/` | Merged into main nav — remove separate MC shell |
+| `src/app/mission-control/mc-theme.css` | Theme merged into global styles |
+| `src/dashboards/mission-control/` | Components absorbed into `src/components/` |
+| `src/lib/hooks/usePolling.ts` | Replaced by Zustand + SSE |
+| `src/lib/hooks/useTasks.ts` | Replaced by Zustand task store |
+| `src/lib/hooks/useAgents.ts` | Replaced by Zustand agent store |
+| `src/lib/hooks/useActivities.ts` | Replaced by Zustand activity store |
+| `src/lib/hooks/useSSE.ts` | Replaced by unified event stream hook |
+| `src/lib/mission-control/mcStore.ts` | Replaced by unified Zustand stores |
 
 ---
 
