@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    })
+  : null;
 
 const SKYWARD_AGENT_IDS = ["skylar", "depa"];
 const SKYWARD_KEYWORDS = ["SEAS", "Skyward", "CPARS", "CMS", "portal", "recompete"];
@@ -34,9 +36,9 @@ function isSkywardNote(content: string): boolean {
 }
 
 export async function GET() {
-  if (!connectionString) {
+  if (!pool) {
     return NextResponse.json(
-      { error: "Database not configured" },
+      { error: "Database not configured. Set DATABASE_URL or POSTGRES_URL." },
       { status: 503 }
     );
   }
@@ -54,7 +56,7 @@ export async function GET() {
     );
 
     if (workstreamsRes.rows.length === 0) {
-      await seedWorkstreams();
+      await seedWorkstreams(pool);
       workstreamsRes = await pool.query(
         `SELECT w.id, w.name, w.status, w.key_dates, w.description, w.risk_factors, w.updated_at,
                 a.name as owner_name, a.emoji as owner_emoji
@@ -202,15 +204,30 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[Skyward API] Error:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch Skyward data";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch Skyward data" },
+      {
+        error: message,
+        hint:
+          "Ensure DATABASE_URL is set in Vercel and the DB has run migrations. Run /api/seed to populate agents/workstreams.",
+      },
       { status: 500 }
     );
   }
 }
 
-async function seedWorkstreams() {
+async function seedWorkstreams(p: NonNullable<typeof pool>) {
   const now = new Date().toISOString();
+
+  // Ensure skylar agent exists (FK for owner_agent_id)
+  await p.query(
+    `INSERT INTO agents (id, name, emoji, domain, status, current_task_id, updated_at)
+     VALUES ('skylar', 'Skylar', '🌤️', 'skyward', 'idle', null, $1)
+     ON CONFLICT (id) DO NOTHING`,
+    [now]
+  );
+
   const workstreams = [
     {
       id: "ws1",
@@ -270,7 +287,7 @@ async function seedWorkstreams() {
   ];
 
   for (const w of workstreams) {
-    await pool.query(
+    await p.query(
       `INSERT INTO skyward_workstreams (id, name, status, owner_agent_id, key_dates, description, risk_factors, updated_at)
        VALUES ($1, $2, $3, 'skylar', $4, $5, $6, $7)
        ON CONFLICT (id) DO UPDATE SET

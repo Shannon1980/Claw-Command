@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/calendar", label: "Calendar" },
+  { href: "/email", label: "Email" },
 ];
 
 function isDropdown(item: NavItem): item is { label: string; children: { href: string; label: string }[] } {

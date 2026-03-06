@@ -84,7 +84,9 @@ export default function TaskEditModal({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || `HTTP ${res.status}`);
+          let msg = data.details ? `${data.error}: ${data.details}` : (data.error || `HTTP ${res.status}`);
+          if (data.hint) msg += ` ${data.hint}`;
+          throw new Error(msg);
         }
       }
       onSaved();

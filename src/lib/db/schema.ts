@@ -107,6 +107,49 @@ export const alerts = pgTable("alerts", {
   createdAt: text("created_at").notNull(),
 });
 
+// ─── EMAIL (AI-driven automation) ─────────────────────────────────────────────
+
+export const emailAccounts = pgTable("email_accounts", {
+  id: text("id").primaryKey(),
+  provider: text("provider").notNull(), // gmail | outlook
+  email: text("email").notNull(),
+  accessToken: text("access_token"), // encrypted in production
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: text("token_expires_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const emailRules = pgTable("email_rules", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id")
+    .notNull()
+    .references(() => emailAccounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  // JSON: [{ action: "move"|"delete"|"archive"|"draft_reply", targetFolder?, ... }]
+  actions: text("actions").notNull().default("[]"),
+  // Optional custom AI instructions for this rule
+  aiPrompt: text("ai_prompt"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Audit log of AI-driven email actions
+export const emailActions = pgTable("email_actions", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id")
+    .notNull()
+    .references(() => emailAccounts.id, { onDelete: "cascade" }),
+  ruleId: text("rule_id").references(() => emailRules.id, { onDelete: "set null" }),
+  messageId: text("message_id").notNull(),
+  threadId: text("thread_id"),
+  action: text("action").notNull(), // move | delete | archive | draft_reply
+  status: text("status").notNull().default("pending"), // pending | completed | failed
+  details: text("details").notNull().default("{}"), // JSON: target_folder, error, etc.
+  createdAt: text("created_at").notNull(),
+});
+
 // ─── CHAT MESSAGES ──────────────────────────────────────────────────────────
 
 export const chatMessages = pgTable("chat_messages", {

@@ -155,8 +155,17 @@ export async function PATCH(
     return NextResponse.json(response);
   } catch (error) {
     console.error("[Tasks API] Update task error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const isNullConstraint =
+      /null value in column|violates not-null constraint/i.test(message);
     return NextResponse.json(
-      { error: "Failed to update task" },
+      {
+        error: "Failed to update task",
+        details: message,
+        ...(isNullConstraint && {
+          hint: "Run migration: ALTER TABLE tasks ALTER COLUMN assigned_to_agent_id DROP NOT NULL;",
+        }),
+      },
       { status: 500 }
     );
   }
