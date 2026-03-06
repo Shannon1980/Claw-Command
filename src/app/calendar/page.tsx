@@ -7,6 +7,7 @@ import {
   mockEvents,
   detectConflicts,
   type CalendarEvent,
+  type EventDomain,
 } from "@/lib/mock-calendar";
 
 export default function CalendarPage() {
@@ -35,14 +36,14 @@ export default function CalendarPage() {
       .then((res) => res.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
-        const parsed = list.map((e: Record<string, unknown>) => ({
-          id: e.id,
-          title: e.title,
-          domain: e.domain,
-          startTime: e.startTime instanceof Date ? e.startTime : new Date((e.startTime as string) ?? e.start_time),
-          endTime: e.endTime instanceof Date ? e.endTime : new Date((e.endTime as string) ?? e.end_time),
+        const parsed: CalendarEvent[] = list.map((e: Record<string, unknown>) => ({
+          id: String(e.id ?? ""),
+          title: String(e.title ?? ""),
+          domain: (e.domain as EventDomain) ?? "vorentoe",
+          startTime: e.startTime instanceof Date ? e.startTime : new Date((e.startTime as string) ?? (e.start_time as string) ?? ""),
+          endTime: e.endTime instanceof Date ? e.endTime : new Date((e.endTime as string) ?? (e.end_time as string) ?? ""),
           protected: Boolean(e.protected),
-          description: e.description,
+          description: e.description as string | undefined,
         }));
         setEvents(parsed.length > 0 ? parsed : mockEvents);
       })

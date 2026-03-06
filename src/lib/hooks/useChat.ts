@@ -46,17 +46,20 @@ export function useChat(agentId: string, options: UseChatOptions = {}) {
   useEffect(() => {
     if (!backendData) return;
 
-    let raw = Array.isArray(backendData) ? backendData : (backendData.messages || []);
-    const backendMessages = raw.map((m: Record<string, unknown>) => ({
-      id: m.id,
-      agentId: m.agentId,
-      sender: m.sender === "shannon" ? "user" : (m.sender || "agent"),
-      content: m.content ?? m.message ?? "",
-      timestamp: m.timestamp ?? new Date().toISOString(),
-      status: m.status ?? "sent",
-      hasAttachments: m.hasAttachments,
-      attachments: m.attachments,
-    }));
+    const raw = Array.isArray(backendData) ? backendData : (backendData.messages || []);
+    const backendMessages: Message[] = (raw as unknown[]).map((m: unknown) => {
+      const r = m as Record<string, unknown>;
+      return {
+        id: String(r.id ?? ""),
+        agentId: String(r.agentId ?? ""),
+        sender: (r.sender === "shannon" ? "user" : (r.sender || "agent")) as "user" | "agent",
+        content: String(r.content ?? r.message ?? ""),
+        timestamp: String(r.timestamp ?? new Date().toISOString()),
+        status: (r.status ?? "sent") as Message["status"],
+        hasAttachments: r.hasAttachments as boolean | undefined,
+        attachments: r.attachments as AttachmentFile[] | undefined,
+      };
+    });
 
     setLocalMessages(current => {
       // Find optimistic messages that haven't been confirmed by backend yet
