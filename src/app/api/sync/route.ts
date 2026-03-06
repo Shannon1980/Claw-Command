@@ -7,7 +7,7 @@ import type { SyncResult } from "@/lib/openclaw/types";
 export async function POST() {
   const timestamp = new Date().toISOString();
 
-  // Check gateway connectivity
+  // Check gateway connectivity (skip when deployed without OpenClaw)
   const online = await isGatewayOnline();
   if (!online) {
     const result: SyncResult = {
@@ -17,7 +17,7 @@ export async function POST() {
       timestamp,
       error: "OpenClaw gateway is offline or unreachable",
     };
-    return NextResponse.json(result, { status: 503 });
+    return NextResponse.json(result, { status: 200 });
   }
 
   try {
