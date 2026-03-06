@@ -29,11 +29,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark h-full">
       <body
-        className={`${inter.variable} ${mono.variable} font-sans antialiased bg-gray-950 text-gray-100 h-full flex flex-col`}
+        className={`${inter.variable} ${mono.variable} font-sans antialiased bg-gray-950 text-gray-100 h-full flex`}
       >
         <Providers>
           <Navigation />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto min-w-0">
             {children}
           </main>
         </Providers>
