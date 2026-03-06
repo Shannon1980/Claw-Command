@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { requireMcAuth } from "@/lib/mc/auth";
 
 const pool = connectionString
   ? new Pool({
@@ -19,6 +20,9 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const authError = requireMcAuth(request);
+  if (authError) return authError;
+
   const { id: agentId } = await context.params;
 
   if (!pool || !connectionString) {
@@ -82,6 +86,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const authError = requireMcAuth(request);
+  if (authError) return authError;
+
   const { id: agentId } = await context.params;
 
   if (!pool || !connectionString) {

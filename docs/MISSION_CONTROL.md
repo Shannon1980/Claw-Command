@@ -4,17 +4,24 @@ Claw-Command exposes [Mission Control](https://github.com/builderz-labs/mission-
 
 ## Compatible Endpoints
 
-All endpoints live under `/api/mc/` and mirror Mission Control's behavior.
+Endpoints live under `/api/mc/`. Path aliases match Mission Control's default structure:
+
+| MC Path | Claw-Command Alias |
+|---------|--------------------|
+| `/api/mc/tasks/queue` | `/api/tasks/queue` |
+| `/api/mc/agents/{id}/heartbeat` | `/api/agents/{id}/heartbeat` |
+| `/api/mc/spawn` | `/api/spawn` |
 
 ### Task Queue
 
-**GET** `/api/mc/tasks/queue?agent=veronica`
+**GET** `/api/mc/tasks/queue?agent=veronica&max_capacity=1`
 
 Agents poll this to get their next assigned task.
 
 | Param | Description |
 |-------|-------------|
 | `agent` | Agent ID (e.g. `veronica`, `bertha`). Can also be sent via `x-agent-name` or `x-agent-id` header. |
+| `max_capacity` | (Optional) Max concurrent tasks (1–20, default 1). Used for `at_capacity` when agent has `>= max_capacity` active tasks. |
 
 **Response:**
 ```json
@@ -35,7 +42,14 @@ Agents poll this to get their next assigned task.
 }
 ```
 
-`reason` values: `assigned` | `no_tasks_available`
+`reason` values (aligned with Mission Control):
+
+| Value | Description |
+|-------|-------------|
+| `continue_current` | Agent has `current_task_id` and that task is `in_progress` or `review` — return it. |
+| `assigned` | Next task assigned. |
+| `at_capacity` | Agent has `>= max_capacity` active tasks; no new task. |
+| `no_tasks_available` | No tasks in queue. |
 
 ### Agent Heartbeat
 
@@ -88,6 +102,15 @@ Create a task and push it to OpenClaw (Mission Control–style spawn).
 }
 ```
 
+## Authentication
+
+When `MC_API_KEY` is set, all MC endpoints require:
+
+- `Authorization: Bearer <key>` or
+- `x-api-key: <key>`
+
+When `MC_API_KEY` is not set, no auth is required.
+
 ## Using Mission Control as a Separate App
 
 See **[MISSION_CONTROL_SETUP.md](MISSION_CONTROL_SETUP.md)** for full setup instructions.
@@ -106,6 +129,7 @@ Mission Control connects to the same OpenClaw gateway as Claw-Command. Tasks you
 
 | Variable | Description |
 |----------|-------------|
+| `MC_API_KEY` | (Optional) API key for MC endpoints. When set, agents must send it. |
 | `MISSION_CONTROL_URL` | (Optional) Base URL of Mission Control. If set, Claw-Command can sync from it. |
 | `CLAW_COMMAND_URL` | Base URL of Claw-Command. Use this when configuring Mission Control to pull tasks from Claw-Command. |
 
@@ -115,17 +139,24 @@ Mission Control connects to the same OpenClaw gateway as Claw-Command. Tasks you
 |---------|-----------------|---------------------|
 | Agent IDs | Integer | String (e.g. `veronica`) |
 | Task IDs | Integer | String (e.g. `task-1`) |
-| Auth | Session/API key | None (add middleware if needed) |
-| Task queue `reason` | `continue_current`, `at_capacity`, etc. | `assigned` or `no_tasks_available` |
+| Auth | Session/API key | Optional API key via `MC_API_KEY` |
+| Task queue `reason` | `continue_current`, `assigned`, `at_capacity`, `no_tasks_available` | Same ✓ |
 
 ## Example: Agent Polling
 
 ```bash
-# Poll next task for Veronica
-curl "https://your-claw-command.vercel.app/api/mc/tasks/queue?agent=veronica"
+# Poll next task for Veronica (with optional max_capacity)
+curl "https://your-claw-command.vercel.app/api/mc/tasks/queue?agent=veronica&max_capacity=1"
+
+# Or use Mission Control path alias
+curl "https://your-claw-command.vercel.app/api/tasks/queue?agent=veronica"
 
 # Send heartbeat
 curl -X POST "https://your-claw-command.vercel.app/api/mc/agents/veronica/heartbeat" \
   -H "Content-Type: application/json" \
   -d '{"status":"active","current_task":"task-1"}'
+
+# With API key (when MC_API_KEY is set)
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://your-claw-command.vercel.app/api/mc/tasks/queue?agent=veronica"
 ```

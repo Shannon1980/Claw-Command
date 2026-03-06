@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
+import { requireMcAuth } from "@/lib/mc/auth";
 
 const pool = connectionString
   ? new Pool({
@@ -18,6 +19,9 @@ const pool = connectionString
  * See: https://github.com/builderz-labs/mission-control
  */
 export async function POST(request: NextRequest) {
+  const authError = requireMcAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const agent = (body.agent as string)?.trim();
