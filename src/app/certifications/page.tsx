@@ -9,49 +9,76 @@ import {
 import CertCard from "@/components/certifications/CertCard";
 import CertEditModal from "@/components/certifications/CertEditModal";
 
-const STORAGE_KEY = "claw-command-certifications";
-
-function loadCertifications(): Certification[] {
-  if (typeof window === "undefined") return mockCertifications;
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as Certification[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return mockCertifications;
-}
-
-function saveCertifications(certs: Certification[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(certs));
-  } catch {
-    // ignore
-  }
-}
-
 export default function CertificationsPage() {
   const [certifications, setCertifications] = useState<Certification[]>([]);
   const [editingCert, setEditingCert] = useState<Certification | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchCertifications = () => {
+    setLoading(true);
+    setError(null);
+    fetch("/api/certifications")
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setCertifications(list.length > 0 ? list : mockCertifications);
+      })
+      .catch((err) => {
+        console.error("Failed to load certifications:", err);
+        setCertifications(mockCertifications);
+        setError(err instanceof Error ? err.message : "Failed to load");
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    setCertifications(loadCertifications());
+    fetchCertifications();
   }, []);
+
+  const handleSave = async (updated: Certification) => {
+    try {
+      const res = await fetch(`/api/certifications/${updated.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: updated.name,
+          level: updated.level,
+          authority: updated.authority,
+          status: updated.status,
+          dueDate: updated.dueDate,
+          appliedDate: updated.appliedDate,
+          decisionExpected: updated.decisionExpected,
+          expiresDate: updated.expiresDate,
+          description: updated.description,
+          notes: updated.notes,
+          documents: updated.documents,
+        }),
+      });
+      if (res.ok) {
+        setCertifications((prev) =>
+          prev.map((c) => (c.id === updated.id ? updated : c))
+        );
+        setEditingCert(null);
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save");
+      }
+    } catch (err) {
+      console.error("Failed to save certification:", err);
+      setError(err instanceof Error ? err.message : "Failed to save");
+    }
+  };
 
   const health = getCertificationHealth(certifications);
 
-  const handleSave = (updated: Certification) => {
-    setCertifications((prev) => {
-      const next = prev.map((c) => (c.id === updated.id ? updated : c));
-      saveCertifications(next);
-      return next;
-    });
-    setEditingCert(null);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center">
+        <div className="text-gray-400">Loading certifications...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -69,6 +96,9 @@ export default function CertificationsPage() {
 
           {/* Overall Health Indicator */}
           <div className="flex items-center gap-3">
+            {error && (
+              <span className="text-amber-400 text-xs">{error}</span>
+            )}
             <div className="text-right">
               <div className="text-xs text-gray-500">Overall Health</div>
               <div className="flex items-center gap-2 mt-1">

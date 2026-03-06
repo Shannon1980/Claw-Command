@@ -12,7 +12,7 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindowProps) {
-  const { messages, loading, sendMessage } = useChat(agentId);
+  const { messages, loading, error, sendMessage } = useChat(agentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,6 +56,11 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-800 bg-gray-900/50">
+        {error && (
+          <div className="mb-3 px-3 py-2 bg-amber-950/50 border border-amber-800 text-amber-200 text-sm rounded">
+            {error}
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <span className="text-3xl">{agentEmoji}</span>
           <div>

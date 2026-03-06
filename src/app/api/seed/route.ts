@@ -66,6 +66,36 @@ const ACTIVITIES = [
   { id: "act-5", actor_agent_id: null, event_type: "alert_fired", resource_type: "task", resource_id: "task-5", details: JSON.stringify({ message: "System alert: MBE cert deadline in 48 hours" }) },
 ];
 
+const CERTIFICATIONS = [
+  { id: "8a", name: "8(a) Program", level: "Federal", authority: "SBA", status: "NOT_STARTED", description: "Needs eligibility verification", documents: JSON.stringify([{ name: "Personal Financial Statement", completed: false }, { name: "Tax Returns (3 years)", completed: false }, { name: "Business Plan", completed: false }, { name: "Proof of Disadvantage", completed: false }, { name: "SBA Form 413", completed: false }]) },
+  { id: "edwosb", name: "EDWOSB", level: "Federal", authority: "SBA", status: "NOT_STARTED", description: null, documents: JSON.stringify([{ name: "SAM.gov Registration", completed: false }, { name: "WOSB Certification", completed: false }, { name: "Economic Disadvantage Proof", completed: false }, { name: "Business License", completed: false }]) },
+  { id: "wosb", name: "WOSB", level: "Federal", authority: "SBA", status: "IN_PROGRESS", description: null, documents: JSON.stringify([{ name: "SAM.gov Registration", completed: true }, { name: "Business Plan", completed: true }, { name: "Tax Returns", completed: true }, { name: "Financial Statements", completed: false }, { name: "Ownership Documents", completed: false }]) },
+  { id: "md-mbe", name: "Maryland MBE", level: "State", authority: "MDOT", status: "SUBMITTED", due_date: "2026-03-07", applied_date: "2026-02-15", decision_expected: "2026-04-15", description: null, documents: JSON.stringify([{ name: "Articles of Organization", completed: true }, { name: "Operating Agreement", completed: true }, { name: "Tax Returns", completed: true }, { name: "Section 4 Form", completed: false }, { name: "Navy Fed Signature Card", completed: false }]) },
+  { id: "lsbrp", name: "LSBRP Montgomery County", level: "Local", authority: "MoCo", status: "NOT_STARTED", description: null, documents: JSON.stringify([{ name: "Vendor Registration", completed: false }, { name: "Business License", completed: false }]) },
+];
+
+function getWeekDate(dayOffset: number, hour: number, minute = 0): string {
+  const base = new Date("2026-03-04T12:00:00");
+  const startOfWeek = new Date(base);
+  startOfWeek.setDate(base.getDate() - base.getDay());
+  const d = new Date(startOfWeek);
+  d.setDate(startOfWeek.getDate() + dayOffset);
+  d.setHours(hour, minute, 0, 0);
+  return d.toISOString();
+}
+
+const CALENDAR_EVENTS = [
+  { id: "evt-1", title: "SEAS IT Standup", domain: "skyward", start_time: getWeekDate(1, 9, 0), end_time: getWeekDate(1, 10, 0), protected: false, description: null },
+  { id: "evt-2", title: "Vorentoe Strategy Session", domain: "vorentoe", start_time: getWeekDate(1, 14, 0), end_time: getWeekDate(1, 15, 0), protected: false, description: null },
+  { id: "evt-3", title: "MBE Application Review", domain: "vorentoe", start_time: getWeekDate(2, 10, 0), end_time: getWeekDate(2, 11, 0), protected: false, description: null },
+  { id: "evt-4", title: "Teaching — SAFe SSM (ITBiz 301)", domain: "teaching", start_time: getWeekDate(2, 18, 0), end_time: getWeekDate(2, 21, 0), protected: true, description: "Recurring SAFe Scrum Master instruction through April 2026" },
+  { id: "evt-5", title: "DHS Border Tech Prep", domain: "vorentoe", start_time: getWeekDate(3, 13, 0), end_time: getWeekDate(3, 14, 0), protected: false, description: null },
+  { id: "evt-6", title: "SEAS IT Sprint Review", domain: "skyward", start_time: getWeekDate(4, 9, 0), end_time: getWeekDate(4, 10, 0), protected: false, description: null },
+  { id: "evt-7", title: "Teaching — SAFe SSM (ITBiz 301)", domain: "teaching", start_time: getWeekDate(4, 18, 0), end_time: getWeekDate(4, 21, 0), protected: true, description: "Recurring SAFe Scrum Master instruction through April 2026" },
+  { id: "evt-8", title: "Client Proposal Review Call", domain: "vorentoe", start_time: getWeekDate(4, 19, 0), end_time: getWeekDate(4, 20, 0), protected: false, description: null },
+  { id: "evt-9", title: "PTA Planning Call", domain: "community", start_time: getWeekDate(5, 11, 0), end_time: getWeekDate(5, 12, 0), protected: false, description: null },
+];
+
 export async function POST() {
   const client = await pool.connect();
 
@@ -80,6 +110,8 @@ export async function POST() {
     await client.query("DELETE FROM applications");
     await client.query("DELETE FROM opportunities");
     await client.query("DELETE FROM agents");
+    await client.query("DELETE FROM calendar_events");
+    await client.query("DELETE FROM certifications");
 
     // Seed agents
     for (const a of AGENTS) {
@@ -129,6 +161,38 @@ export async function POST() {
       );
     }
 
+    // Seed certifications
+    for (const c of CERTIFICATIONS) {
+      await client.query(
+        `INSERT INTO certifications (id, name, level, authority, status, due_date, applied_date, decision_expected, expires_date, description, notes, documents, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13)`,
+        [
+          c.id,
+          c.name,
+          c.level,
+          c.authority,
+          c.status,
+          (c as { due_date?: string }).due_date ?? null,
+          (c as { applied_date?: string }).applied_date ?? null,
+          (c as { decision_expected?: string }).decision_expected ?? null,
+          (c as { expires_date?: string }).expires_date ?? null,
+          c.description ?? null,
+          null,
+          c.documents,
+          now,
+        ]
+      );
+    }
+
+    // Seed calendar events
+    for (const e of CALENDAR_EVENTS) {
+      await client.query(
+        `INSERT INTO calendar_events (id, title, domain, start_time, end_time, protected, description, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)`,
+        [e.id, e.title, e.domain, e.start_time, e.end_time, e.protected, e.description, now]
+      );
+    }
+
     await client.query("COMMIT");
 
     return NextResponse.json({
@@ -140,6 +204,8 @@ export async function POST() {
         tasks: TASKS.length,
         alerts: ALERTS.length,
         activities: ACTIVITIES.length,
+        certifications: CERTIFICATIONS.length,
+        calendar_events: CALENDAR_EVENTS.length,
       },
     });
   } catch (error) {
