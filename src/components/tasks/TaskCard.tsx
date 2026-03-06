@@ -9,9 +9,15 @@ interface TaskCardProps {
 
 const STATUS_COLORS: Record<string, string> = {
   backlog: "border-gray-600",
+  ready: "border-cyan-500/50",
   in_progress: "border-blue-500/50",
   blocked: "border-amber-500/50",
   done: "border-green-500/50",
+};
+const PRIORITY_LABELS: Record<string, string> = {
+  high: "🔴 High",
+  medium: "🟡 Medium",
+  low: "🟢 Low",
 };
 
 export default function TaskCard({ task, onClick }: TaskCardProps) {
@@ -31,6 +37,11 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
         <span className="text-xs text-gray-400">
           {task.agent_emoji ?? "👤"} {task.agent_name ?? "Shannon"}
         </span>
+        {(task.priority === "high" || task.priority === "low") && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 font-mono">
+            {PRIORITY_LABELS[task.priority || "medium"] ?? task.priority}
+          </span>
+        )}
         {task.due_date && (
           <span className="text-[10px] text-gray-500 font-mono">
             Due {new Date(task.due_date).toLocaleDateString()}

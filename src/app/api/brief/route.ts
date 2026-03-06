@@ -59,7 +59,7 @@ export async function GET(request: Request) {
         pool.query(
           `SELECT COUNT(*)::int as count FROM tasks 
            WHERE depends_on_shannon = true 
-           AND status IN ('backlog', 'in_progress', 'blocked')`
+           AND status IN ('backlog', 'ready', 'in_progress', 'blocked')`
         ),
       ]);
 
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
               a.domain
        FROM tasks t
        LEFT JOIN agents a ON t.assigned_to_agent_id = a.id
-       WHERE t.status IN ('backlog', 'in_progress', 'blocked')`
+       WHERE t.status IN ('backlog', 'ready', 'in_progress', 'blocked')`
     );
 
     const tasks = tasksRes.rows as Array<{
@@ -151,7 +151,7 @@ export async function GET(request: Request) {
               a.domain
        FROM tasks t
        LEFT JOIN agents a ON t.assigned_to_agent_id = a.id
-       WHERE t.status IN ('backlog', 'in_progress', 'blocked')
+       WHERE t.status IN ('backlog', 'ready', 'in_progress', 'blocked')
        AND t.due_date IS NOT NULL
        ORDER BY t.due_date ASC
        LIMIT 10`

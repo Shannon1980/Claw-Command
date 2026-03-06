@@ -8,6 +8,7 @@ export interface Task {
   assigned_to_agent_id: string | null;
   depends_on_shannon: boolean;
   status: string;
+  priority?: string;
   due_date: string | null;
   created_at: string;
   updated_at: string;

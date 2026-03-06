@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   assigned_to_agent_id TEXT REFERENCES agents(id),
   depends_on_shannon BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'backlog',
+  priority TEXT NOT NULL DEFAULT 'medium',
   due_date TEXT,
   parent_opportunity_id TEXT REFERENCES opportunities(id),
   parent_application_id TEXT REFERENCES applications(id),
@@ -71,6 +72,9 @@ CREATE TABLE IF NOT EXISTS skyward_workstreams (
   risk_factors TEXT DEFAULT '[]',
   updated_at TEXT NOT NULL
 );
+
+-- Add priority to tasks if missing
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium';
 
 -- Add columns if table already exists (idempotent)
 ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';

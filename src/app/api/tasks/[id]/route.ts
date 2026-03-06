@@ -3,10 +3,12 @@ import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    })
+  : null;
 
 export async function GET(
   request: NextRequest,
@@ -14,10 +16,17 @@ export async function GET(
 ) {
   const { id } = await context.params;
 
+  if (!pool) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
     const result = await pool.query(
       `SELECT t.id, t.title, t.assigned_to_agent_id, t.depends_on_shannon, 
-              t.status, t.due_date, t.created_at, t.updated_at,
+              t.status, t.priority, t.due_date, t.created_at, t.updated_at,
               a.name as agent_name, a.emoji as agent_emoji
        FROM tasks t
        LEFT JOIN agents a ON t.assigned_to_agent_id = a.id
@@ -53,6 +62,13 @@ export async function PATCH(
 ) {
   const { id } = await context.params;
 
+  if (!pool) {
+    return NextResponse.json(
+      { error: "Database not configured. Set DATABASE_URL." },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await request.json();
     const updates: string[] = [];
@@ -76,6 +92,10 @@ export async function PATCH(
       updates.push(`depends_on_shannon = $${paramIndex++}`);
       values.push(body.depends_on_shannon);
     }
+    if (body.priority !== undefined && ["high", "medium", "low"].includes(body.priority)) {
+      updates.push(`priority = $${paramIndex++}`);
+      values.push(body.priority);
+    }
     if (body.assigned_to_agent_id !== undefined) {
       updates.push(`assigned_to_agent_id = $${paramIndex++}`);
       const raw = body.assigned_to_agent_id;
@@ -84,7 +104,6 @@ export async function PATCH(
         raw === "" ||
         String(raw).toLowerCase() === "shannon";
       values.push(assignedToMe ? null : raw);
-      values.push(body.assigned_to_agent_id);
     }
 
     if (updates.length === 0) {
@@ -107,7 +126,7 @@ export async function PATCH(
        WHERE id = $${paramIndex}
        RETURNING 
          id, title, assigned_to_agent_id, depends_on_shannon, 
-         status, due_date, created_at, updated_at`,
+         status, priority, due_date, created_at, updated_at`,
       values
     );
 
