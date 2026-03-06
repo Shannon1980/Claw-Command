@@ -57,7 +57,8 @@ export const tasks = pgTable("tasks", {
   title: text("title").notNull(),
   assignedToAgentId: text("assigned_to_agent_id").references(() => agents.id), // null = assigned to Shannon (me)
   dependsOnShannon: boolean("depends_on_shannon").notNull().default(false),
-  status: text("status").notNull().default("backlog"), // backlog | in_progress | blocked | done
+  status: text("status").notNull().default("backlog"), // backlog | ready | in_progress | blocked | done
+  priority: text("priority").notNull().default("medium"), // high | medium | low
   dueDate: text("due_date"),
   parentOpportunityId: text("parent_opportunity_id").references(
     () => opportunities.id

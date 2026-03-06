@@ -18,9 +18,15 @@ interface TaskEditModalProps {
 
 const STATUS_OPTIONS = [
   { value: "backlog", label: "Backlog" },
+  { value: "ready", label: "Ready" },
   { value: "in_progress", label: "In Progress" },
   { value: "blocked", label: "Blocked" },
   { value: "done", label: "Done" },
+];
+const PRIORITY_OPTIONS = [
+  { value: "high", label: "🔴 High" },
+  { value: "medium", label: "🟡 Medium" },
+  { value: "low", label: "🟢 Low" },
 ];
 
 export default function TaskEditModal({
@@ -32,12 +38,14 @@ export default function TaskEditModal({
   const isCreate = task === null;
   const [title, setTitle] = useState(task?.title ?? "");
   const [status, setStatus] = useState(task?.status ?? "backlog");
+  const [priority, setPriority] = useState(task?.priority ?? "medium");
   const [dueDate, setDueDate] = useState(task?.due_date ?? "");
   const [dependsOnShannon, setDependsOnShannon] = useState(
     task?.depends_on_shannon ?? false
   );
-  const [assignedToAgentId, setAssignedToAgentId] = useState(
-    task?.assigned_to_agent_id ?? agents[0]?.id ?? ""
+  // "" = Me (Shannon), agent id = agent
+  const [assignedTo, setAssignedTo] = useState(
+    task?.assigned_to_agent_id ?? ""
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +56,7 @@ export default function TaskEditModal({
       setError("Title is required");
       return;
     }
-    if (!assignedToAgentId) {
-      setError("Please assign to an agent");
-      return;
-    }
+    // assignedTo can be "" (me) or agent id - both valid
 
     setSaving(true);
     setError(null);
@@ -62,8 +67,9 @@ export default function TaskEditModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: trimmedTitle,
-            assigned_to_agent_id: assignedToAgentId,
+            assigned_to_agent_id: assignedTo || null,
             status,
+            priority,
             due_date: dueDate || null,
             depends_on_shannon: dependsOnShannon,
           }),
@@ -79,9 +85,10 @@ export default function TaskEditModal({
           body: JSON.stringify({
             title: trimmedTitle,
             status,
+            priority,
             due_date: dueDate || null,
             depends_on_shannon: dependsOnShannon,
-            assigned_to_agent_id: assignedToAgentId,
+            assigned_to_agent_id: assignedTo || null,
           }),
         });
         if (!res.ok) {
@@ -139,19 +146,33 @@ export default function TaskEditModal({
               Assigned to
             </label>
             <select
-              value={assignedToAgentId}
-              onChange={(e) => setAssignedToAgentId(e.target.value)}
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {agents.length === 0 ? (
-                <option value="">No agents available</option>
-              ) : (
-                agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.emoji} {a.name}
-                  </option>
-                ))
-              )}
+              <option value="">👤 Me (Shannon)</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.emoji} {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">
+              Priority
+            </label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {PRIORITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 

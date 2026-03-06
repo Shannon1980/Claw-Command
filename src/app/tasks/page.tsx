@@ -10,17 +10,25 @@ export default function TasksPage() {
   const { tasks, loading, error, refresh } = useTasksWithFilter(filter);
   const { agents } = useAgents();
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleStatusChange = useCallback(
     async (taskId: string, newStatus: string) => {
+      setSaveError(null);
       try {
         const res = await fetch(`/api/tasks/${taskId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus }),
         });
-        if (res.ok) refresh();
-      } catch {
-        /* ignore */
+        if (res.ok) {
+          refresh();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setSaveError(data.error || data.details || `Failed to save (${res.status})`);
+        }
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "Failed to save");
       }
     },
     [refresh]
@@ -77,9 +85,9 @@ export default function TasksPage() {
           </div>
         </div>
 
-        {error && (
+        {(error || saveError) && (
           <div className="mb-4 px-4 py-2 bg-amber-900/20 border border-amber-500/30 rounded-lg text-amber-400 text-sm">
-            {String(error)}
+            {String(error || saveError)}
           </div>
         )}
 

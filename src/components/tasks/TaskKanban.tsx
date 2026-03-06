@@ -5,19 +5,22 @@ import type { Task } from "@/lib/hooks/useTasks";
 import TaskCard from "./TaskCard";
 import TaskEditModal from "./TaskEditModal";
 
-const TASK_STAGES = ["backlog", "in_progress", "blocked", "done"] as const;
+const TASK_STAGES = ["backlog", "ready", "in_progress", "blocked", "done"] as const;
 const STAGE_LABELS: Record<string, string> = {
   backlog: "Backlog",
+  ready: "Ready",
   in_progress: "In Progress",
   blocked: "Blocked",
   done: "Done",
 };
 const STAGE_COLORS: Record<string, string> = {
   backlog: "border-t-gray-600",
+  ready: "border-t-cyan-500",
   in_progress: "border-t-blue-500",
   blocked: "border-t-amber-500",
   done: "border-t-green-500",
 };
+const PRIORITY_ORDER = { high: 1, medium: 2, low: 3 };
 
 interface Agent {
   id: string;
@@ -68,7 +71,9 @@ export default function TaskKanban({
       </div>
       <div className="flex gap-3 overflow-x-auto pb-4">
         {TASK_STAGES.map((stage) => {
-          const stageTasks = tasks.filter((t) => t.status === stage);
+          const stageTasks = tasks
+            .filter((t) => t.status === stage)
+            .sort((a, b) => (PRIORITY_ORDER[(a.priority || "medium") as keyof typeof PRIORITY_ORDER] ?? 2) - (PRIORITY_ORDER[(b.priority || "medium") as keyof typeof PRIORITY_ORDER] ?? 2));
           return (
             <div
               key={stage}

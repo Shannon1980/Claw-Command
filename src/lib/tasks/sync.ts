@@ -62,6 +62,7 @@ export async function syncTasksFromSessions(
     }
 
     // Upsert tasks (only OpenClaw-sourced, id starts with "oc-")
+    // On conflict: overwrite title and status with OpenClaw's latest state
     for (const task of taskRecords) {
       await pool.query(
         `INSERT INTO tasks (id, title, assigned_to_agent_id, depends_on_shannon, status, due_date, created_at, updated_at)
