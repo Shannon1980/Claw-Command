@@ -49,7 +49,16 @@
 | Top status bar | CommandHeader exists | **Enhance with MC fields** |
 | SSE/WebSocket real-time | SSE feed exists | **Enhance event types** |
 
-**Summary:** 10 features need full builds, 8 need significant upgrades, 7 need minor enhancements.
+| Standup report generation | Not implemented | **Full build needed** |
+| Data export (CSV/JSON) | Not implemented | **Full build needed** |
+| OpenAPI spec / API reference UI | Not implemented | **Nice-to-have** |
+| Pipeline visualization (React Flow) | Not implemented | **Full build needed** |
+| Multi-tenancy / workspace isolation | Not implemented | **Defer (single-tenant first)** |
+| 1Password secrets integration | Not implemented | **Optional** |
+| Agent-specific API keys (mca_ prefix) | Not implemented | **Add with RBAC** |
+| Data retention policies | Not implemented | **Add with cron/scheduler** |
+
+**Summary:** 12 features need full builds, 8 need significant upgrades, 7 need minor enhancements, 3 are optional/deferred.
 
 ---
 
@@ -517,8 +526,15 @@ Upgrade existing `/api/sse/feed`:
 ## Dependencies to Add
 
 ```bash
-npm install zustand recharts @hello-pangea/dnd zod
+npm install zustand recharts @hello-pangea/dnd zod @xyflow/react pino
 ```
+
+**Notes on MC's choices vs Claw Command:**
+- MC uses `better-sqlite3` (SQLite) -- we use Drizzle/Postgres (keep ours, more scalable)
+- MC uses `@xyflow/react` (React Flow) for pipeline visualization -- add this
+- MC uses `pino` for structured logging -- add for server-side log consistency
+- MC uses Zustand 5 with `subscribeWithSelector` -- match this pattern
+- MC uses Zod 4 for all mutation route validation -- adopt this practice
 
 ---
 
