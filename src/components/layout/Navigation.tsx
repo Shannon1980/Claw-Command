@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/tasks", label: "Tasks" },
+  { href: "/mission-control", label: "Mission Control" },
   { href: "/pipeline", label: "Pipeline" },
   {
     label: "Docs",

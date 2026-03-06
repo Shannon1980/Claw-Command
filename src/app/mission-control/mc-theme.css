@@ -1,0 +1,11 @@
+/* Mission Control theme - harmonizes with Claw Command dark palette */
+.mc-panel {
+  --mc-border: rgba(75, 85, 99, 0.5);
+  --mc-bg: rgba(17, 24, 39, 0.5);
+  --mc-accent: rgba(59, 130, 246, 0.3);
+}
+
+.mc-panel-header {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
