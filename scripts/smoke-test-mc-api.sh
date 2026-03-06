@@ -37,6 +37,22 @@ test_endpoint "GET" "/api/mission-control/memory" "GET /memory"
 test_endpoint "GET" "/api/mission-control/recall?q=test" "GET /recall"
 test_endpoint "POST" "/api/mission-control/seed" "POST /seed"
 
+# PATCH blocker: create one, then resolve it
+create_resp=$(curl -s -X POST "$BASE/api/mission-control/blockers" -H "Content-Type: application/json" -d '{"title":"Smoke test blocker","type":"note"}')
+blocker_id=$(echo "$create_resp" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+if [ -n "$blocker_id" ]; then
+  res=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH "$BASE/api/mission-control/blockers/$blocker_id" -H "Content-Type: application/json" -d '{"status":"resolved"}')
+  if [ "$res" = "200" ]; then
+    echo "✓ PATCH /blockers/:id ($res)"
+  else
+    echo "✗ PATCH /blockers/:id (got $res)"
+    FAIL=1
+  fi
+else
+  echo "✗ PATCH /blockers/:id (could not create blocker)"
+  FAIL=1
+fi
+
 echo ""
 if [ $FAIL -eq 0 ]; then
   echo "All passed."

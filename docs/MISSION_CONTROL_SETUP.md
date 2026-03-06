@@ -10,7 +10,7 @@ Claw-Command now includes several Mission Control–inspired features:
 |---------|-------------|
 | **Review column** | Kanban has a "Review" stage (work complete, awaiting approval) |
 | **Task comments** | Threaded comments on tasks (in task edit modal) |
-| **Tokens page** | Placeholder for token/cost tracking (coming soon) |
+| **Tokens page** | Token usage from OpenClaw Prometheus metrics (set `OPENCLAW_METRICS_URL` on Vercel) |
 | **MC APIs** | Task queue, heartbeat, spawn under `/api/mc/` |
 
 ## Architecture
@@ -133,3 +133,13 @@ Then open http://localhost:3001.
 - Set `OPENCLAW_GATEWAY_HOST` to your OpenClaw gateway host
 - Configure `MC_ALLOWED_HOSTS` for network access
 - Use TLS (reverse proxy) for any public deployment
+
+### Token metrics on Vercel
+
+Claw-Command's `/tokens` page fetches Prometheus metrics from OpenClaw (port 9464). On Vercel, `localhost` is unreachable. Set `OPENCLAW_METRICS_URL` to a public URL, e.g. an ngrok tunnel to your local OpenClaw metrics endpoint:
+
+```env
+OPENCLAW_METRICS_URL=https://your-ngrok-url.ngrok.io/metrics
+```
+
+Enable metrics in `gateway.config.mjs`: `metrics: { enabled: true, port: 9464 }`.

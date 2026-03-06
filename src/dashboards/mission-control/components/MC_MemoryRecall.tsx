@@ -22,8 +22,10 @@ export default function MC_MemoryRecall() {
   };
 
   return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-300 mb-4">Memory Recall</h2>
+    <div className="mc-panel p-4">
+      <h2 className="mc-panel-header text-sm font-semibold text-gray-300 mb-4">
+        Memory Recall
+      </h2>
       <div className="flex gap-2 mb-4">
         <input
           type="text"
@@ -48,10 +50,7 @@ export default function MC_MemoryRecall() {
             <li className="text-sm text-gray-500 italic">No memories yet</li>
           ) : (
             memories.map((m) => (
-              <li
-                key={m.id}
-                className="text-sm text-gray-300 bg-gray-800/30 rounded p-2"
-              >
+              <li key={m.id} className="mc-card text-sm text-gray-300 p-2">
                 {m.content}
                 {m.source && (
                   <span className="text-xs text-gray-500 ml-2">

@@ -1,13 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { useMCBlockers } from "../hooks/useMCData";
 
+const BASE = "/api/mission-control";
+
 export default function MC_Dependencies() {
-  const { blockers, loading } = useMCBlockers();
+  const { blockers, loading, refresh } = useMCBlockers();
+  const [resolving, setResolving] = useState<string | null>(null);
+
+  const handleResolve = async (id: string) => {
+    setResolving(id);
+    try {
+      const res = await fetch(`${BASE}/blockers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "resolved" }),
+      });
+      if (res.ok) await refresh();
+    } finally {
+      setResolving(null);
+    }
+  };
 
   return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-300 mb-4">
+    <div className="mc-panel p-4">
+      <h2 className="mc-panel-header text-sm font-semibold text-gray-300 mb-4">
         Blockers & Dependencies
       </h2>
       {loading ? (
@@ -20,15 +38,26 @@ export default function MC_Dependencies() {
             blockers.map((b) => (
               <li
                 key={b.id}
-                className="flex items-center gap-2 text-sm text-gray-300 bg-gray-800/30 rounded p-2"
+                className="mc-card flex items-center justify-between gap-2 text-sm text-gray-300 p-2"
               >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    b.status === "open" ? "bg-amber-500" : "bg-green-500"
-                  }`}
-                />
-                {b.title}
-                <span className="text-xs text-gray-500">({b.type})</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      b.status === "open" ? "bg-amber-500" : "bg-green-500"
+                    }`}
+                  />
+                  <span className="truncate">{b.title}</span>
+                  <span className="text-xs text-gray-500 shrink-0">({b.type})</span>
+                </div>
+                {b.status === "open" && (
+                  <button
+                    onClick={() => handleResolve(b.id)}
+                    disabled={resolving === b.id}
+                    className="shrink-0 px-2 py-0.5 text-xs font-medium rounded bg-green-600/80 text-white hover:bg-green-600 disabled:opacity-50"
+                  >
+                    {resolving === b.id ? "…" : "Resolve"}
+                  </button>
+                )}
               </li>
             ))
           )}

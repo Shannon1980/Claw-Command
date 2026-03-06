@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/mission-control/mc-theme.css";
 import MissionHeader from "@/dashboards/mission-control/components/MissionHeader";
 import MC_KanbanBoard from "@/dashboards/mission-control/components/MC_KanbanBoard";
 import MC_SchedulePanel from "@/dashboards/mission-control/components/MC_SchedulePanel";

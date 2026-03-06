@@ -14,8 +14,10 @@ export default function MC_KanbanBoard() {
   const { teachingTasks, loading } = useMCTeachingTasks();
 
   return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-300 mb-4">Kanban Board</h2>
+    <div className="mc-panel p-4">
+      <h2 className="mc-panel-header text-sm font-semibold text-gray-300 mb-4">
+        Kanban Board
+      </h2>
       {loading ? (
         <div className="h-32 animate-pulse bg-gray-800/50 rounded" />
       ) : (
@@ -27,7 +29,7 @@ export default function MC_KanbanBoard() {
             return (
               <div
                 key={lane.id}
-                className="min-w-[180px] flex-shrink-0 bg-gray-800/30 rounded-lg p-3"
+                className="mc-lane min-w-[180px] flex-shrink-0 p-3"
               >
                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
                   {lane.label}
@@ -36,7 +38,7 @@ export default function MC_KanbanBoard() {
                   {items.map((task) => (
                     <div
                       key={task.id}
-                      className="bg-gray-900/80 rounded p-2 text-sm text-gray-200"
+                      className="mc-card p-2 text-sm text-gray-200"
                     >
                       {task.title}
                     </div>
