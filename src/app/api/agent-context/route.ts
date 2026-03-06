@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
           resource_id: row.resource_id,
         }));
 
-        const taskConditions = ["status IN ('backlog', 'ready', 'in_progress', 'blocked')"];
+        const taskConditions = ["status IN ('backlog', 'ready', 'in_progress', 'review', 'blocked')"];
         const taskParams: string[] = [];
         if (agentId) {
           taskConditions.push(`assigned_to_agent_id = $${taskParams.length + 1}`);

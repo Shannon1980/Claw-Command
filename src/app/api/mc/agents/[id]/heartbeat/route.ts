@@ -44,7 +44,7 @@ export async function POST(
     const tasksRes = await pool.query(
       `SELECT id, title, status, priority, due_date, depends_on_shannon, created_at, updated_at
        FROM tasks
-       WHERE assigned_to_agent_id = $1 AND status IN ('backlog', 'ready', 'in_progress')
+       WHERE assigned_to_agent_id = $1 AND status IN ('backlog', 'ready', 'in_progress', 'review')
        ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, due_date ASC NULLS LAST`,
       [agentId]
     );
@@ -97,7 +97,7 @@ export async function GET(
     const tasksRes = await pool.query(
       `SELECT id, title, status, priority, due_date, depends_on_shannon, created_at, updated_at
        FROM tasks
-       WHERE assigned_to_agent_id = $1 AND status IN ('backlog', 'ready', 'in_progress')
+       WHERE assigned_to_agent_id = $1 AND status IN ('backlog', 'ready', 'in_progress', 'review')
        ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, due_date ASC NULLS LAST`,
       [agentId]
     );

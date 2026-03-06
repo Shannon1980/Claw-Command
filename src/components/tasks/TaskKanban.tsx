@@ -5,11 +5,12 @@ import type { Task } from "@/lib/hooks/useTasks";
 import TaskCard from "./TaskCard";
 import TaskEditModal from "./TaskEditModal";
 
-const TASK_STAGES = ["backlog", "ready", "in_progress", "blocked", "done"] as const;
+const TASK_STAGES = ["backlog", "ready", "in_progress", "review", "blocked", "done"] as const;
 const STAGE_LABELS: Record<string, string> = {
   backlog: "Backlog",
   ready: "Ready",
   in_progress: "In Progress",
+  review: "Review",
   blocked: "Blocked",
   done: "Done",
 };
@@ -17,6 +18,7 @@ const STAGE_COLORS: Record<string, string> = {
   backlog: "border-t-gray-600",
   ready: "border-t-cyan-500",
   in_progress: "border-t-blue-500",
+  review: "border-t-purple-500",
   blocked: "border-t-amber-500",
   done: "border-t-green-500",
 };

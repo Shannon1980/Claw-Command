@@ -11,6 +11,7 @@ const STATUS_COLORS: Record<string, string> = {
   backlog: "border-gray-600",
   ready: "border-cyan-500/50",
   in_progress: "border-blue-500/50",
+  review: "border-purple-500/50",
   blocked: "border-amber-500/50",
   done: "border-green-500/50",
 };

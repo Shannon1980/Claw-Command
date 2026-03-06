@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
               t.assigned_to_agent_id, t.created_at, t.updated_at
        FROM tasks t
        WHERE t.assigned_to_agent_id = $1
-         AND t.status IN ('backlog', 'ready', 'in_progress')
+         AND t.status IN ('backlog', 'ready', 'in_progress', 'review')
        ORDER BY
          CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 2 END,
          t.due_date ASC NULLS LAST,

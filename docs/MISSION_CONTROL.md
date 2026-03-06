@@ -88,12 +88,19 @@ Create a task and push it to OpenClaw (Mission Control–style spawn).
 }
 ```
 
-## Using Claw-Command with Mission Control
+## Using Mission Control as a Separate App
 
-If you run both Mission Control and Claw-Command:
+See **[MISSION_CONTROL_SETUP.md](MISSION_CONTROL_SETUP.md)** for full setup instructions.
 
-1. **Claw-Command as task source** — Point Mission Control (or agents) at Claw-Command's `/api/mc/*` endpoints.
-2. **Mission Control as dashboard** — Use Mission Control for its Kanban, cost tracking, and real-time UI while Claw-Command holds your domain data (certifications, pipeline, etc.).
+**Quick start:**
+```bash
+git clone https://github.com/builderz-labs/mission-control.git
+cd mission-control && pnpm install && cp .env.example .env
+# Edit .env: OPENCLAW_GATEWAY_HOST, OPENCLAW_GATEWAY_PORT (same as Claw-Command)
+pnpm dev   # http://localhost:3000
+```
+
+Mission Control connects to the same OpenClaw gateway as Claw-Command. Tasks you create in Claw-Command (and push to OpenClaw) appear in Mission Control's task board.
 
 ### Environment
 

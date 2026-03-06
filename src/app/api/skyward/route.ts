@@ -73,7 +73,7 @@ export async function GET() {
        FROM tasks t
        LEFT JOIN agents a ON t.assigned_to_agent_id = a.id
        WHERE (a.domain = 'skyward' OR t.title ILIKE '%SEAS%' OR t.title ILIKE '%Skyward%' OR t.title ILIKE '%CPARS%')
-       AND t.status IN ('backlog', 'ready', 'in_progress', 'blocked')
+       AND t.status IN ('backlog', 'ready', 'in_progress', 'review', 'blocked')
        ORDER BY t.due_date ASC NULLS LAST`
     );
 
