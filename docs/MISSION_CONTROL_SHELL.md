@@ -44,9 +44,8 @@ Or use `npm run db:push` after adding the MC schema. Without DB, MC uses in-memo
 - `recall(query)` | `remember(content, source?)`
 - `createOpportunity(title, stage?)` | `createTeachingTask(title, status?)` | `createBlocker(title, blockerType?)`
 
-## Demo Plan
+## Demo
 
-1. Open MC tab → Kanban, Schedule, Memory Recall, and Dependencies render
-2. Memory Recall shows seed items from MEMORY.md
-3. `POST /api/mission-control/seed` to seed; `GET /api/mission-control/recall?q=certification` to recall
-4. Chat can call `dispatchMCAction({ type: "recall", query: "..." })` or `{ type: "remember", content: "..." }`
+See **[DEMO_MILESTONE_A.md](DEMO_MILESTONE_A.md)** for the full walkthrough.
+
+**Quick:** `./scripts/demo-milestone-a.sh` (with dev server running)

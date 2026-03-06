@@ -1,84 +1,72 @@
 # Milestone A Demo Script (10–15 min)
 
-Walk-through for the Mission Control shell inside Claw-Command.
+Step-by-step walkthrough for the Mission Control shell demo.
 
 ## Prerequisites
 
-- Claw-Command running (`npm run dev`)
-- `MEMORY.md` and `memory/*.md` at project root (seed data)
+- `npm run dev` running
+- Browser open to the app
 
 ---
 
-## 1. MC Tab and Landing (2 min)
+## 1. MC Tab (2 min)
 
-1. Open Claw-Command in the browser.
-2. Click **Mission Control** in the top navigation.
-3. Confirm the MC landing page shows:
-   - Mission Control header
-   - Kanban Board (5 lanes: Backlog → Done)
-   - Schedule panel
-   - Memory Recall panel
-   - Blockers & Dependencies panel
+1. Click **Mission Control** in the nav
+2. Navigate to `/mission-control`
+3. **Show:** MissionHeader, Kanban board (5 lanes), Schedule panel, Memory Recall, Blockers/Dependencies
+
+**Success:** All four panels render with seed data or placeholders.
 
 ---
 
-## 2. Kanban and Schedule with Seed Data (3 min)
+## 2. Memory Seed (2 min)
 
-1. On the MC page, confirm the Kanban shows teaching tasks in lanes:
-   - "Complete certification application draft" in In Progress
-   - "Review MBE documents with Shannon" in Ready
-2. Confirm the Schedule panel shows at least one block (e.g. "Certification review").
-3. Confirm Blockers shows "Awaiting Shannon approval on 8(a) scope".
+1. Run: `curl -X POST http://localhost:3000/api/mission-control/seed`
+2. Or trigger from any tool that can POST
+3. **Show:** Response `{ "memoriesLoaded": N }`
 
----
-
-## 3. Memory Recall (3 min)
-
-1. In the Memory Recall panel, click **Recall** with an empty or "certification" query.
-2. Confirm seed memories appear (from MEMORY.md / memory/*.md).
-3. Optional: `POST /api/mission-control/seed` to re-seed, then refresh the MC page.
+**Success:** Memories from MEMORY.md and memory/*.md are loaded.
 
 ---
 
-## 4. Chat Recall and Remember (4 min)
+## 3. Recall API (2 min)
 
-1. Go to **Chat** in the nav.
-2. Select an agent.
-3. Type: `/recall certification`
-4. Press Enter. Confirm a recall result appears above the input (memories matching "certification").
-5. Type: `/remember 8(a) scope approved by Shannon`
-6. Press Enter. Confirm "Remembered" appears.
-7. Go back to **Mission Control** → Memory Recall. Confirm the new memory appears in the list.
+1. Run: `curl "http://localhost:3000/api/mission-control/recall?q=certification"`
+2. **Show:** JSON with `results` array of matching memories
+
+**Success:** Recall returns seeded items matching the query.
 
 ---
 
-## 5. API Endpoints (2 min)
+## 4. Chat Recall/Remember (4 min)
 
-Quick curl checks (replace base URL if needed):
+1. Go to **Chat** (`/chat`)
+2. Select an agent
+3. Type: `/recall certification` → Send
+4. **Show:** Recall result appears below input
+5. Type: `/remember Important decision from today` → Send
+6. **Show:** "Remembered" confirmation
+
+**Success:** Chat commands invoke extensionBridge; recall and remember work.
+
+---
+
+## 5. Smoke Tests (2 min)
 
 ```bash
-# Opportunities
-curl http://localhost:3000/api/mission-control/opportunities
-
-# Teaching tasks
-curl http://localhost:3000/api/mission-control/teaching-tasks
-
-# Memory
-curl http://localhost:3000/api/mission-control/memory
-
-# Recall
-curl "http://localhost:3000/api/mission-control/recall?q=certification"
-
-# Seed (trigger)
-curl -X POST http://localhost:3000/api/mission-control/seed
+./scripts/smoke-test-mc-api.sh
+# or
+npm run test:mc-api
 ```
+
+**Success:** All MC API endpoints return 200.
 
 ---
 
-## Success Criteria
+## Quick Run
 
-- [ ] MC tab visible and navigable
-- [ ] Kanban, Schedule, Memory Recall, Dependencies render with seed data
-- [ ] `/recall` and `/remember` in chat work and show results
-- [ ] MC API endpoints return JSON
-- [ ] Memory seed from MEMORY.md visible in Memory Recall panel
+```bash
+./scripts/demo-milestone-a.sh
+```
+
+Follow the prompts. Ensure the dev server is running first.
