@@ -84,6 +84,7 @@ export async function PATCH(
         raw === "" ||
         String(raw).toLowerCase() === "shannon";
       values.push(assignedToMe ? null : raw);
+      values.push(body.assigned_to_agent_id);
     }
 
     if (updates.length === 0) {

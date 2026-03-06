@@ -36,9 +36,8 @@ export default function TaskEditModal({
   const [dependsOnShannon, setDependsOnShannon] = useState(
     task?.depends_on_shannon ?? false
   );
-  // "" = Me (Shannon), agent id = agent
-  const [assignedTo, setAssignedTo] = useState(
-    task?.assigned_to_agent_id ?? ""
+  const [assignedToAgentId, setAssignedToAgentId] = useState(
+    task?.assigned_to_agent_id ?? agents[0]?.id ?? ""
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +48,10 @@ export default function TaskEditModal({
       setError("Title is required");
       return;
     }
-    // assignedTo can be "" (me) or agent id
+    if (!assignedToAgentId) {
+      setError("Please assign to an agent");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -60,7 +62,7 @@ export default function TaskEditModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: trimmedTitle,
-            assigned_to_agent_id: assignedTo || null,
+            assigned_to_agent_id: assignedToAgentId,
             status,
             due_date: dueDate || null,
             depends_on_shannon: dependsOnShannon,
@@ -79,14 +81,12 @@ export default function TaskEditModal({
             status,
             due_date: dueDate || null,
             depends_on_shannon: dependsOnShannon,
-            assigned_to_agent_id: assignedTo || null,
+            assigned_to_agent_id: assignedToAgentId,
           }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          let msg = data.details ? `${data.error}: ${data.details}` : (data.error || `HTTP ${res.status}`);
-          if (data.hint) msg += ` ${data.hint}`;
-          throw new Error(msg);
+          throw new Error(data.error || `HTTP ${res.status}`);
         }
       }
       onSaved();
@@ -139,16 +139,19 @@ export default function TaskEditModal({
               Assigned to
             </label>
             <select
-              value={assignedTo}
-              onChange={(e) => setAssignedTo(e.target.value)}
+              value={assignedToAgentId}
+              onChange={(e) => setAssignedToAgentId(e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">👤 Me (Shannon)</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.emoji} {a.name}
-                </option>
-              ))}
+              {agents.length === 0 ? (
+                <option value="">No agents available</option>
+              ) : (
+                agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.emoji} {a.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const title = (body.title as string)?.trim();
-    const rawAssigned = body.assigned_to_agent_id as string | null | undefined;
+    const assignedToAgentId = body.assigned_to_agent_id as string;
 
     if (!title) {
       return NextResponse.json(
@@ -24,17 +24,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Empty, null, or "shannon" = assign to me (Shannon)
-    const assignedToMe =
-      rawAssigned == null ||
-      rawAssigned === "" ||
-      String(rawAssigned).toLowerCase() === "shannon";
-    const assignedToAgentId = assignedToMe ? null : rawAssigned;
-
-    if (!assignedToMe && !assignedToAgentId) {
+    if (!assignedToAgentId) {
       return NextResponse.json(
-        { error: "Please assign to an agent or yourself" },
+        { error: "Assigned agent is required" },
         { status: 400 }
       );
     }
@@ -51,30 +43,10 @@ export async function POST(request: NextRequest) {
       [id, title, assignedToAgentId, dependsOnShannon, status, dueDate, now]
     );
 
-    // Push to OpenClaw only when assigned to an agent (not to me)
-    if (assignedToAgentId) {
-      const pushResult = await pushTaskToOpenClaw({
-        taskId: id,
-        title,
-        agentId: assignedToAgentId,
-        status,
-        dueDate: dueDate,
-      });
-      if (!pushResult.ok) {
-        console.warn("[Tasks API] OpenClaw push failed:", pushResult.error);
-      }
-    }
-
-    let agentName = "Shannon";
-    let agentEmoji = "👤";
-    if (assignedToAgentId) {
-      const agentRes = await pool.query(
-        "SELECT name, emoji FROM agents WHERE id = $1",
-        [assignedToAgentId]
-      );
-      agentName = agentRes.rows[0]?.name ?? agentName;
-      agentEmoji = agentRes.rows[0]?.emoji ?? agentEmoji;
-    }
+    const agentRes = await pool.query(
+      "SELECT name, emoji FROM agents WHERE id = $1",
+      [assignedToAgentId]
+    );
 
     return NextResponse.json({
       id,
@@ -85,8 +57,8 @@ export async function POST(request: NextRequest) {
       due_date: dueDate,
       created_at: now,
       updated_at: now,
-      agent_name: agentName,
-      agent_emoji: agentEmoji,
+      agent_name: agentRes.rows[0]?.name,
+      agent_emoji: agentRes.rows[0]?.emoji,
     });
   } catch (error) {
     console.error("[Tasks API] Create error:", error);
