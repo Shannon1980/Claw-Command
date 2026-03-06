@@ -23,8 +23,8 @@ export type MCSeedData = {
 
 const now = () => new Date().toISOString();
 
-// Default seed (will be overwritten by memoryAdapter.seedFromMemory)
-const defaultSeed: MCSeedData = {
+// Default seed (will be overwritten by memoryAdapter.seedFromMemory for memories)
+export const defaultMCSeed: MCSeedData = {
   opportunities: [
     {
       id: "opp-1",
@@ -97,7 +97,7 @@ const defaultSeed: MCSeedData = {
 };
 
 // Mutable store
-let store: MCSeedData = JSON.parse(JSON.stringify(defaultSeed));
+let store: MCSeedData = JSON.parse(JSON.stringify(defaultMCSeed));
 
 export function getMCStore(): MCSeedData {
   return store;
@@ -133,6 +133,21 @@ export function addBlocker(blocker: Omit<Blocker, "id" | "createdAt" | "updatedA
   const item: Blocker = { ...blocker, id, createdAt: now(), updatedAt: now() };
   store.blockers.push(item);
   return item;
+}
+
+export function updateBlocker(
+  id: string,
+  patch: Partial<Pick<Blocker, "title" | "type" | "status" | "notes">>
+): Blocker | null {
+  const idx = store.blockers.findIndex((b) => b.id === id);
+  if (idx < 0) return null;
+  const ts = now();
+  store.blockers[idx] = {
+    ...store.blockers[idx],
+    ...patch,
+    updatedAt: ts,
+  };
+  return store.blockers[idx];
 }
 
 export function addMemoryItem(item: Omit<MemoryItem, "id" | "createdAt">): MemoryItem {

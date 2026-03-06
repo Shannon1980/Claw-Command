@@ -24,18 +24,18 @@ Or use `npm run db:push` after adding the MC schema. Without DB, MC uses in-memo
 | `/api/mission-control/opportunities` | GET, POST | Opportunities |
 | `/api/mission-control/teaching-tasks` | GET, POST | Teaching tasks |
 | `/api/mission-control/blockers` | GET, POST | Blockers/dependencies |
+| `/api/mission-control/blockers/:id` | PATCH | Update blocker (e.g. `status: "resolved"`) |
 | `/api/mission-control/agents` | GET | Agents |
 | `/api/mission-control/schedule` | GET, POST | Schedule blocks |
 | `/api/mission-control/memory` | GET | Memories (seeded from MEMORY.md) |
 | `/api/mission-control/memory/remember` | POST | Add memory item |
 | `/api/mission-control/recall?q=` | GET | Recall by query |
-| `/api/mission-control/seed` | POST | Trigger seed from MEMORY.md |
+| `/api/mission-control/seed` | POST | Seed all domains (memory + default data when DB empty) |
 
-## Memory Seed
+## Seed
 
-- `MEMORY.md` and `memory/*.md` at project root
-- `POST /api/mission-control/seed` triggers `seedFromMemory()`
-- First `GET /api/mission-control/memory` auto-seeds if memories empty
+- **Memory:** `MEMORY.md` and `memory/*.md` at project root. First `GET /memory` auto-seeds if empty.
+- **All domains:** `POST /api/mission-control/seed` seeds memory from files and, when DB is available and empty, inserts default opportunities, teaching tasks, blockers, and schedule.
 
 ## Extension Bridge
 

@@ -3,6 +3,7 @@
  * Used when DATABASE_URL is set; falls back to in-memory mcStore otherwise.
  */
 
+import { eq } from "drizzle-orm";
 import { connectionString } from "@/lib/db/config";
 import { db } from "@/lib/db/client";
 import {
@@ -122,6 +123,35 @@ export async function dbAddBlocker(
     updatedAt: ts,
   });
   return { ...blocker, id, createdAt: ts, updatedAt: ts };
+}
+
+export async function dbUpdateBlocker(
+  id: string,
+  patch: Partial<Pick<Blocker, "title" | "type" | "status" | "notes">>
+): Promise<Blocker | null> {
+  const ts = now();
+  const rows = await db
+    .update(mcBlockers)
+    .set({
+      ...(patch.title != null && { title: patch.title }),
+      ...(patch.type != null && { type: patch.type }),
+      ...(patch.status != null && { status: patch.status }),
+      ...(patch.notes != null && { notes: patch.notes }),
+      updatedAt: ts,
+    })
+    .where(eq(mcBlockers.id, id))
+    .returning();
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    title: r.title,
+    type: r.type as Blocker["type"],
+    status: r.status as Blocker["status"],
+    notes: r.notes ?? undefined,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
 }
 
 export async function dbGetSchedule(): Promise<ScheduleBlock[]> {

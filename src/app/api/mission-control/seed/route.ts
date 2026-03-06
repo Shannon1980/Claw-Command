@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { seedFromMemory } from "@/lib/mission-control/memoryAdapter";
+import { seedAllMC } from "@/lib/mission-control/seedAll";
 
 export async function POST() {
-  const result = await seedFromMemory();
+  const result = await seedAllMC();
   return NextResponse.json(result);
 }

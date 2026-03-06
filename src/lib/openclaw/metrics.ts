@@ -8,6 +8,9 @@ function getMetricsUrl(): string | null {
   const explicit = process.env.OPENCLAW_METRICS_URL;
   if (explicit) return explicit;
 
+  // On Vercel, localhost is unreachable; require explicit URL
+  if (process.env.VERCEL) return null;
+
   const base = process.env.OPENCLAW_URL || "http://localhost:18789";
   try {
     const u = new URL(base);
@@ -82,7 +85,9 @@ export async function fetchTokenMetrics(): Promise<TokenMetrics> {
       completionTokens: 0,
       byModel: {},
       toolsInvoked: 0,
-      error: "OPENCLAW_METRICS_URL or OPENCLAW_URL not configured",
+      error: process.env.VERCEL
+        ? "On Vercel, set OPENCLAW_METRICS_URL to a public metrics URL (e.g. ngrok tunnel to localhost:9464)."
+        : "OPENCLAW_METRICS_URL or OPENCLAW_URL not configured",
     };
   }
 
