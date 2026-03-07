@@ -12,13 +12,13 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindowProps) {
-  const { messages, loading, error, sendMessage } = useChat(agentId);
+  const { messages, loading, error, sendMessage, agentTyping } = useChat(agentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mcResult, setMcResult] = useState<string | null>(null);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, agentTyping]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -168,6 +168,22 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
             </div>
           </div>
         ))}
+        {/* Typing indicator */}
+        {agentTyping && (
+          <div className="flex justify-start">
+            <div className="bg-gray-800 text-gray-100 rounded-lg px-4 py-3 shadow-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">{agentEmoji}</span>
+                <span className="text-sm font-medium text-gray-300">{agentName}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 

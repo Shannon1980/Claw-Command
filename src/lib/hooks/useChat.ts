@@ -21,7 +21,10 @@ export function useChat(agentId: string) {
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [agentTyping, setAgentTyping] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const waitingForReply = useRef(false);
+  const lastMessageCount = useRef(0);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -43,6 +46,20 @@ export function useChat(agentId: string) {
         };
       });
 
+      // Check if agent replied (new agent message appeared)
+      if (waitingForReply.current && backendMessages.length > lastMessageCount.current) {
+        const lastMsg = backendMessages[backendMessages.length - 1];
+        if (lastMsg?.sender === "agent") {
+          waitingForReply.current = false;
+          setAgentTyping(false);
+          // Switch back to normal polling
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = setInterval(fetchMessages, 5000);
+        }
+      }
+
+      lastMessageCount.current = backendMessages.length;
+
       setLocalMessages(current => {
         const pendingMessages = current.filter(m =>
           (m.status === 'sending' || m.status === 'failed') &&
@@ -62,7 +79,7 @@ export function useChat(agentId: string) {
     if (!agentId) return;
     setLoading(true);
     fetchMessages();
-    intervalRef.current = setInterval(fetchMessages, 3000);
+    intervalRef.current = setInterval(fetchMessages, 5000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -98,7 +115,22 @@ export function useChat(agentId: string) {
         m.id === tempId ? { ...m, id: data.messageId || data.id, status: 'sent', timestamp: data.timestamp || m.timestamp } : m
       ));
 
-      fetchMessages();
+      // Show typing indicator and poll faster while waiting for reply
+      setAgentTyping(true);
+      waitingForReply.current = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(fetchMessages, 1000);
+
+      // Safety timeout: stop typing after 15s if no reply
+      setTimeout(() => {
+        if (waitingForReply.current) {
+          waitingForReply.current = false;
+          setAgentTyping(false);
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = setInterval(fetchMessages, 5000);
+        }
+      }, 15000);
+
     } catch (err) {
       console.error("Send error:", err);
       setLocalMessages(prev => prev.map(m =>
@@ -112,5 +144,6 @@ export function useChat(agentId: string) {
     loading: loading && localMessages.length === 0,
     error,
     sendMessage,
+    agentTyping,
   };
 }
