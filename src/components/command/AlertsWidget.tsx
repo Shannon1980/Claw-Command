@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { severityConfig } from '@/lib/ui-config';
+import { formatDueDate } from '@/lib/utils/formatting';
 
 interface Alert {
   id: string;
@@ -12,27 +14,6 @@ interface Alert {
   dismissed_at: string | null;
   description?: string;
 }
-
-const severityConfig = {
-  critical: {
-    emoji: '🔴',
-    color: 'text-red-500',
-    bgColor: 'bg-red-950/50',
-    borderColor: 'border-red-900/50'
-  },
-  warning: {
-    emoji: '🟡',
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-950/50',
-    borderColor: 'border-amber-900/50'
-  },
-  info: {
-    emoji: 'ℹ️',
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-950/50',
-    borderColor: 'border-blue-900/50'
-  }
-};
 
 const severityOrder = { critical: 1, warning: 2, info: 3 };
 
@@ -80,18 +61,6 @@ export default function AlertsWidget() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "No due date";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`;
-    if (diffDays === 0) return 'Due today';
-    if (diffDays === 1) return 'Due tomorrow';
-    return `Due in ${diffDays} days`;
-  };
 
   if (isLoading) {
     return (
@@ -165,7 +134,7 @@ export default function AlertsWidget() {
                           ? 'text-red-400' 
                           : config.color
                       }`}>
-                        {formatDate(alert.due_date)}
+                        {formatDueDate(alert.due_date)}
                       </span>
                     </div>
                     

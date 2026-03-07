@@ -135,28 +135,30 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
     set({ loading: true });
     try {
       const params = buildDateParams(range);
-      const summaryRes = await fetch(`/api/tokens/summary${params ? `?${params}` : ""}`);
-      if (summaryRes.ok) {
-        const data = await summaryRes.json();
-        set({ summary: data });
-      }
-      const agentRes = await fetch(`/api/tokens/by-agent${params ? `?${params}` : ""}`);
-      if (agentRes.ok) {
-        const data = await agentRes.json();
-        set({ byAgent: Array.isArray(data) ? data : [] });
-      }
-      const modelRes = await fetch(`/api/tokens/by-model${params ? `?${params}` : ""}`);
-      if (modelRes.ok) {
-        const data = await modelRes.json();
-        set({ byModel: Array.isArray(data) ? data : [] });
-      }
+      const qs = params ? `?${params}` : "";
       let dailyUrl = "/api/tokens/daily";
       if (range) {
         dailyUrl += `?from=${range.from}&to=${range.to}`;
       } else {
         dailyUrl += "?days=30";
       }
-      const dailyRes = await fetch(dailyUrl);
+
+      const [summaryRes, agentRes, modelRes, dailyRes] = await Promise.all([
+        fetch(`/api/tokens/summary${qs}`),
+        fetch(`/api/tokens/by-agent${qs}`),
+        fetch(`/api/tokens/by-model${qs}`),
+        fetch(dailyUrl),
+      ]);
+
+      if (summaryRes.ok) set({ summary: await summaryRes.json() });
+      if (agentRes.ok) {
+        const data = await agentRes.json();
+        set({ byAgent: Array.isArray(data) ? data : [] });
+      }
+      if (modelRes.ok) {
+        const data = await modelRes.json();
+        set({ byModel: Array.isArray(data) ? data : [] });
+      }
       if (dailyRes.ok) {
         const data = await dailyRes.json();
         set({ daily: Array.isArray(data) ? data : [] });
