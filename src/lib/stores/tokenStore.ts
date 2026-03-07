@@ -52,7 +52,7 @@ interface TokenStore {
   fetchByAgent: () => Promise<void>;
   fetchByModel: () => Promise<void>;
   fetchDaily: (days?: number) => Promise<void>;
-  fetchAll: () => Promise<void>;
+  fetchAll: (overrideRange?: DateRange | null) => Promise<void>;
   handleSSEEvent: (data: Record<string, unknown>) => void;
 }
 
@@ -130,15 +130,40 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
     } catch { /* silent */ }
   },
 
-  fetchAll: async () => {
+  fetchAll: async (overrideRange?: DateRange | null) => {
+    const range = overrideRange !== undefined ? overrideRange : get().dateRange;
     set({ loading: true });
-    await Promise.all([
-      get().fetchSummary(),
-      get().fetchByAgent(),
-      get().fetchByModel(),
-      get().fetchDaily(),
-    ]);
-    set({ loading: false });
+    try {
+      const params = buildDateParams(range);
+      const summaryRes = await fetch(`/api/tokens/summary${params ? `?${params}` : ""}`);
+      if (summaryRes.ok) {
+        const data = await summaryRes.json();
+        set({ summary: data });
+      }
+      const agentRes = await fetch(`/api/tokens/by-agent${params ? `?${params}` : ""}`);
+      if (agentRes.ok) {
+        const data = await agentRes.json();
+        set({ byAgent: Array.isArray(data) ? data : [] });
+      }
+      const modelRes = await fetch(`/api/tokens/by-model${params ? `?${params}` : ""}`);
+      if (modelRes.ok) {
+        const data = await modelRes.json();
+        set({ byModel: Array.isArray(data) ? data : [] });
+      }
+      let dailyUrl = "/api/tokens/daily";
+      if (range) {
+        dailyUrl += `?from=${range.from}&to=${range.to}`;
+      } else {
+        dailyUrl += "?days=30";
+      }
+      const dailyRes = await fetch(dailyUrl);
+      if (dailyRes.ok) {
+        const data = await dailyRes.json();
+        set({ daily: Array.isArray(data) ? data : [] });
+      }
+    } finally {
+      set({ loading: false });
+    }
   },
 
   handleSSEEvent: (_data) => {
