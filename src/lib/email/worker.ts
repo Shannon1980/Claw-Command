@@ -32,6 +32,10 @@ export async function runEmailWorker(): Promise<{
   let processed = 0;
   let actions = 0;
 
+  if (!pool) {
+    return { processed: 0, actions: 0, errors: ["Database not configured"] };
+  }
+
   const accountsRes = await pool.query(
     `SELECT id, provider, email, access_token, refresh_token FROM email_accounts WHERE provider = 'gmail'`
   );
@@ -150,7 +154,7 @@ async function executeAction(
       return; // draft_reply / none - skip for now
   }
 
-  await pool.query(
+  await pool?.query(
     `INSERT INTO email_actions (id, account_id, rule_id, message_id, thread_id, action, status, details, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, 'completed', $7, $8)`,
     [

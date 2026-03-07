@@ -7,6 +7,7 @@ const pool = connectionString
   : null;
 
 export async function GET(request: NextRequest) {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "50", 10), 100);

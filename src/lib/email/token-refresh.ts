@@ -38,10 +38,12 @@ export async function refreshAndPersistTokens(
     ? new Date(credentials.expiry_date).toISOString()
     : null;
 
-  await pool.query(
-    `UPDATE email_accounts SET access_token = $1, refresh_token = $2, token_expires_at = $3, updated_at = $4 WHERE id = $5`,
-    [newAccess, newRefresh, expiresAt, new Date().toISOString(), accountId]
-  );
+  if (pool) {
+    await pool.query(
+      `UPDATE email_accounts SET access_token = $1, refresh_token = $2, token_expires_at = $3, updated_at = $4 WHERE id = $5`,
+      [newAccess, newRefresh, expiresAt, new Date().toISOString(), accountId]
+    );
+  }
 
   return { accessToken: newAccess, refreshToken: newRefresh };
 }

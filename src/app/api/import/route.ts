@@ -41,7 +41,7 @@ interface ImportPayload {
 }
 
 export async function POST(request: NextRequest) {
-  if (!connectionString) {
+  if (!pool) {
     return NextResponse.json(
       { error: "Database not configured" },
       { status: 503 }

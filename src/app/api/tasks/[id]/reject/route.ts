@@ -12,6 +12,8 @@ export async function POST(
 ) {
   const { id } = await context.params;
 
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+
   try {
     // Parse optional reason from request body
     let reason = "";

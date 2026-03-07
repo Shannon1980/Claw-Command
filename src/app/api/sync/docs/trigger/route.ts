@@ -151,7 +151,7 @@ export async function POST() {
     );
   }
 
-  if (!connectionString) {
+  if (!pool) {
     return NextResponse.json(
       { success: false, error: "Database not configured" },
       { status: 503 }

@@ -11,6 +11,7 @@ function generateId(): string {
 }
 
 export async function GET() {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const res = await pool.query(
       `SELECT id, provider, email, created_at FROM email_accounts ORDER BY created_at DESC`
@@ -26,6 +27,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const body = await request.json();
     const provider = (body.provider as string)?.toLowerCase() || "gmail";

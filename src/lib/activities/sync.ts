@@ -35,7 +35,7 @@ export async function syncActivities(): Promise<SyncActivitiesResult> {
     archivedCount: 0,
   };
 
-  if (!connectionString) {
+  if (!pool) {
     result.error = "Database not configured";
     return result;
   }
