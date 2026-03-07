@@ -8,12 +8,28 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS soul TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS capabilities TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS api_key TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS retired_at TEXT;
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium';
+  `);
+  schemaReady = true;
+}
+
 export async function GET() {
   if (!pool) {
     return NextResponse.json([]);
   }
 
   try {
+    await ensureSchema();
+
     const result = await pool.query(
       `SELECT a.id, a.name, a.emoji, a.domain, a.status, a.current_task_id,
               a.soul, a.capabilities, a.api_key, a.updated_at,
