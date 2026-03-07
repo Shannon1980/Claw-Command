@@ -177,8 +177,12 @@ export function routeAction(
   fitScore: number,
   winProbability: number,
   daysUntilClose: number,
-  isFederal: boolean
+  isFederal: boolean,
+  setAsideType?: string,
+  amount?: number
 ): { action: ActionRouting; channel: OpportunityChannel } {
+  const setAsideLower = (setAsideType || "").toLowerCase();
+
   // Direct qualification: Fit 8+, Win 55%+, 45+ days
   if (fitScore >= 8 && winProbability >= 55 && daysUntilClose >= 45) {
     return { action: "CAPTURE_NOW", channel: "direct" };
@@ -191,12 +195,26 @@ export function routeAction(
     daysUntilClose >= 45 &&
     isFederal
   ) {
-    return { action: "CAPTURE_NOW_TEAM_SKYWARD", channel: "teaming" };
+    // Team Vorentoe (Vorentoe prime, Skyward partner):
+    //   EDWOSB/WOSB set-asides where Vorentoe's certification is the vehicle,
+    //   or smaller contracts (<$1M) where Vorentoe's specialization leads
+    const isVorentoePrimeSetAside =
+      setAsideLower.includes("edwosb") || setAsideLower.includes("wosb");
+    const isSmallerContract = (amount || 0) > 0 && (amount || 0) < 1_000_000;
+
+    if (isVorentoePrimeSetAside || (!setAsideLower.includes("8(a)") && isSmallerContract)) {
+      return { action: "CAPTURE_NOW_TEAM_VORENTOE", channel: "teaming_vorentoe_prime" };
+    }
+
+    // Team Skyward (Skyward prime, Vorentoe partner):
+    //   8(a) set-asides, large federal contracts, or contracts needing
+    //   Skyward's GSA schedules / OASIS+ / CMMI certs as the vehicle
+    return { action: "CAPTURE_NOW_TEAM_SKYWARD", channel: "teaming_skyward_prime" };
   }
 
   // Watch: has some potential
   if (fitScore >= 4 && winProbability >= 25 && daysUntilClose >= 30) {
-    return { action: "WATCH", channel: isFederal ? "teaming" : "direct" };
+    return { action: "WATCH", channel: isFederal ? "teaming_skyward_prime" : "direct" };
   }
 
   return { action: "PASS", channel: "direct" };

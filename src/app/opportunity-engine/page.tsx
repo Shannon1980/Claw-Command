@@ -6,7 +6,7 @@ import type { QualifiedOpportunity, ActionRouting } from "@/lib/opportunity-engi
 import type { OpportunityAnalysis } from "@/lib/opportunity-engine/analyze";
 import type { RiskLevel } from "@/lib/opportunity-engine/risk-assessment";
 
-type ViewTab = "capture" | "teaming" | "watch" | "all";
+type ViewTab = "capture" | "team_skyward" | "team_vorentoe" | "watch" | "all";
 type PageMode = "pipeline" | "analyze";
 
 // ─── Shared Components ─────────────────────────────────────────────────────
@@ -15,12 +15,14 @@ function ActionBadge({ action }: { action: ActionRouting }) {
   const styles: Record<ActionRouting, string> = {
     CAPTURE_NOW: "bg-green-500/20 text-green-400 border-green-500/30",
     CAPTURE_NOW_TEAM_SKYWARD: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    CAPTURE_NOW_TEAM_VORENTOE: "bg-purple-500/20 text-purple-400 border-purple-500/30",
     WATCH: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     PASS: "bg-gray-500/20 text-gray-500 border-gray-500/30",
   };
   const labels: Record<ActionRouting, string> = {
     CAPTURE_NOW: "CAPTURE NOW",
-    CAPTURE_NOW_TEAM_SKYWARD: "TEAM W/ SKYWARD",
+    CAPTURE_NOW_TEAM_SKYWARD: "TEAM SKYWARD",
+    CAPTURE_NOW_TEAM_VORENTOE: "TEAM VORENTOE",
     WATCH: "WATCH",
     PASS: "PASS",
   };
@@ -32,11 +34,13 @@ function ActionBadge({ action }: { action: ActionRouting }) {
 }
 
 function ChannelBadge({ channel }: { channel: string }) {
-  return channel === "teaming" ? (
-    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">Teaming</span>
-  ) : (
-    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">Direct</span>
-  );
+  if (channel === "teaming_skyward_prime") {
+    return <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">Skyward Prime</span>;
+  }
+  if (channel === "teaming_vorentoe_prime") {
+    return <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">Vorentoe Prime</span>;
+  }
+  return <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">Direct</span>;
 }
 
 function SourceBadge({ source }: { source: string }) {
@@ -522,9 +526,10 @@ export default function OpportunityEnginePage() {
   const getTabOpps = (): QualifiedOpportunity[] => {
     switch (activeTab) {
       case "capture": return queue.captureNowDirect;
-      case "teaming": return queue.captureNowTeaming;
+      case "team_skyward": return queue.captureNowTeamSkyward;
+      case "team_vorentoe": return queue.captureNowTeamVorentoe;
       case "watch": return queue.watch;
-      case "all": return [...queue.captureNowDirect, ...queue.captureNowTeaming, ...queue.watch, ...queue.pass];
+      case "all": return [...queue.captureNowDirect, ...queue.captureNowTeamSkyward, ...queue.captureNowTeamVorentoe, ...queue.watch, ...queue.pass];
     }
   };
 
@@ -581,9 +586,10 @@ export default function OpportunityEnginePage() {
         {pageMode === "pipeline" && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-5 gap-3 mb-6">
               <StatsCard label="Capture Now (Direct)" value={queue.captureNowDirect.length} color="text-green-400" />
-              <StatsCard label="Team w/ Skyward" value={queue.captureNowTeaming.length} color="text-cyan-400" />
+              <StatsCard label="Team Skyward (Prime)" value={queue.captureNowTeamSkyward.length} color="text-cyan-400" />
+              <StatsCard label="Team Vorentoe (Prime)" value={queue.captureNowTeamVorentoe.length} color="text-purple-400" />
               <StatsCard label="Watch" value={queue.watch.length} color="text-amber-400" />
               <StatsCard label="Total Scanned" value={queue.totalScanned} color="text-gray-400" />
             </div>
@@ -593,7 +599,8 @@ export default function OpportunityEnginePage() {
               <div className="flex items-center gap-4 text-[10px] font-mono text-gray-500">
                 <span className="text-gray-400 font-bold">ROUTING:</span>
                 <span><span className="text-green-400">CAPTURE</span> = Fit 8+ / Win 55%+ / 45d+</span>
-                <span><span className="text-cyan-400">TEAM SKYWARD</span> = Fit 6+ / Win 40%+ / 45d+ (Federal)</span>
+                <span><span className="text-cyan-400">TEAM SKYWARD</span> = Skyward prime, 8(a)/large fed</span>
+                <span><span className="text-purple-400">TEAM VORENTOE</span> = Vorentoe prime, EDWOSB/WOSB/&lt;$1M</span>
                 <span><span className="text-amber-400">WATCH</span> = Below threshold, monitor</span>
               </div>
             </div>
@@ -602,7 +609,8 @@ export default function OpportunityEnginePage() {
             <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-0.5 mb-6 w-fit">
               {([
                 { key: "capture" as ViewTab, label: "Capture Now", count: queue.captureNowDirect.length },
-                { key: "teaming" as ViewTab, label: "Team Skyward", count: queue.captureNowTeaming.length },
+                { key: "team_skyward" as ViewTab, label: "Team Skyward", count: queue.captureNowTeamSkyward.length },
+                { key: "team_vorentoe" as ViewTab, label: "Team Vorentoe", count: queue.captureNowTeamVorentoe.length },
                 { key: "watch" as ViewTab, label: "Watch", count: queue.watch.length },
                 { key: "all" as ViewTab, label: "All", count: queue.totalScanned },
               ]).map((tab) => (
