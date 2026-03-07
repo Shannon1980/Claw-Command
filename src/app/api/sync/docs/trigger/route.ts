@@ -142,10 +142,14 @@ export async function POST(request: NextRequest) {
   if (!fs.existsSync(workspacePath)) {
     return NextResponse.json(
       {
-        success: false,
-        error: `Workspace not found: ${workspacePath}. Set OPENCLAW_WORKSPACE or run the app locally with ~/.openclaw/workspace.`,
+        preview: true,
+        workspaceUnavailable: true,
+        error: "Workspace not available on this server. Run ./scripts/sync-docs.sh from your local machine to sync documents.",
+        created: [],
+        updated: [],
+        deleted: [],
       },
-      { status: 404 }
+      { status: 200 }
     );
   }
 

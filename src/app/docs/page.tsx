@@ -23,7 +23,7 @@ type TabMode = "all" | "queue";
 
 export default function DocsPage() {
   const [documents, setDocuments] = useState<Document[]>(SEED_DOCUMENTS);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
@@ -48,14 +48,14 @@ export default function DocsPage() {
 
   const fetchDocuments = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/docs");
-      if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setDocuments(data);
+      const data = await res.json().catch(() => null);
+      if (res.ok && Array.isArray(data)) {
+        setDocuments(data.length > 0 ? data : SEED_DOCUMENTS);
       }
     } catch {
-      // Keep existing documents (mock data) on fetch failure
+      // Keep seed docs on fetch failure
     } finally {
       setLoading(false);
     }
@@ -157,19 +157,27 @@ export default function DocsPage() {
       const res = await fetch("/api/sync/docs/trigger?preview=1", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.preview) {
-        const hasChanges =
-          (data.created?.length ?? 0) > 0 ||
-          (data.updated?.length ?? 0) > 0 ||
-          (data.deleted?.length ?? 0) > 0;
-        setSyncStatus({ loading: false, message: null });
-        if (hasChanges) {
-          setSyncPreview({
-            created: data.created ?? [],
-            updated: data.updated ?? [],
-            deleted: data.deleted ?? [],
+        if (data.workspaceUnavailable) {
+          setSyncStatus({
+            loading: false,
+            message: null,
+            error: data.error || "Run ./scripts/sync-docs.sh from your local machine.",
           });
         } else {
-          setSyncStatus({ loading: false, message: "Documents already up to date.", error: undefined });
+          const hasChanges =
+            (data.created?.length ?? 0) > 0 ||
+            (data.updated?.length ?? 0) > 0 ||
+            (data.deleted?.length ?? 0) > 0;
+          setSyncStatus({ loading: false, message: null });
+          if (hasChanges) {
+            setSyncPreview({
+              created: data.created ?? [],
+              updated: data.updated ?? [],
+              deleted: data.deleted ?? [],
+            });
+          } else {
+            setSyncStatus({ loading: false, message: "Documents already up to date.", error: undefined });
+          }
         }
       } else if (res.ok && data.success) {
         setSyncStatus({
