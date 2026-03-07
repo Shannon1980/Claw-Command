@@ -32,7 +32,7 @@ function getPresetRange(preset: string): DateRange {
 }
 
 export default function TokensPage() {
-  const { summary, byAgent, byModel, loading, fetchAll, dateRange, setDateRange } = useTokenStore();
+  const { summary, byAgent, byModel, daily, loading, fetchAll, dateRange, setDateRange } = useTokenStore();
   const [preset, setPreset] = useState<string>("30");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -52,14 +52,15 @@ export default function TokensPage() {
     setPreset(p);
     const range = getPresetRange(p);
     setDateRange(range);
-    setTimeout(fetchAll, 0);
+    fetchAll(range);
   };
 
   const applyCustom = () => {
     if (customFrom && customTo) {
       setPreset("");
-      setDateRange({ from: customFrom, to: customTo });
-      setTimeout(fetchAll, 0);
+      const range = { from: customFrom, to: customTo };
+      setDateRange(range);
+      fetchAll(range);
     }
   };
 
@@ -68,7 +69,7 @@ export default function TokensPage() {
     setCustomFrom("");
     setCustomTo("");
     setDateRange(null);
-    setTimeout(fetchAll, 0);
+    fetchAll(null);
   };
 
   if (loading && !summary) {
@@ -193,12 +194,41 @@ export default function TokensPage() {
           </div>
         </div>
 
-        {/* Daily chart placeholder */}
+        {/* Daily usage */}
         <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-6 mb-6">
           <h2 className="text-sm font-medium text-gray-300 mb-2">Daily Usage</h2>
-          <div className="h-40 flex items-center justify-center border border-dashed border-gray-700 rounded-lg">
-            <p className="text-xs text-gray-500 font-mono">Chart: Daily token usage over 30 days</p>
-          </div>
+          {daily.length === 0 ? (
+            <div className="h-40 flex items-center justify-center border border-dashed border-gray-700 rounded-lg">
+              <p className="text-xs text-gray-500 font-mono">No daily data for this date range</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {daily.map((d) => {
+                const total = d.inputTokens + d.outputTokens;
+                const maxTotal = Math.max(...daily.map((x) => x.inputTokens + x.outputTokens), 1);
+                const pct = (total / maxTotal) * 100;
+                return (
+                  <div key={d.date} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 font-mono w-24 shrink-0">
+                      {typeof d.date === "string" ? d.date.slice(0, 10) : d.date instanceof Date ? d.date.toISOString().slice(0, 10) : String(d.date).slice(0, 10)}
+                    </span>
+                    <div className="flex-1 h-6 bg-gray-800 rounded overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500/60 rounded transition-all min-w-[2px]"
+                        style={{ width: `${Math.max(pct, 2)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400 font-mono w-20 text-right">
+                      {total.toLocaleString()} tok
+                    </span>
+                    <span className="text-xs text-gray-500 font-mono w-14 text-right">
+                      {formatCost(d.costCents)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

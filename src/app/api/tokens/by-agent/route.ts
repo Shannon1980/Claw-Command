@@ -19,11 +19,11 @@ export async function GET(request: NextRequest) {
   const values: unknown[] = [];
   let paramIndex = 1;
   if (fromDate) {
-    conditions.push(`tu.created_at::date >= $${paramIndex++}`);
+    conditions.push(`tu.created_at::timestamp::date >= $${paramIndex++}::date`);
     values.push(fromDate);
   }
   if (toDate) {
-    conditions.push(`tu.created_at::date <= $${paramIndex++}`);
+    conditions.push(`tu.created_at::timestamp::date <= $${paramIndex++}::date`);
     values.push(toDate);
   }
   const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
