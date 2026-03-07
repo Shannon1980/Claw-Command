@@ -37,7 +37,6 @@ export default function LogsPage() {
   } = useLogStore();
 
   const [agents, setAgents] = useState<AgentOption[]>([]);
-  const [seeding, setSeeding] = useState(false);
   const [activeLevels, setActiveLevels] = useState<Set<LogLevel>>(
     new Set(["info", "warn", "error", "debug"])
   );
@@ -77,16 +76,6 @@ export default function LogsPage() {
   const handleSearch = (value: string) => {
     setSearch(value);
     setFilters({ search: value || undefined });
-  };
-
-  const handleSeedLogs = async () => {
-    setSeeding(true);
-    try {
-      const res = await fetch("/api/logs/seed", { method: "POST" });
-      if (res.ok) await fetchLogs();
-    } finally {
-      setSeeding(false);
-    }
   };
 
   const entries = filteredEntries().filter(
@@ -166,14 +155,7 @@ export default function LogsPage() {
           <p className="text-sm text-gray-400">Loading...</p>
         ) : entries.length === 0 ? (
           <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
-            <p className="text-sm text-gray-500 mb-4">No log entries match the current filters</p>
-            <button
-              onClick={handleSeedLogs}
-              disabled={seeding}
-              className="px-4 py-2 text-sm font-medium bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {seeding ? "Seeding..." : "Seed sample logs"}
-            </button>
+            <p className="text-sm text-gray-500">No log entries. Logs appear when agents send data via POST /api/logs/ingest</p>
           </div>
         ) : (
           <div className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
