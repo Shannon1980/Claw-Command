@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Document, DocumentStatus, LinkedItem } from "@/lib/mock-docs";
+import type { Document, DocumentStatus, DocumentPriority, ReviewStatus, DocumentCategory, LinkedItem } from "@/lib/mock-docs";
+import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/mock-docs";
 import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
 import LinkPicker, { linkTypeConfig } from "@/components/docs/LinkPicker";
+import DocNotes from "@/components/docs/DocNotes";
+import { priorityStyles, reviewStatusStyles } from "@/components/docs/ReviewQueue";
 
 interface DocViewerProps {
   document: Document | null;
@@ -11,6 +14,7 @@ interface DocViewerProps {
   onUpdate?: (doc: Document) => void;
   onDelete?: (id: string) => void;
   onDuplicate?: (doc: Document) => void;
+  onAssign?: (doc: Document) => void;
 }
 
 const statusOptions: { value: DocumentStatus; label: string }[] = [
@@ -25,7 +29,7 @@ function getWordCount(text: string): number {
   return text.trim().split(/\s+/).length;
 }
 
-export default function DocViewer({ document, onClose, onUpdate, onDelete, onDuplicate }: DocViewerProps) {
+export default function DocViewer({ document, onClose, onUpdate, onDelete, onDuplicate, onAssign }: DocViewerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -33,6 +37,7 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
   if (!document) return null;
 
@@ -230,8 +235,77 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
     }
   };
 
+  const handlePriorityChange = async (newPriority: string) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: newPriority }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          priority: newPriority as DocumentPriority,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update priority:", error);
+    }
+  };
+
+  const handleReviewStatusChange = async (newStatus: string) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewStatus: newStatus }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          reviewStatus: newStatus as ReviewStatus,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update review status:", error);
+    }
+  };
+
+  const handleCategoryChange = async (newCategory: string) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: newCategory }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          category: newCategory as DocumentCategory,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update category:", error);
+    }
+  };
+
+  const handleNotesUpdated = (notes: typeof document.notes) => {
+    onUpdate?.({ ...document, notes: notes || [] });
+  };
+
   const wordCount = getWordCount(document.content || "");
   const history = document.versionHistory || [];
+  const pStyle = priorityStyles[document.priority || "medium"];
+  const rStyle = reviewStatusStyles[document.reviewStatus || "pending_review"];
 
   return (
     <>
@@ -302,6 +376,52 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
             )}
           </div>
 
+          {/* Priority / Category / Review row */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {/* Priority */}
+            <select
+              value={document.priority || "medium"}
+              onChange={(e) => handlePriorityChange(e.target.value)}
+              className={`px-2 py-1 rounded text-[11px] font-medium border bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500/50 ${pStyle.color} ${pStyle.border}`}
+            >
+              {PRIORITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label} Priority</option>
+              ))}
+            </select>
+
+            {/* Category */}
+            <select
+              value={document.category || "uncategorized"}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="px-2 py-1 rounded text-[11px] font-medium border bg-gray-900 text-gray-300 border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+            >
+              {CATEGORY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+
+            {/* Review Status */}
+            <select
+              value={document.reviewStatus || "pending_review"}
+              onChange={(e) => handleReviewStatusChange(e.target.value)}
+              className={`px-2 py-1 rounded text-[11px] font-medium border bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500/50 ${rStyle.color} ${rStyle.border}`}
+            >
+              {REVIEW_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+
+            {/* Assign button */}
+            {onAssign && (
+              <button
+                onClick={() => onAssign(document)}
+                className="ml-auto px-3 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[11px] font-medium hover:bg-indigo-500/30 transition-colors"
+              >
+                Assign To...
+              </button>
+            )}
+          </div>
+
           {/* Controls */}
           <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-800/50 flex-wrap">
             {!isEditing ? (
@@ -364,6 +484,18 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
               ))}
             </select>
 
+            {/* Notes Toggle */}
+            <button
+              onClick={() => setShowNotes(!showNotes)}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                showNotes
+                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  : "text-gray-500 hover:text-gray-300 hover:bg-gray-800 border border-transparent"
+              }`}
+            >
+              Notes ({(document.notes || []).length})
+            </button>
+
             {/* Version History Toggle */}
             {history.length > 0 && (
               <button
@@ -416,6 +548,49 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
                       {new Date(entry.timestamp).toLocaleString()}
                     </span>
                     <span className="text-gray-400">{entry.summary}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes Panel */}
+          {showNotes && (
+            <div className="mb-4">
+              <DocNotes
+                docId={document.id}
+                notes={document.notes || []}
+                onNoteAdded={handleNotesUpdated}
+              />
+            </div>
+          )}
+
+          {/* Assignments */}
+          {document.assignments && document.assignments.length > 0 && (
+            <div className="mb-4 bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <h3 className="text-xs font-bold text-gray-400 mb-2">Assignments</h3>
+              <div className="space-y-1.5">
+                {document.assignments.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className={`px-1.5 py-0.5 rounded font-medium ${
+                      a.target === "task" ? "bg-purple-500/10 text-purple-400" :
+                      a.target === "memory" ? "bg-green-500/10 text-green-400" :
+                      "bg-cyan-500/10 text-cyan-400"
+                    }`}>
+                      {a.target}
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded ${
+                      a.status === "completed" ? "bg-green-500/10 text-green-400" :
+                      a.status === "failed" ? "bg-red-500/10 text-red-400" :
+                      a.status === "in_progress" ? "bg-blue-500/10 text-blue-400" :
+                      "bg-gray-500/10 text-gray-400"
+                    }`}>
+                      {a.status}
+                    </span>
+                    {a.agentId && <span className="text-gray-500">agent: {a.agentId}</span>}
+                    <span className="text-gray-600 font-mono ml-auto">
+                      {new Date(a.assignedAt).toLocaleString()}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -20,9 +20,13 @@ async function ensureSchema() {
       author_agent_id TEXT,
       status TEXT NOT NULL DEFAULT 'draft',
       file_path TEXT,
-      linked_to TEXT DEFAULT '[]',
       linked_to JSONB DEFAULT '[]'::jsonb,
       version_history JSONB DEFAULT '[]'::jsonb,
+      priority TEXT DEFAULT 'medium',
+      review_status TEXT DEFAULT 'pending_review',
+      category TEXT DEFAULT 'uncategorized',
+      notes JSONB DEFAULT '[]'::jsonb,
+      assignments JSONB DEFAULT '[]'::jsonb,
       created_at TEXT NOT NULL DEFAULT (now()::text),
       updated_at TEXT NOT NULL DEFAULT (now()::text)
     );
@@ -55,12 +59,15 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search");
   const linkedType = searchParams.get("linkedType");
   const linkedId = searchParams.get("linkedId");
+  const reviewStatus = searchParams.get("reviewStatus");
+  const category = searchParams.get("category");
+  const priority = searchParams.get("priority");
 
   try {
     let query = `
       SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id,
-             d.status, d.file_path, d.linked_to, d.created_at, d.updated_at,
              d.status, d.file_path, d.linked_to, d.version_history,
+             d.priority, d.review_status, d.category, d.notes, d.assignments,
              d.created_at, d.updated_at,
              a.name as agent_name, a.emoji as agent_emoji
       FROM docs d
@@ -77,11 +84,22 @@ export async function GET(request: NextRequest) {
       params.push(`%${search}%`);
       conditions.push(`(d.title ILIKE $${params.length} OR d.content ILIKE $${params.length})`);
     }
-
     if (linkedType && linkedId) {
       params.push(linkedType);
       params.push(linkedId);
       conditions.push(`d.linked_to @> jsonb_build_array(jsonb_build_object('type', $${params.length - 1}::text, 'id', $${params.length}::text))`);
+    }
+    if (reviewStatus) {
+      params.push(reviewStatus);
+      conditions.push(`d.review_status = $${params.length}`);
+    }
+    if (category) {
+      params.push(category);
+      conditions.push(`d.category = $${params.length}`);
+    }
+    if (priority) {
+      params.push(priority);
+      conditions.push(`d.priority = $${params.length}`);
     }
 
     if (conditions.length > 0) {
@@ -90,25 +108,6 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY d.updated_at DESC";
 
     const result = await pool.query(query, params);
-    const docs = result.rows.map((row: Record<string, unknown>) => {
-      let linkedTo: unknown[] = [];
-      try { linkedTo = JSON.parse((row.linked_to as string) || "[]"); } catch { /* */ }
-      return {
-        id: row.id,
-        title: row.title,
-        filename: row.filename,
-        type: row.doc_type,
-        content: row.content || "",
-        authorAgentId: row.author_agent_id,
-        status: row.status,
-        filePath: row.file_path,
-        linkedTo: Array.isArray(linkedTo) ? linkedTo : [],
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        agent: (row.agent_name as string) || "Unknown",
-        agentEmoji: (row.agent_emoji as string) || "",
-      };
-    });
     const docs = result.rows.map((row: Record<string, unknown>) => ({
       id: row.id,
       title: row.title,
@@ -124,6 +123,11 @@ export async function GET(request: NextRequest) {
       agentEmoji: (row.agent_emoji as string) || "",
       linkedTo: row.linked_to || [],
       versionHistory: row.version_history || [],
+      priority: row.priority || "medium",
+      reviewStatus: row.review_status || "pending_review",
+      category: row.category || "uncategorized",
+      notes: row.notes || [],
+      assignments: row.assignments || [],
     }));
 
     return NextResponse.json(docs);
@@ -144,16 +148,18 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-    const linkedTo = JSON.stringify(Array.isArray(body.linkedTo) ? body.linkedTo : []);
-    await pool.query(
-      `INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status, linked_to, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $8)`,
     const linkedTo = Array.isArray(body.linkedTo) ? body.linkedTo : [];
     const versionHistory = [{ timestamp: now, summary: "Document created" }];
+    const priority = body.priority || "medium";
+    const category = body.category || "uncategorized";
 
     await pool.query(
-      `INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status, linked_to, version_history, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7::jsonb, $8::jsonb, $9, $9)`,
+      `INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status,
+        linked_to, version_history, priority, review_status, category, notes, assignments,
+        created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'draft',
+        $7::jsonb, $8::jsonb, $9, 'pending_review', $10, '[]'::jsonb, '[]'::jsonb,
+        $11, $11)`,
       [
         id,
         body.title,
@@ -161,9 +167,10 @@ export async function POST(request: NextRequest) {
         body.type || body.docType || "report",
         body.content || "",
         body.authorAgentId || null,
-        linkedTo,
         JSON.stringify(linkedTo),
         JSON.stringify(versionHistory),
+        priority,
+        category,
         now,
       ]
     );
@@ -174,11 +181,15 @@ export async function POST(request: NextRequest) {
       type: body.type || body.docType || "report",
       content: body.content || "",
       status: "draft",
-      linkedTo: body.linkedTo || [],
       agent: body.agent || "Unknown",
       agentEmoji: body.agentEmoji || "",
       linkedTo,
       versionHistory,
+      priority,
+      reviewStatus: "pending_review",
+      category,
+      notes: [],
+      assignments: [],
       createdAt: now,
       updatedAt: now,
     }, { status: 201 });

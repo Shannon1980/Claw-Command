@@ -45,7 +45,6 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
   const [content, setContent] = useState("");
   const [linkedTo, setLinkedTo] = useState<LinkedItem[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [linkedTo, setLinkedTo] = useState<LinkedItem[]>([]);
 
   // Linkable items
   const [deals, setDeals] = useState<{ id: string; name: string }[]>([]);
