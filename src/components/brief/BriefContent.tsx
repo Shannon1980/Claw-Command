@@ -4,6 +4,7 @@ import { useBrief } from "@/lib/hooks/useBrief";
 import BriefSummaryCard from "./BriefSummaryCard";
 import DomainSection from "./DomainSection";
 import PriorityList from "./PriorityList";
+import WeatherCard from "./WeatherCard";
 
 interface BriefContentProps {
   domainFilter?: string;
@@ -76,7 +77,8 @@ export default function BriefContent({
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <WeatherCard />
           <BriefSummaryCard
             icon="✅"
             label="Tasks Completed Overnight"
