@@ -6,12 +6,27 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS token_usage (
+      id TEXT PRIMARY KEY, agent_id TEXT, session_id TEXT, model TEXT,
+      input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_cents NUMERIC NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+    );
+  `);
+  schemaReady = true;
+}
+
 export async function GET(_request: NextRequest) {
   if (!pool) {
     return NextResponse.json([]);
   }
 
   try {
+    await ensureSchema();
     const result = await pool.query(
       `SELECT tu.agent_id,
               COALESCE(a.name, 'Unknown') as agent_name,
