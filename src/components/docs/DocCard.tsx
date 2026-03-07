@@ -1,7 +1,9 @@
 "use client";
 
-import { Document, DocumentStatus, DocumentType, LinkedItem } from "@/lib/mock-docs";
+import type { Document, DocumentStatus, DocumentType, DocumentPriority, ReviewStatus, LinkedItem } from "@/lib/mock-docs";
 import { linkTypeConfig } from "@/components/docs/LinkPicker";
+import { priorityStyles, reviewStatusStyles, categoryStyles } from "@/components/docs/ReviewQueue";
+import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/mock-docs";
 
 interface DocCardProps {
   document: Document;
@@ -95,17 +97,27 @@ export default function DocCard({ document, onClick }: DocCardProps) {
   const typeCfg =
     (document.type && typeConfig[document.type as DocumentType]) ??
     typeConfig.report;
+  const pStyle = priorityStyles[document.priority || "medium"];
+  const rStyle = reviewStatusStyles[document.reviewStatus || "pending_review"];
+  const catStyle = categoryStyles[document.category || "uncategorized"] || categoryStyles.uncategorized;
+  const catLabel = CATEGORY_OPTIONS.find((o) => o.value === document.category)?.label;
 
   return (
     <div
       onClick={onClick}
-      className="bg-gray-900 border border-gray-800 rounded-lg p-4 hover:border-gray-700 transition-colors cursor-pointer"
+      className={`bg-gray-900 border rounded-lg p-4 hover:border-gray-700 transition-colors cursor-pointer ${
+        document.reviewStatus === "pending_review" ? "border-amber-500/20" : "border-gray-800"
+      }`}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
-        <h3 className="text-sm font-bold text-gray-100 flex-1 pr-2">
-          {document.title}
-        </h3>
+        <div className="flex items-center gap-2 flex-1 pr-2 min-w-0">
+          {/* Priority dot */}
+          <div className={`w-2 h-2 rounded-full shrink-0 ${pStyle.dot}`} />
+          <h3 className="text-sm font-bold text-gray-100 truncate">
+            {document.title}
+          </h3>
+        </div>
         <span
           className={`${statusCfg.bg} ${statusCfg.border} ${statusCfg.color} border px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap`}
         >
@@ -113,13 +125,26 @@ export default function DocCard({ document, onClick }: DocCardProps) {
         </span>
       </div>
 
-      {/* Type Badge */}
-      <div className="mb-3">
+      {/* Type + Category + Review badges row */}
+      <div className="flex items-center gap-1.5 mb-3 flex-wrap">
         {typeCfg && (
-          <span
-            className={`${typeCfg.bg} ${typeCfg.color} px-2 py-0.5 rounded text-xs font-medium`}
-          >
+          <span className={`${typeCfg.bg} ${typeCfg.color} px-2 py-0.5 rounded text-[11px] font-medium`}>
             {typeCfg.label}
+          </span>
+        )}
+        {catLabel && (
+          <span className={`${catStyle} px-1.5 py-0.5 rounded text-[11px] font-mono`}>
+            {catLabel}
+          </span>
+        )}
+        {document.reviewStatus && document.reviewStatus !== "approved" && (
+          <span className={`${rStyle.bg} ${rStyle.color} ${rStyle.border} border px-1.5 py-0.5 rounded text-[11px] font-medium`}>
+            {REVIEW_STATUS_OPTIONS.find((o) => o.value === document.reviewStatus)?.label}
+          </span>
+        )}
+        {document.assignments && document.assignments.length > 0 && (
+          <span className="bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded text-[11px] font-medium">
+            {document.assignments.length} assignment{document.assignments.length !== 1 ? "s" : ""}
           </span>
         )}
       </div>
@@ -155,6 +180,9 @@ export default function DocCard({ document, onClick }: DocCardProps) {
         <div className="flex items-center gap-2 text-gray-500">
           <span className="text-base">{document.agentEmoji}</span>
           <span>{document.agent}</span>
+          {document.notes && document.notes.length > 0 && (
+            <span className="text-blue-400/60">{document.notes.length} note{document.notes.length !== 1 ? "s" : ""}</span>
+          )}
         </div>
         <div className="flex items-center gap-3 text-gray-500 font-mono">
           <span>{getWordCount(document.content || "")} words</span>

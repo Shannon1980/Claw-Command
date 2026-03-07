@@ -28,6 +28,9 @@ export async function PATCH(
       status: "status",
       type: "doc_type",
       docType: "doc_type",
+      priority: "priority",
+      reviewStatus: "review_status",
+      category: "category",
     };
 
     for (const [bodyKey, dbCol] of Object.entries(allowedFields)) {
@@ -42,6 +45,11 @@ export async function PATCH(
       values.push(JSON.stringify(body.linkedTo));
     }
 
+    if (body.assignments !== undefined) {
+      fields.push(`assignments = $${idx++}::jsonb`);
+      values.push(JSON.stringify(body.assignments));
+    }
+
     if (fields.length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
@@ -51,8 +59,12 @@ export async function PATCH(
     const changeParts: string[] = [];
     if (body.content !== undefined) changeParts.push("content edited");
     if (body.title !== undefined) changeParts.push("title updated");
-    if (body.status !== undefined) changeParts.push(`status → ${body.status}`);
+    if (body.status !== undefined) changeParts.push(`status -> ${body.status}`);
     if (body.linkedTo !== undefined) changeParts.push("links updated");
+    if (body.priority !== undefined) changeParts.push(`priority -> ${body.priority}`);
+    if (body.reviewStatus !== undefined) changeParts.push(`review -> ${body.reviewStatus}`);
+    if (body.category !== undefined) changeParts.push(`category -> ${body.category}`);
+    if (body.assignments !== undefined) changeParts.push("assignments updated");
     const summary = changeParts.length > 0 ? changeParts.join(", ") : "updated";
 
     fields.push(`version_history = COALESCE(version_history, '[]'::jsonb) || $${idx++}::jsonb`);
@@ -65,7 +77,8 @@ export async function PATCH(
     const result = await pool.query(
       `UPDATE docs SET ${fields.join(", ")} WHERE id = $${idx} RETURNING
         id, title, doc_type as type, content, status, author_agent_id,
-        linked_to, version_history, created_at, updated_at`,
+        linked_to, version_history, priority, review_status, category,
+        notes, assignments, created_at, updated_at`,
       values
     );
 
@@ -78,6 +91,9 @@ export async function PATCH(
       ...row,
       linkedTo: row.linked_to || [],
       versionHistory: row.version_history || [],
+      reviewStatus: row.review_status || "pending_review",
+      notes: row.notes || [],
+      assignments: row.assignments || [],
     });
   } catch (error) {
     console.error("[Docs API] PATCH error:", error);

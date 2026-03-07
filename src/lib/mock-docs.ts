@@ -7,6 +7,23 @@ export type DocumentType =
 
 export type DocumentStatus = "draft" | "in_review" | "approved" | "exported";
 
+export type DocumentPriority = "critical" | "high" | "medium" | "low";
+
+export type ReviewStatus = "pending_review" | "reviewed" | "needs_changes" | "approved" | "rejected";
+
+export type DocumentCategory =
+  | "govcon"
+  | "internal"
+  | "compliance"
+  | "financial"
+  | "technical"
+  | "hr"
+  | "marketing"
+  | "legal"
+  | "uncategorized";
+
+export type AssignTarget = "memory" | "task" | "orchestration";
+
 export interface LinkedItem {
   type: "deal" | "certification" | "task";
   id: string;
@@ -18,6 +35,23 @@ export interface VersionEntry {
   summary: string;
 }
 
+export interface DocNote {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface DocAssignment {
+  target: AssignTarget;
+  targetId?: string;
+  agentId?: string;
+  instructions?: string;
+  priority?: DocumentPriority;
+  assignedAt: string;
+  status: "pending" | "in_progress" | "completed" | "failed";
+}
+
 export interface Document {
   id: string;
   title: string;
@@ -26,11 +60,43 @@ export interface Document {
   agentEmoji: string;
   status: DocumentStatus;
   content: string;
+  linkedTo?: LinkedItem[];
   createdAt: string;
   updatedAt: string;
-  linkedTo?: LinkedItem[];
   versionHistory?: VersionEntry[];
+  priority?: DocumentPriority;
+  reviewStatus?: ReviewStatus;
+  category?: DocumentCategory;
+  notes?: DocNote[];
+  assignments?: DocAssignment[];
 }
+
+export const CATEGORY_OPTIONS: { value: DocumentCategory; label: string }[] = [
+  { value: "govcon", label: "GovCon" },
+  { value: "internal", label: "Internal" },
+  { value: "compliance", label: "Compliance" },
+  { value: "financial", label: "Financial" },
+  { value: "technical", label: "Technical" },
+  { value: "hr", label: "HR" },
+  { value: "marketing", label: "Marketing" },
+  { value: "legal", label: "Legal" },
+  { value: "uncategorized", label: "Uncategorized" },
+];
+
+export const PRIORITY_OPTIONS: { value: DocumentPriority; label: string; color: string }[] = [
+  { value: "critical", label: "Critical", color: "text-red-400" },
+  { value: "high", label: "High", color: "text-orange-400" },
+  { value: "medium", label: "Medium", color: "text-yellow-400" },
+  { value: "low", label: "Low", color: "text-gray-400" },
+];
+
+export const REVIEW_STATUS_OPTIONS: { value: ReviewStatus; label: string }[] = [
+  { value: "pending_review", label: "Pending Review" },
+  { value: "reviewed", label: "Reviewed" },
+  { value: "needs_changes", label: "Needs Changes" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
 
 export const mockDocuments: Document[] = [
   {
@@ -68,6 +134,9 @@ shannon@govorentoe.com
 www.govorentoe.com`,
     createdAt: "2026-02-15T10:00:00Z",
     updatedAt: "2026-02-20T14:30:00Z",
+    priority: "high",
+    reviewStatus: "approved",
+    category: "govcon",
   },
   {
     id: "doc-2",
@@ -102,6 +171,9 @@ www.govorentoe.com`,
 - Complete capability briefing (March 25)`,
     createdAt: "2026-03-01T09:00:00Z",
     updatedAt: "2026-03-03T16:45:00Z",
+    priority: "critical",
+    reviewStatus: "pending_review",
+    category: "govcon",
   },
   {
     id: "doc-3",
@@ -142,6 +214,9 @@ www.govorentoe.com`,
 Continue current performance trajectory. Address cost control processes for scope changes.`,
     createdAt: "2026-02-10T08:00:00Z",
     updatedAt: "2026-03-02T11:20:00Z",
+    priority: "medium",
+    reviewStatus: "pending_review",
+    category: "compliance",
   },
   {
     id: "doc-4",
@@ -175,6 +250,9 @@ Continue current performance trajectory. Address cost control processes for scop
 Application submitted via MDOT portal. Confirmation email received Feb 15, 2026.`,
     createdAt: "2026-02-15T14:00:00Z",
     updatedAt: "2026-03-04T09:00:00Z",
+    priority: "critical",
+    reviewStatus: "pending_review",
+    category: "compliance",
   },
   {
     id: "doc-5",
@@ -217,6 +295,9 @@ Directly applicable to DHS border technology requirements for:
 - Government facility clearance experience`,
     createdAt: "2026-02-28T10:30:00Z",
     updatedAt: "2026-03-04T13:15:00Z",
+    priority: "high",
+    reviewStatus: "pending_review",
+    category: "govcon",
   },
 ];
 
