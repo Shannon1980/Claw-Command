@@ -1,15 +1,8 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-import { mockDocuments } from "@/lib/mock-docs";
 import fs from "fs";
 import path from "path";
 import os from "os";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 let schemaReady = false;
 
@@ -138,12 +131,7 @@ function readWorkspaceDocs(): Array<Record<string, unknown>> {
 }
 
 function getMockFallback() {
-  return mockDocuments.map((doc) => ({
-    ...doc,
-    authorAgentId: null,
-    filePath: null,
-    filename: null,
-  }));
+  return [];
 }
 
 /** Get documents from best available source: DB → workspace → mock */
