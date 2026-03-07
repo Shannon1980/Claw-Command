@@ -38,7 +38,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
   fetchSessions: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch("/api/sessions");
+      const res = await fetch(`/api/sessions?_=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
       const rows = Array.isArray(data) ? data : [];
