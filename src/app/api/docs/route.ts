@@ -53,14 +53,14 @@ export async function GET(request: NextRequest) {
   const linkedId = searchParams.get("linkedId");
 
   try {
-    let query = `
-      SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id,
-             d.status, d.file_path, d.linked_to, d.version_history,
-             d.created_at, d.updated_at,
-             a.name as agent_name, a.emoji as agent_emoji
-      FROM docs d
-      LEFT JOIN agents a ON d.author_agent_id = a.id
-    `;
+    const baseQuery =
+      "SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, " +
+      "d.status, d.file_path, d.linked_to, d.version_history, " +
+      "d.created_at, d.updated_at, " +
+      "a.name as agent_name, a.emoji as agent_emoji " +
+      "FROM docs d " +
+      "LEFT JOIN agents a ON d.author_agent_id = a.id";
+    let query = baseQuery;
     const conditions: string[] = [];
     const params: string[] = [];
 
