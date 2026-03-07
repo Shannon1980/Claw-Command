@@ -11,9 +11,10 @@ export async function GET(request: NextRequest) {
   if (!pool) return NextResponse.json([]);
 
   const searchParams = request.nextUrl.searchParams;
-  const tags = searchParams.get("tags");
+  const tags = searchParams.get("tags") || searchParams.get("tag");
   const source = searchParams.get("source");
   const search = searchParams.get("search");
+  const category = searchParams.get("category");
   const limit = parseInt(searchParams.get("limit") || "100", 10);
 
   try {
@@ -24,6 +25,11 @@ export async function GET(request: NextRequest) {
     if (source) {
       conds.push(`source = $${i++}`);
       vals.push(source);
+    }
+
+    if (category) {
+      conds.push(`category = $${i++}`);
+      vals.push(category);
     }
 
     if (search) {

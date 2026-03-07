@@ -210,7 +210,9 @@ export const mcMemories = pgTable("mc_memories", {
   content: text("content").notNull(),
   source: text("source"),
   tags: text("tags"), // JSON array
+  category: text("category"),
   createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at"),
 });
 
 // ─── CHAT MESSAGES ──────────────────────────────────────────────────────────

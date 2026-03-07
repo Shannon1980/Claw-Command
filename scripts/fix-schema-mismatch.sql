@@ -158,7 +158,11 @@ CREATE TABLE IF NOT EXISTS agent_messages (
   created_at TEXT NOT NULL
 );
 
--- 16. Audit log (for audit page)
+-- 16. Memory: add category and updated_at columns
+ALTER TABLE mc_memories ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE mc_memories ADD COLUMN IF NOT EXISTS updated_at TEXT;
+
+-- 17. Audit log (for audit page)
 CREATE TABLE IF NOT EXISTS audit_log (
   id TEXT PRIMARY KEY,
   action TEXT NOT NULL,
