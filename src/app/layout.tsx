@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/layout/Navigation";
+import TopBar from "@/components/layout/TopBar";
+import LiveFeedSidebar from "@/components/layout/LiveFeedSidebar";
+import { EventStreamProvider } from "@/components/layout/EventStreamProvider";
 import { Providers } from "@/components/layout/Providers";
 
 const inter = Inter({
@@ -32,10 +35,14 @@ export default function RootLayout({
         className={`${inter.variable} ${mono.variable} font-sans antialiased bg-gray-950 text-gray-100 h-full flex`}
       >
         <Providers>
-          <Navigation />
-          <main className="flex-1 overflow-auto min-w-0">
-            {children}
-          </main>
+          <EventStreamProvider>
+            <Navigation />
+            <div className="flex-1 flex flex-col min-w-0">
+              <TopBar />
+              <main className="flex-1 overflow-auto">{children}</main>
+            </div>
+            <LiveFeedSidebar />
+          </EventStreamProvider>
         </Providers>
       </body>
     </html>

@@ -1,42 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { emitTaskUpdate, emitNotification } from "@/lib/events/emitActivity";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
 
+  if (!pool) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
-    // Update task: set status to in_progress, clear depends_on_shannon flag
+    const now = new Date().toISOString();
+
+    // Update task: set status to done
     const taskResult = await pool.query(
-      `UPDATE tasks 
-       SET status = 'in_progress', 
-           depends_on_shannon = false, 
+      `UPDATE tasks
+       SET status = 'done',
+           depends_on_shannon = false,
            updated_at = $1
        WHERE id = $2
-       RETURNING 
-         id, title, assigned_to_agent_id, depends_on_shannon, 
-         status, due_date, created_at, updated_at`,
-      [new Date().toISOString(), id]
+       RETURNING
+         id, title, assigned_to_agent_id, depends_on_shannon,
+         status, priority, due_date, created_at, updated_at`,
+      [now, id]
     );
 
     if (taskResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Task not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     const task = taskResult.rows[0];
 
-    // Log activity event
+    // Record approval in activities table
     await pool.query(
       `INSERT INTO activities (id, actor_agent_id, event_type, resource_type, resource_id, details, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -48,24 +54,38 @@ export async function POST(
         id,
         JSON.stringify({
           message: `Shannon approved task: ${task.title}`,
-          old_status: "blocked",
-          new_status: "in_progress",
+          old_status: task.status,
+          new_status: "done",
         }),
-        new Date().toISOString(),
+        now,
       ]
     );
 
     // Fetch agent info for response
-    const agentResult = await pool.query(
-      "SELECT name, emoji FROM agents WHERE id = $1",
-      [task.assigned_to_agent_id]
-    );
+    let agentName = "Shannon";
+    let agentEmoji = "👤";
+    if (task.assigned_to_agent_id) {
+      const agentResult = await pool.query(
+        "SELECT name, emoji FROM agents WHERE id = $1",
+        [task.assigned_to_agent_id]
+      );
+      agentName = agentResult.rows[0]?.name ?? agentName;
+      agentEmoji = agentResult.rows[0]?.emoji ?? agentEmoji;
+    }
 
     const response = {
       ...task,
-      agent_name: agentResult.rows[0]?.name,
-      agent_emoji: agentResult.rows[0]?.emoji,
+      agent_name: agentName,
+      agent_emoji: agentEmoji,
     };
+
+    emitTaskUpdate({ taskId: id, action: "approved", task: response });
+    emitNotification({
+      title: "Task Approved",
+      body: `Shannon approved: ${task.title}`,
+      type: "approval",
+      taskId: id,
+    });
 
     return NextResponse.json(response);
   } catch (error) {

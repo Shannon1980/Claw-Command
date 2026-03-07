@@ -1,20 +1,14 @@
 import { NextRequest } from "next/server";
+import { eventBus, type MCEvent } from "@/lib/events/eventBus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-let eventCounter = 0;
-
-function createSSEMessage(
-  eventType: string,
-  data: unknown,
-  id?: string
-): string {
-  const eventId = id || `evt-${++eventCounter}`;
+function formatSSE(event: MCEvent): string {
   return [
-    `id: ${eventId}`,
-    `event: ${eventType}`,
-    `data: ${JSON.stringify(data)}`,
+    `id: ${event.id}`,
+    `event: ${event.type}`,
+    `data: ${JSON.stringify(event.data)}`,
     "",
     "",
   ].join("\n");
@@ -25,60 +19,62 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial connection event
+      // Send connection event
       controller.enqueue(
         encoder.encode(
-          createSSEMessage("connected", {
-            message: "Connected to Claw Command SSE feed",
-            timestamp: new Date().toISOString(),
-          })
+          [
+            `id: connected-${Date.now()}`,
+            `event: connected`,
+            `data: ${JSON.stringify({
+              message: "Connected to Claw Command SSE feed",
+              timestamp: new Date().toISOString(),
+            })}`,
+            "",
+            "",
+          ].join("\n")
         )
       );
 
-      // Heartbeat every 30 seconds
+      // Subscribe to all events from the event bus
+      const unsubscribe = eventBus.onAll((event: MCEvent) => {
+        try {
+          controller.enqueue(encoder.encode(formatSSE(event)));
+        } catch {
+          // Stream closed
+          unsubscribe();
+        }
+      });
+
+      // Heartbeat every 30 seconds to keep connection alive
       const heartbeatInterval = setInterval(() => {
         try {
           controller.enqueue(
             encoder.encode(
-              createSSEMessage("heartbeat", {
-                timestamp: new Date().toISOString(),
-              })
+              [
+                `id: hb-${Date.now()}`,
+                `event: heartbeat`,
+                `data: ${JSON.stringify({ timestamp: new Date().toISOString() })}`,
+                "",
+                "",
+              ].join("\n")
             )
           );
         } catch {
           clearInterval(heartbeatInterval);
+          unsubscribe();
         }
       }, 30000);
 
-      // Clean up on disconnect
+      // Clean up on client disconnect
       request.signal.addEventListener("abort", () => {
         clearInterval(heartbeatInterval);
+        unsubscribe();
         try {
           controller.close();
         } catch {
           // Already closed
         }
       });
-
-      // TODO: Hook into real-time sync events
-      // When /api/sync is called, push updates through this stream
-      // For now, send a demo event after 5 seconds
-      setTimeout(() => {
-        try {
-          controller.enqueue(
-            encoder.encode(
-              createSSEMessage("agent_update", {
-                agentId: "forge",
-                status: "active",
-                currentTask: "Building Claw Command features",
-                timestamp: new Date().toISOString(),
-              })
-            )
-          );
-        } catch {
-          // Stream may be closed
-        }
-      }, 5000);
     },
   });
 

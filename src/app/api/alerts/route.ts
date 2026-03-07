@@ -1,50 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
-import { getActiveAlerts, mockAlerts } from "@/lib/mock-alerts";
+import { emitAlertFired } from "@/lib/events/emitActivity";
 
 const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
 export async function GET(request: NextRequest) {
+  if (!pool) return NextResponse.json([]);
+
   const searchParams = request.nextUrl.searchParams;
-  const activeOnly = searchParams.get("active") === "true";
+  const severity = searchParams.get("severity");
+  const dismissed = searchParams.get("dismissed");
 
   try {
-    if (pool && connectionString) {
-      const query = activeOnly
-        ? `SELECT id, title, severity, trigger_type, resource_id, due_date, dismissed_at, created_at
-           FROM alerts WHERE dismissed_at IS NULL ORDER BY 
-           CASE severity WHEN 'critical' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END,
-           due_date ASC NULLS LAST`
-        : `SELECT id, title, severity, trigger_type, resource_id, due_date, dismissed_at, created_at
-           FROM alerts ORDER BY created_at DESC`;
-      const result = await pool.query(query);
-      if (result.rows.length > 0) {
-        const alerts = result.rows.map((row) => ({
-          id: row.id,
-          severity: row.severity,
-          title: row.title,
-          trigger_type: row.trigger_type,
-          due_date: row.due_date ?? "",
-          created_at: row.created_at,
-          dismissed_at: row.dismissed_at,
-          description: undefined,
-        }));
-        return NextResponse.json(alerts);
-      }
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    if (severity) {
+      conditions.push(`severity = $${idx++}`);
+      values.push(severity);
     }
+    if (dismissed === "true") {
+      conditions.push(`dismissed_at IS NOT NULL`);
+    } else if (dismissed === "false") {
+      conditions.push(`dismissed_at IS NULL`);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const result = await pool.query(
+      `SELECT * FROM alerts ${where} ORDER BY created_at DESC`,
+      values
+    );
+    return NextResponse.json(result.rows);
   } catch (error) {
-    console.error("[Alerts API] Error:", error);
+    console.error("[Alerts API] GET error:", error);
+    return NextResponse.json({ error: "Failed to list alerts" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  if (!pool) {
+    return NextResponse.json({ error: "No database connection" }, { status: 503 });
   }
 
-  // Fallback to mock when DB is unavailable or empty
-  if (activeOnly) {
-    return NextResponse.json(getActiveAlerts());
+  try {
+    const body = await request.json();
+    const { title, severity, triggerType, resourceId, dueDate } = body;
+    const id = `alert-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    const result = await pool.query(
+      `INSERT INTO alerts (id, title, severity, trigger_type, resource_id, due_date, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [id, title, severity || "info", triggerType || null, resourceId || null, dueDate || null, now]
+    );
+
+    emitAlertFired({
+      alertId: id,
+      ruleId: "",
+      severity: severity || "info",
+      title,
+    });
+
+    return NextResponse.json(result.rows[0], { status: 201 });
+  } catch (error) {
+    console.error("[Alerts API] POST error:", error);
+    return NextResponse.json({ error: "Failed to create alert" }, { status: 500 });
   }
-  return NextResponse.json(mockAlerts);
 }
