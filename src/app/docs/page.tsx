@@ -11,7 +11,7 @@ import type {
   AssignTarget,
   DocumentPriority,
 } from "@/lib/mock-docs";
-import { CATEGORY_OPTIONS } from "@/lib/mock-docs";
+import { CATEGORY_OPTIONS, SEED_DOCUMENTS } from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -22,8 +22,8 @@ type ViewMode = "grid" | "list";
 type TabMode = "all" | "queue";
 
 export default function DocsPage() {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState<Document[]>(SEED_DOCUMENTS);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
@@ -49,10 +49,13 @@ export default function DocsPage() {
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await fetch("/api/docs");
+      if (!res.ok) return;
       const data = await res.json();
-      setDocuments(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0) {
+        setDocuments(data);
+      }
     } catch {
-      setDocuments([]);
+      // Keep existing documents (mock data) on fetch failure
     } finally {
       setLoading(false);
     }
