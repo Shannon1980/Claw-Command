@@ -715,6 +715,17 @@ export default function DailyNewsBriefPage() {
             </Section>
 
             {/* ── Status indicator ── */}
+            {data.newsErrors && data.newsErrors.length > 0 && (
+              <div className="mt-4 bg-red-900/10 border border-red-500/20 rounded-lg p-4">
+                <p className="text-xs text-red-400 font-medium mb-2">Some news feeds failed to load:</p>
+                <ul className="space-y-1">
+                  {data.newsErrors.map((err, i) => (
+                    <li key={i} className="text-xs text-red-300/70 font-mono">{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {data.newsApiConfigured === false && (
               <div className="mt-4 bg-gray-900/30 border border-dashed border-gray-700 rounded-lg p-4">
                 <p className="text-xs text-gray-500">

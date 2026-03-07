@@ -58,10 +58,17 @@ export async function fetchTopHeadlines(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `NewsAPI error: ${res.status}`);
+    const msg = err.message || `NewsAPI error: ${res.status}`;
+    console.error(`[NewsClient] top-headlines failed (${res.status}):`, msg);
+    throw new Error(msg);
   }
 
-  return res.json();
+  const data = await res.json();
+  if (data.status === "error") {
+    throw new Error(data.message || "NewsAPI returned an error");
+  }
+
+  return data;
 }
 
 export async function searchNews(
@@ -89,10 +96,17 @@ export async function searchNews(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `NewsAPI error: ${res.status}`);
+    const msg = err.message || `NewsAPI error: ${res.status}`;
+    console.error(`[NewsClient] everything search failed (${res.status}):`, msg);
+    throw new Error(msg);
   }
 
-  return res.json();
+  const data = await res.json();
+  if (data.status === "error") {
+    throw new Error(data.message || "NewsAPI returned an error");
+  }
+
+  return data;
 }
 
 export const NEWS_CATEGORIES = [
