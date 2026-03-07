@@ -108,6 +108,137 @@ export async function POST() {
   try {
     await client.query("BEGIN");
 
+    // Ensure all tables exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, emoji TEXT, domain TEXT NOT NULL DEFAULT 'vorentoe',
+        status TEXT NOT NULL DEFAULT 'idle', current_task_id TEXT, soul TEXT, capabilities TEXT,
+        api_key TEXT, retired_at TEXT, created_at TEXT, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS opportunities (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, stage TEXT NOT NULL DEFAULT 'identify',
+        value_usd NUMERIC, probability INTEGER DEFAULT 0, owner_agent_id TEXT,
+        shannon_approval BOOLEAN, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS applications (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, stage TEXT NOT NULL DEFAULT 'concept',
+        description TEXT, owner_agent_id TEXT, dependencies TEXT DEFAULT '[]',
+        shannon_approval BOOLEAN, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT DEFAULT '',
+        assigned_to_agent_id TEXT, depends_on_shannon BOOLEAN DEFAULT false,
+        status TEXT NOT NULL DEFAULT 'backlog', priority TEXT NOT NULL DEFAULT 'medium',
+        due_date TEXT, outcome TEXT, project TEXT, ticket_ref TEXT,
+        parent_opportunity_id TEXT, parent_application_id TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS activities (
+        id TEXT PRIMARY KEY, actor_agent_id TEXT, event_type TEXT NOT NULL,
+        resource_type TEXT, resource_id TEXT, details TEXT DEFAULT '{}', created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS alerts (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'info',
+        trigger_type TEXT, resource_id TEXT, due_date TEXT, dismissed BOOLEAN DEFAULT false,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS certifications (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, level TEXT NOT NULL DEFAULT 'Federal',
+        authority TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'NOT_STARTED',
+        due_date TEXT, applied_date TEXT, decision_expected TEXT, expires_date TEXT,
+        description TEXT, notes TEXT, documents TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS calendar_events (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, domain TEXT NOT NULL DEFAULT 'vorentoe',
+        start_time TEXT NOT NULL, end_time TEXT NOT NULL, protected BOOLEAN NOT NULL DEFAULT false,
+        description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS skyward_workstreams (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+        description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT, role TEXT NOT NULL DEFAULT 'viewer',
+        username TEXT, password_hash TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY, user_id TEXT, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'info', resource_url TEXT, read_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS sessions_auth (
+        token TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS token_usage (
+        id TEXT PRIMARY KEY, agent_id TEXT, session_id TEXT, model TEXT,
+        input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_cents NUMERIC NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS agent_logs (
+        id TEXT PRIMARY KEY, agent_id TEXT, session_id TEXT, level TEXT NOT NULL DEFAULT 'info',
+        message TEXT NOT NULL, metadata TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS agent_souls (
+        id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, personality TEXT NOT NULL DEFAULT '',
+        capabilities TEXT NOT NULL DEFAULT '', system_prompt TEXT NOT NULL DEFAULT '',
+        constraints TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS agent_messages (
+        id TEXT PRIMARY KEY, from_agent_id TEXT NOT NULL, to_agent_id TEXT NOT NULL,
+        content TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id TEXT PRIMARY KEY, user_id TEXT, action TEXT NOT NULL, resource_type TEXT NOT NULL,
+        resource_id TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}', ip_address TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS webhooks (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, events TEXT NOT NULL DEFAULT '[]',
+        secret TEXT NOT NULL DEFAULT '', enabled BOOLEAN NOT NULL DEFAULT true,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id TEXT PRIMARY KEY, webhook_id TEXT NOT NULL, event_type TEXT NOT NULL,
+        payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', response_code INTEGER,
+        response_body TEXT, attempts INTEGER NOT NULL DEFAULT 0, next_retry_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS alert_rules (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, condition_type TEXT NOT NULL DEFAULT '',
+        threshold TEXT, channels TEXT NOT NULL DEFAULT '[]', enabled BOOLEAN NOT NULL DEFAULT true,
+        last_fired TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pipelines (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '',
+        steps TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'draft',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pipeline_runs (
+        id TEXT PRIMARY KEY, pipeline_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'running',
+        current_step_index INTEGER NOT NULL DEFAULT 0, results TEXT NOT NULL DEFAULT '{}',
+        started_at TEXT NOT NULL, completed_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS cron_jobs (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, schedule TEXT NOT NULL,
+        command TEXT NOT NULL DEFAULT '{}', last_run_at TEXT, run_count INTEGER NOT NULL DEFAULT 0,
+        enabled BOOLEAN NOT NULL DEFAULT true, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS gateways (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'unknown', last_check_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS mc_memories (
+        id TEXT PRIMARY KEY, content TEXT NOT NULL, source TEXT, tags TEXT,
+        category TEXT, created_at TEXT NOT NULL, updated_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user',
+        content TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS task_comments (
+        id TEXT PRIMARY KEY, task_id TEXT NOT NULL, author TEXT NOT NULL,
+        content TEXT NOT NULL, parent_comment_id TEXT, created_at TEXT NOT NULL
+      );
+    `);
+
     // Clear existing data (reverse FK order)
     await client.query("DELETE FROM activities");
     await client.query("DELETE FROM alerts");
