@@ -6,12 +6,7 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
-/**
- * POST /api/agents/heartbeat-all
- * Bulk-update all non-retired agents' updated_at to now.
- * Can be called by a cron job or the UI to keep heartbeats fresh.
- */
-export async function POST() {
+async function refreshHeartbeats() {
   if (!pool) {
     return NextResponse.json(
       { error: "Database not configured" },
@@ -39,4 +34,14 @@ export async function POST() {
       { status: 500 }
     );
   }
+}
+
+/** GET - Vercel cron calls GET */
+export async function GET() {
+  return refreshHeartbeats();
+}
+
+/** POST - manual trigger */
+export async function POST() {
+  return refreshHeartbeats();
 }
