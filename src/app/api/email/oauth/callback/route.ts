@@ -3,10 +3,9 @@ import { google } from "googleapis";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 function generateId(): string {
   return `acc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;

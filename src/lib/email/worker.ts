@@ -15,10 +15,9 @@ import {
 import { classifyEmail } from "./ai";
 import { refreshAndPersistTokens } from "./token-refresh";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 function generateId(): string {
   return `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;

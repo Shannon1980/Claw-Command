@@ -12,10 +12,9 @@ import { connectionString } from "@/lib/db/config";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 function sseMessage(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -55,7 +54,7 @@ export async function GET(req: NextRequest) {
               result.newActivities.map(async (act) => {
                 let agentName = "System";
                 let agentEmoji = "⚙️";
-                if (act.actorAgentId) {
+                if (act.actorAgentId && pool) {
                   const res = await pool.query(
                     "SELECT name, emoji FROM agents WHERE id = $1",
                     [act.actorAgentId]
