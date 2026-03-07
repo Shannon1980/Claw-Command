@@ -1,7 +1,7 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { SEED_DOCUMENTS } from "@/lib/mock-docs";
-import type { Document } from "@/lib/mock-docs";
+import type { Document, LinkedItem } from "@/lib/mock-docs";
 import fs from "fs";
 import path from "path";
 import os from "os";
