@@ -92,7 +92,7 @@ export default function TokensPage() {
             <p className="text-xs text-gray-500 font-mono">Token consumption and cost tracking</p>
           </div>
           <button
-            onClick={fetchAll}
+            onClick={() => fetchAll()}
             disabled={loading}
             className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors"
           >
