@@ -12,6 +12,7 @@ import {
   mapSessionsToActivities,
 } from "@/lib/openclaw/mappers";
 import { pool } from "@/lib/db/client";
+import { upsertAgents } from "@/lib/db/upsertAgents";
 import type { ActivityEvent } from "@/lib/openclaw/types";
 
 const ARCHIVE_DAYS = 7;
@@ -47,25 +48,7 @@ export async function syncActivities(): Promise<SyncActivitiesResult> {
     const activities = mapSessionsToActivities(sessions);
 
     // Upsert agents
-    for (const agent of agentUpdates) {
-      await pool.query(
-        `INSERT INTO agents (id, name, emoji, domain, status, current_task_id, updated_at)
-         VALUES ($1, $2, '🤖', 'vorentoe', $3, $4, $5)
-         ON CONFLICT (id) DO UPDATE SET
-           name = EXCLUDED.name,
-           status = EXCLUDED.status,
-           current_task_id = EXCLUDED.current_task_id,
-           updated_at = EXCLUDED.updated_at`,
-        [
-          agent.id,
-          agent.name,
-          agent.status,
-          agent.currentTask,
-          agent.updatedAt,
-        ]
-      );
-      result.agentsUpserted++;
-    }
+    result.agentsUpserted = await upsertAgents(agentUpdates);
 
     // Insert new activities (skip duplicates)
     for (const act of activities) {
