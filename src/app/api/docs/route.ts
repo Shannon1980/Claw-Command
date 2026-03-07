@@ -3,18 +3,37 @@ import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 
 const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
-export async function GET(request: NextRequest) {
-  if (!pool || !connectionString) {
-    return NextResponse.json(
-      { docs: [], total: 0, error: "Database not configured" },
-      { status: 503 }
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS docs (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      filename TEXT,
+      doc_type TEXT NOT NULL DEFAULT 'report',
+      content TEXT DEFAULT '',
+      author_agent_id TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      file_path TEXT,
+      created_at TEXT NOT NULL DEFAULT (now()::text),
+      updated_at TEXT NOT NULL DEFAULT (now()::text)
     );
+  `);
+  schemaReady = true;
+}
+
+export async function GET(request: NextRequest) {
+  if (!pool) return NextResponse.json([]);
+
+  try {
+    await ensureSchema();
+  } catch {
+    return NextResponse.json([]);
   }
 
   const { searchParams } = new URL(request.url);
@@ -23,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   try {
     let query = `
-      SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, 
+      SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id,
              d.status, d.file_path, d.created_at, d.updated_at,
              a.name as agent_name, a.emoji as agent_emoji
       FROM docs d
@@ -47,54 +66,66 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY d.updated_at DESC";
 
     const result = await pool.query(query, params);
-    const docs = result.rows.map((row: any) => ({
+    const docs = result.rows.map((row: Record<string, unknown>) => ({
       id: row.id,
       title: row.title,
       filename: row.filename,
-      docType: row.doc_type,
-      type: row.doc_type, // Frontend compatibility
-      content: row.content,
+      type: row.doc_type,
+      content: row.content || "",
       authorAgentId: row.author_agent_id,
       status: row.status,
       filePath: row.file_path,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      agent: row.agent_name || "Bob", // Fallback for missing agent join
-      agentEmoji: row.agent_emoji || "🤖", // Fallback
+      agent: (row.agent_name as string) || "Unknown",
+      agentEmoji: (row.agent_emoji as string) || "",
     }));
-    
-    // Return both formats to satisfy different frontend versions
-    return NextResponse.json({ docs, total: docs.length });
+
+    return NextResponse.json(docs);
   } catch (error) {
     console.error("[Docs API] Error:", error);
-    return NextResponse.json({ docs: [], total: 0, error: String(error) }, { status: 500 });
+    return NextResponse.json([]);
   }
 }
 
 export async function POST(request: NextRequest) {
-  if (!pool || !connectionString) {
-    return NextResponse.json(
-      { success: false, error: "Database not configured" },
-      { status: 503 }
-    );
+  if (!pool) {
+    return NextResponse.json({ error: "No database connection" }, { status: 503 });
   }
+
   try {
+    await ensureSchema();
     const body = await request.json();
     const now = new Date().toISOString();
-    const id = `doc-${Date.now()}`;
+    const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     await pool.query(
       `INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [id, body.title, body.filename || `${id}.md`, body.docType || "document", body.content || "", body.authorAgentId || null, "draft", now, now]
+       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $7)`,
+      [
+        id,
+        body.title,
+        body.filename || `${id}.md`,
+        body.type || body.docType || "report",
+        body.content || "",
+        body.authorAgentId || null,
+        now,
+      ]
     );
 
-    return NextResponse.json({ id, success: true });
+    return NextResponse.json({
+      id,
+      title: body.title,
+      type: body.type || body.docType || "report",
+      content: body.content || "",
+      status: "draft",
+      agent: body.agent || "Unknown",
+      agentEmoji: body.agentEmoji || "",
+      createdAt: now,
+      updatedAt: now,
+    }, { status: 201 });
   } catch (error) {
     console.error("[Docs API] Create error:", error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Unknown" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create document" }, { status: 500 });
   }
 }
