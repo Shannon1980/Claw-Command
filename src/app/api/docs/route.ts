@@ -10,38 +10,25 @@ let schemaReady = false;
 
 async function ensureSchema() {
   if (schemaReady || !pool) return;
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS docs (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      filename TEXT,
-      doc_type TEXT NOT NULL DEFAULT 'report',
-      content TEXT DEFAULT '',
-      author_agent_id TEXT,
-      status TEXT NOT NULL DEFAULT 'draft',
-      file_path TEXT,
-      linked_to JSONB DEFAULT '[]'::jsonb,
-      version_history JSONB DEFAULT '[]'::jsonb,
-      priority TEXT DEFAULT 'medium',
-      review_status TEXT DEFAULT 'pending_review',
-      category TEXT DEFAULT 'uncategorized',
-      notes JSONB DEFAULT '[]'::jsonb,
-      assignments JSONB DEFAULT '[]'::jsonb,
-      created_at TEXT NOT NULL DEFAULT (now()::text),
-      updated_at TEXT NOT NULL DEFAULT (now()::text)
-    );
-  `);
-  // Add linked_to column if it doesn't exist (for existing tables)
-  await pool.query(`
-    ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to TEXT DEFAULT '[]';
-  // Add columns if they don't exist (migration for existing tables)
-  await pool.query(
-    "DO " + "$$" + " BEGIN" +
-    " ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to JSONB DEFAULT '[]'::jsonb;" +
-    " ALTER TABLE docs ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb;" +
-    " EXCEPTION WHEN others THEN NULL;" +
-    " END " + "$$" + ";"
-  );
+  const createTable =
+    "CREATE TABLE IF NOT EXISTS docs (" +
+    "id TEXT PRIMARY KEY, title TEXT NOT NULL, filename TEXT, doc_type TEXT NOT NULL DEFAULT 'report', " +
+    "content TEXT DEFAULT '', author_agent_id TEXT, status TEXT NOT NULL DEFAULT 'draft', file_path TEXT, " +
+    "linked_to JSONB DEFAULT '[]'::jsonb, version_history JSONB DEFAULT '[]'::jsonb, " +
+    "priority TEXT DEFAULT 'medium', review_status TEXT DEFAULT 'pending_review', category TEXT DEFAULT 'uncategorized', " +
+    "notes JSONB DEFAULT '[]'::jsonb, assignments JSONB DEFAULT '[]'::jsonb, " +
+    "created_at TEXT NOT NULL DEFAULT (now()::text), updated_at TEXT NOT NULL DEFAULT (now()::text));";
+  await pool.query(createTable);
+  const alterTable =
+    "DO $$ BEGIN " +
+    "ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to JSONB DEFAULT '[]'::jsonb; " +
+    "ALTER TABLE docs ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb; " +
+    "EXCEPTION WHEN others THEN NULL; END $$;";
+  try {
+    await pool.query(alterTable);
+  } catch {
+    /* ignore */
+  }
   schemaReady = true;
 }
 
@@ -64,42 +51,41 @@ export async function GET(request: NextRequest) {
   const priority = searchParams.get("priority");
 
   try {
-    let query = `
-      SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id,
-             d.status, d.file_path, d.linked_to, d.version_history,
-             d.priority, d.review_status, d.category, d.notes, d.assignments,
-             d.created_at, d.updated_at,
-             a.name as agent_name, a.emoji as agent_emoji
-      FROM docs d
-      LEFT JOIN agents a ON d.author_agent_id = a.id
-    `;
+    const baseQuery =
+      "SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, " +
+      "d.status, d.file_path, d.linked_to, d.version_history, " +
+      "d.priority, d.review_status, d.category, d.notes, d.assignments, " +
+      "d.created_at, d.updated_at, " +
+      "a.name as agent_name, a.emoji as agent_emoji " +
+      "FROM docs d LEFT JOIN agents a ON d.author_agent_id = a.id";
+    let query = baseQuery;
     const conditions: string[] = [];
     const params: string[] = [];
 
     if (docType) {
       params.push(docType);
-      conditions.push(`d.doc_type = $${params.length}`);
+      conditions.push("d.doc_type = $" + params.length);
     }
     if (search) {
-      params.push(`%${search}%`);
-      conditions.push(`(d.title ILIKE $${params.length} OR d.content ILIKE $${params.length})`);
+      params.push("%" + search + "%");
+      conditions.push("(d.title ILIKE $" + params.length + " OR d.content ILIKE $" + params.length + ")");
     }
     if (linkedType && linkedId) {
       params.push(linkedType);
       params.push(linkedId);
-      conditions.push(`d.linked_to @> jsonb_build_array(jsonb_build_object('type', $${params.length - 1}::text, 'id', $${params.length}::text))`);
+      conditions.push("d.linked_to @> jsonb_build_array(jsonb_build_object('type', $" + (params.length - 1) + "::text, 'id', $" + params.length + "::text))");
     }
     if (reviewStatus) {
       params.push(reviewStatus);
-      conditions.push(`d.review_status = $${params.length}`);
+      conditions.push("d.review_status = $" + params.length);
     }
     if (category) {
       params.push(category);
-      conditions.push(`d.category = $${params.length}`);
+      conditions.push("d.category = $" + params.length);
     }
     if (priority) {
       params.push(priority);
-      conditions.push(`d.priority = $${params.length}`);
+      conditions.push("d.priority = $" + params.length);
     }
 
     if (conditions.length > 0) {
@@ -146,7 +132,7 @@ export async function POST(request: NextRequest) {
     await ensureSchema();
     const body = await request.json();
     const now = new Date().toISOString();
-    const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const id = "doc-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
 
     const linkedTo = Array.isArray(body.linkedTo) ? body.linkedTo : [];
     const versionHistory = [{ timestamp: now, summary: "Document created" }];
@@ -154,16 +140,14 @@ export async function POST(request: NextRequest) {
     const category = body.category || "uncategorized";
 
     await pool.query(
-      `INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status,
-        linked_to, version_history, priority, review_status, category, notes, assignments,
-        created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'draft',
-        $7::jsonb, $8::jsonb, $9, 'pending_review', $10, '[]'::jsonb, '[]'::jsonb,
-        $11, $11)`,
+      "INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status, " +
+        "linked_to, version_history, priority, review_status, category, notes, assignments, " +
+        "created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, 'draft', " +
+        "$7::jsonb, $8::jsonb, $9, 'pending_review', $10, '[]'::jsonb, '[]'::jsonb, $11, $11)",
       [
         id,
         body.title,
-        body.filename || `${id}.md`,
+        body.filename || id + ".md",
         body.type || body.docType || "report",
         body.content || "",
         body.authorAgentId || null,
