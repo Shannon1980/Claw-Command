@@ -15,10 +15,15 @@ export async function GET() {
 
   try {
     const result = await pool.query(
-      `SELECT id, name, emoji, domain, status, current_task_id, soul, capabilities, api_key, updated_at
-       FROM agents
-       WHERE retired_at IS NULL
-       ORDER BY domain, name`
+      `SELECT a.id, a.name, a.emoji, a.domain, a.status, a.current_task_id,
+              a.soul, a.capabilities, a.api_key, a.updated_at,
+              t.title AS task_title, t.status AS task_status, t.priority AS task_priority,
+              t.due_date AS task_due_date, t.depends_on_shannon AS task_depends_on_shannon,
+              (SELECT COUNT(*) FROM tasks t2 WHERE t2.assigned_to_agent_id = a.id AND t2.status NOT IN ('done')) AS open_task_count
+       FROM agents a
+       LEFT JOIN tasks t ON a.current_task_id = t.id
+       WHERE a.retired_at IS NULL
+       ORDER BY a.domain, a.name`
     );
     return NextResponse.json(result.rows);
   } catch (error) {
