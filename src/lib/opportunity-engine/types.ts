@@ -2,6 +2,8 @@
 
 export type OpportunitySource =
   | "sam_gov"
+  | "montgomery_county_md"
+  | "emma_msrb"
   | "fpds_ng"
   | "emaryland"
   | "eva_virginia"

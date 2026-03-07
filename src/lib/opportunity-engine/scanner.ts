@@ -248,7 +248,10 @@ function generateWinThemes(
   return themes.slice(0, 4);
 }
 
-// ─── Multi-Source Scanner (Placeholder stubs for future sources) ────────────
+// ─── Multi-Source Scanner ────────────────────────────────────────────────────
+
+import { scanMontgomeryCounty } from "./scanner-moco";
+import { scanEmma } from "./scanner-emma";
 
 export async function scanAllSources(
   samApiKey: string | null,
@@ -256,12 +259,27 @@ export async function scanAllSources(
 ): Promise<ScanResult[]> {
   const results: ScanResult[] = [];
 
+  // Run all scanners concurrently
+  const promises: Promise<ScanResult>[] = [];
+
   if (samApiKey) {
-    results.push(await scanSamGov(samApiKey, existingHashes));
+    promises.push(scanSamGov(samApiKey, existingHashes));
   }
 
-  // Future: eMaryland, eVA, DC OCP, FPDS-NG, NASPO
-  // These will be added as APIs become available
+  // Montgomery County MD procurement
+  promises.push(scanMontgomeryCounty(existingHashes));
+
+  // EMMA (MSRB municipal securities)
+  promises.push(scanEmma(existingHashes));
+
+  const settled = await Promise.allSettled(promises);
+  for (const result of settled) {
+    if (result.status === "fulfilled") {
+      results.push(result.value);
+    } else {
+      console.error("[OpportunityEngine] Scanner failed:", result.reason);
+    }
+  }
 
   return results;
 }
