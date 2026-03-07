@@ -6,8 +6,32 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS activities (
+      id TEXT PRIMARY KEY,
+      actor_agent_id TEXT,
+      event_type TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      details TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
+  `);
+  schemaReady = true;
+}
+
 export async function GET(request: NextRequest) {
   if (!pool) {
+    return NextResponse.json({ items: [], nextCursor: null });
+  }
+
+  try {
+    await ensureSchema();
+  } catch {
     return NextResponse.json({ items: [], nextCursor: null });
   }
 
