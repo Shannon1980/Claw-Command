@@ -39,17 +39,59 @@ const ACTION_PRESETS = [
   { label: "Seed sample opportunities", value: "/api/seed-opportunities", method: "POST" },
 ];
 
-const SCHEDULE_PRESETS = [
-  { label: "Every minute", value: "* * * * *" },
-  { label: "Every 5 minutes", value: "*/5 * * * *" },
-  { label: "Every 15 minutes", value: "*/15 * * * *" },
-  { label: "Every hour", value: "0 * * * *" },
-  { label: "Every 6 hours", value: "0 */6 * * *" },
-  { label: "Daily at midnight", value: "0 0 * * *" },
-  { label: "Daily at 9am", value: "0 9 * * *" },
-  { label: "Weekly (Monday)", value: "0 9 * * 1" },
-  { label: "Monthly (1st)", value: "0 0 1 * *" },
+const CADENCE_OPTIONS = [
+  { label: "Every few minutes", value: "minutes" },
+  { label: "Hourly", value: "hourly" },
+  { label: "Daily", value: "daily" },
+  { label: "Weekly", value: "weekly" },
+  { label: "Monthly", value: "monthly" },
 ];
+
+const MINUTE_INTERVALS = [
+  { label: "Every minute", value: "1" },
+  { label: "Every 5 minutes", value: "5" },
+  { label: "Every 10 minutes", value: "10" },
+  { label: "Every 15 minutes", value: "15" },
+  { label: "Every 30 minutes", value: "30" },
+];
+
+const DAYS_OF_WEEK = [
+  { label: "Monday", value: "1" },
+  { label: "Tuesday", value: "2" },
+  { label: "Wednesday", value: "3" },
+  { label: "Thursday", value: "4" },
+  { label: "Friday", value: "5" },
+  { label: "Saturday", value: "6" },
+  { label: "Sunday", value: "0" },
+];
+
+const HOURS = Array.from({ length: 24 }, (_, i) => {
+  const ampm = i >= 12 ? "PM" : "AM";
+  const h12 = i === 0 ? 12 : i > 12 ? i - 12 : i;
+  return { label: `${h12}:00 ${ampm}`, value: String(i) };
+});
+
+const DAYS_OF_MONTH = Array.from({ length: 28 }, (_, i) => ({
+  label: `${i + 1}${i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th"}`,
+  value: String(i + 1),
+}));
+
+function buildCronFromSchedule(s: { cadence: string; minuteInterval: string; hour: string; dayOfWeek: string; dayOfMonth: string }): string {
+  switch (s.cadence) {
+    case "minutes":
+      return s.minuteInterval === "1" ? "* * * * *" : `*/${s.minuteInterval} * * * *`;
+    case "hourly":
+      return "0 * * * *";
+    case "daily":
+      return `0 ${s.hour} * * *`;
+    case "weekly":
+      return `0 ${s.hour} * * ${s.dayOfWeek}`;
+    case "monthly":
+      return `0 ${s.hour} ${s.dayOfMonth} * *`;
+    default:
+      return "";
+  }
+}
 
 function describeCron(expr: string): string {
   const parts = expr.trim().split(/\s+/);
@@ -107,8 +149,13 @@ export default function CronPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
-    schedule: "",
+    cadence: "",
+    minuteInterval: "5",
+    hour: "9",
+    dayOfWeek: "1",
+    dayOfMonth: "1",
     actionPreset: "",
+    customEndpoint: "",
     enabled: true,
   });
 
@@ -226,24 +273,34 @@ export default function CronPage() {
   const handleAdd = async () => {
     setError(null);
     if (!formData.name.trim()) { setError("Please enter a job name"); return; }
-    if (!formData.schedule) { setError("Please select a schedule"); return; }
+    if (!formData.cadence) { setError("Please select how often it should run"); return; }
     if (!formData.actionPreset) { setError("Please select what the job should do"); return; }
-    const preset = ACTION_PRESETS.find((p) => p.value === formData.actionPreset);
-    if (!preset) { setError("Please select a valid action"); return; }
+    if (formData.actionPreset === "__custom" && !formData.customEndpoint.trim()) {
+      setError("Please enter a custom endpoint"); return;
+    }
+
+    const schedule = buildCronFromSchedule(formData);
+    if (!schedule) { setError("Invalid schedule"); return; }
+
+    let action: { endpoint: string; method: string; payload: Record<string, never> };
+    if (formData.actionPreset === "__custom") {
+      const ep = formData.customEndpoint.trim();
+      action = { endpoint: ep.startsWith("/") ? ep : `/api/${ep}`, method: "POST", payload: {} };
+    } else {
+      const preset = ACTION_PRESETS.find((p) => p.value === formData.actionPreset);
+      if (!preset) { setError("Please select a valid action"); return; }
+      action = { endpoint: preset.value, method: preset.method, payload: {} };
+    }
+
     try {
       const res = await fetch("/api/cron", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          schedule: formData.schedule,
-          action: { endpoint: preset.value, method: preset.method, payload: {} },
-          enabled: formData.enabled,
-        }),
+        body: JSON.stringify({ name: formData.name, schedule, action, enabled: formData.enabled }),
       });
       if (!res.ok) throw new Error("Failed to create cron job");
       setShowForm(false);
-      setFormData({ name: "", schedule: "", actionPreset: "", enabled: true });
+      setFormData({ name: "", cadence: "", minuteInterval: "5", hour: "9", dayOfWeek: "1", dayOfMonth: "1", actionPreset: "", customEndpoint: "", enabled: true });
       fetchJobs();
     } catch (err) {
       setError((err as Error).message);
@@ -301,29 +358,83 @@ export default function CronPage() {
               />
             </div>
 
-            {/* Schedule — dropdown only */}
+            {/* Schedule — cadence + time/day pickers */}
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">How often should it run?</label>
-              <select
-                value={formData.schedule}
-                onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
-              >
-                <option value="">Select a schedule...</option>
-                {SCHEDULE_PRESETS.map((preset) => (
-                  <option key={preset.value} value={preset.value}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={formData.cadence}
+                  onChange={(e) => setFormData({ ...formData, cadence: e.target.value })}
+                  className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 flex-1 min-w-[180px]"
+                >
+                  <option value="">Select frequency...</option>
+                  {CADENCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+
+                {formData.cadence === "minutes" && (
+                  <select
+                    value={formData.minuteInterval}
+                    onChange={(e) => setFormData({ ...formData, minuteInterval: e.target.value })}
+                    className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  >
+                    {MINUTE_INTERVALS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                )}
+
+                {(formData.cadence === "daily" || formData.cadence === "weekly" || formData.cadence === "monthly") && (
+                  <select
+                    value={formData.hour}
+                    onChange={(e) => setFormData({ ...formData, hour: e.target.value })}
+                    className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  >
+                    <option value="" disabled>Time...</option>
+                    {HOURS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                )}
+
+                {formData.cadence === "weekly" && (
+                  <select
+                    value={formData.dayOfWeek}
+                    onChange={(e) => setFormData({ ...formData, dayOfWeek: e.target.value })}
+                    className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  >
+                    {DAYS_OF_WEEK.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                )}
+
+                {formData.cadence === "monthly" && (
+                  <select
+                    value={formData.dayOfMonth}
+                    onChange={(e) => setFormData({ ...formData, dayOfMonth: e.target.value })}
+                    className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  >
+                    {DAYS_OF_MONTH.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label} of the month</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {formData.cadence && (
+                <p className="mt-1.5 text-xs text-gray-500">
+                  {describeCron(buildCronFromSchedule(formData))}
+                </p>
+              )}
             </div>
 
-            {/* Action — friendly dropdown */}
+            {/* Action — friendly dropdown + custom option */}
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">What should this job do?</label>
               <select
                 value={formData.actionPreset}
-                onChange={(e) => setFormData({ ...formData, actionPreset: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, actionPreset: e.target.value, customEndpoint: "" })}
                 className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
               >
                 <option value="">Select an action...</option>
@@ -332,7 +443,17 @@ export default function CronPage() {
                     {preset.label}
                   </option>
                 ))}
+                <option value="__custom">Custom task...</option>
               </select>
+              {formData.actionPreset === "__custom" && (
+                <input
+                  type="text"
+                  value={formData.customEndpoint}
+                  onChange={(e) => setFormData({ ...formData, customEndpoint: e.target.value })}
+                  placeholder="Enter API path, e.g. /api/my-task"
+                  className="w-full mt-2 px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono"
+                />
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-1">
@@ -348,7 +469,7 @@ export default function CronPage() {
               <button
                 onClick={handleAdd}
                 className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-40"
-                disabled={!formData.name.trim() || !formData.schedule || !formData.actionPreset}
+                disabled={!formData.name.trim() || !formData.cadence || !formData.actionPreset}
               >
                 Create Job
               </button>
