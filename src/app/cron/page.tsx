@@ -424,7 +424,7 @@ export default function CronPage() {
                   </p>
                 </div>
               ) : (
-              <>
+                <div className="space-y-1.5">
                 <div className="flex flex-wrap gap-2">
                 <select
                   value={formData.cadence}
@@ -491,13 +491,7 @@ export default function CronPage() {
                   {describeCron(buildCronFromSchedule(formData))}
                 </p>
               )}
-              </>
-                {formData.cadence && (
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    {describeCron(buildCronFromSchedule(formData))}
-                  </p>
-                )}
-              </div>
+                </div>
               )}
             </div>
 
