@@ -211,6 +211,7 @@ export default function TokensPage() {
                   <div key={d.date} className="flex items-center gap-3">
                     <span className="text-xs text-gray-500 font-mono w-24 shrink-0">
                       {d.date.slice(0, 10)}
+                      {String(d.date).slice(0, 10)}
                     </span>
                     <div className="flex-1 h-6 bg-gray-800 rounded overflow-hidden">
                       <div
