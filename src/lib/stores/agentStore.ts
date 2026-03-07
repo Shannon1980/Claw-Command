@@ -21,6 +21,7 @@ export interface Agent {
   taskDueDate: string | null;
   taskDependsOnShannon: boolean;
   openTaskCount: number;
+  doneTaskCount: number;
 }
 
 export interface AgentSoul {
@@ -80,6 +81,7 @@ export const useAgentStore = create<AgentStore>()(
           taskDueDate: (r.task_due_date as string) || null,
           taskDependsOnShannon: (r.task_depends_on_shannon as boolean) || false,
           openTaskCount: Number(r.open_task_count ?? 0),
+          doneTaskCount: Number(r.done_task_count ?? 0),
         }));
         set({ agents, loading: false });
       } catch (err) {

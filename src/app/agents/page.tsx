@@ -224,6 +224,15 @@ export default function AgentsPage() {
                         {agent.openTaskCount} task{agent.openTaskCount !== 1 ? "s" : ""}
                       </span>
                     )}
+                    {agent.doneTaskCount > 0 && (
+                      <Link
+                        href={`/agents/${agent.id}?tab=completed`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-1.5 py-0.5 text-[11px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 rounded hover:bg-green-500/20 transition-colors"
+                      >
+                        {agent.doneTaskCount} completed
+                      </Link>
+                    )}
                   </div>
                   {agent.taskTitle ? (
                     <div className="bg-gray-950/50 border border-gray-800 rounded p-2 mt-1">
@@ -292,9 +301,20 @@ export default function AgentsPage() {
                         )}
                       </div>
                     )}
-                    <div>
-                      <p className="text-xs text-gray-500 font-mono">Open Tasks</p>
-                      <p className="text-xs text-gray-300 font-mono">{agent.openTaskCount}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-500 font-mono">Open Tasks</p>
+                        <p className="text-xs text-gray-300 font-mono">{agent.openTaskCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 font-mono">Completed</p>
+                        <Link
+                          href={`/agents/${agent.id}?tab=completed`}
+                          className="text-xs text-green-400 font-mono hover:text-green-300"
+                        >
+                          {agent.doneTaskCount}
+                        </Link>
+                      </div>
                     </div>
                     <div className="flex gap-2 pt-2">
                       <Link
