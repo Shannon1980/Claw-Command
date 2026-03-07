@@ -25,6 +25,20 @@ interface CronRun {
   durationMs: number | null;
 }
 
+const ACTION_PRESETS = [
+  { label: "Sync activities", value: "/api/activities/sync", method: "POST" },
+  { label: "Sync tasks", value: "/api/tasks/sync", method: "POST" },
+  { label: "Sync chat messages", value: "/api/chat/sync", method: "POST" },
+  { label: "Sync documents", value: "/api/sync/docs/trigger", method: "POST" },
+  { label: "Run email worker", value: "/api/email/worker/run", method: "POST" },
+  { label: "Send agent heartbeats", value: "/api/heartbeat-all", method: "POST" },
+  { label: "Generate daily brief", value: "/api/brief", method: "POST" },
+  { label: "Generate standup report", value: "/api/standup", method: "POST" },
+  { label: "Refresh overview stats", value: "/api/overview/stats", method: "GET" },
+  { label: "Push sync to external", value: "/api/sync/push", method: "POST" },
+  { label: "Seed sample opportunities", value: "/api/seed-opportunities", method: "POST" },
+];
+
 const SCHEDULE_PRESETS = [
   { label: "Every minute", value: "* * * * *" },
   { label: "Every 5 minutes", value: "*/5 * * * *" },
@@ -94,8 +108,7 @@ export default function CronPage() {
   const [formData, setFormData] = useState({
     name: "",
     schedule: "",
-    endpoint: "/api/",
-    method: "POST",
+    actionPreset: "",
     enabled: true,
   });
 
@@ -214,7 +227,9 @@ export default function CronPage() {
     setError(null);
     if (!formData.name.trim()) { setError("Please enter a job name"); return; }
     if (!formData.schedule) { setError("Please select a schedule"); return; }
-    if (!formData.endpoint.trim() || formData.endpoint === "/api/") { setError("Please enter an API endpoint"); return; }
+    if (!formData.actionPreset) { setError("Please select what the job should do"); return; }
+    const preset = ACTION_PRESETS.find((p) => p.value === formData.actionPreset);
+    if (!preset) { setError("Please select a valid action"); return; }
     try {
       const res = await fetch("/api/cron", {
         method: "POST",
@@ -222,13 +237,13 @@ export default function CronPage() {
         body: JSON.stringify({
           name: formData.name,
           schedule: formData.schedule,
-          action: { endpoint: formData.endpoint, method: formData.method, payload: {} },
+          action: { endpoint: preset.value, method: preset.method, payload: {} },
           enabled: formData.enabled,
         }),
       });
       if (!res.ok) throw new Error("Failed to create cron job");
       setShowForm(false);
-      setFormData({ name: "", schedule: "", endpoint: "/api/", method: "POST", enabled: true });
+      setFormData({ name: "", schedule: "", actionPreset: "", enabled: true });
       fetchJobs();
     } catch (err) {
       setError((err as Error).message);
@@ -303,31 +318,21 @@ export default function CronPage() {
               </select>
             </div>
 
-            {/* Endpoint & method — simple fields */}
+            {/* Action — friendly dropdown */}
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Which API endpoint should it call?</label>
-              <div className="flex gap-2">
-                <select
-                  value={formData.method}
-                  onChange={(e) => setFormData({ ...formData, method: e.target.value })}
-                  className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 w-28 shrink-0"
-                >
-                  <option value="POST">POST</option>
-                  <option value="GET">GET</option>
-                  <option value="PUT">PUT</option>
-                  <option value="DELETE">DELETE</option>
-                </select>
-                <input
-                  type="text"
-                  value={formData.endpoint}
-                  onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })}
-                  placeholder="/api/your-endpoint"
-                  className="flex-1 px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-600">
-                The API route that will be called each time this job runs
-              </p>
+              <label className="block text-xs text-gray-400 mb-1.5">What should this job do?</label>
+              <select
+                value={formData.actionPreset}
+                onChange={(e) => setFormData({ ...formData, actionPreset: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+              >
+                <option value="">Select an action...</option>
+                {ACTION_PRESETS.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex items-center justify-between pt-1">
@@ -343,7 +348,7 @@ export default function CronPage() {
               <button
                 onClick={handleAdd}
                 className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-40"
-                disabled={!formData.name.trim() || !formData.schedule}
+                disabled={!formData.name.trim() || !formData.schedule || !formData.actionPreset}
               >
                 Create Job
               </button>
@@ -494,9 +499,15 @@ export default function CronPage() {
                     </div>
 
                     {/* Action config */}
-                    <div className="mb-3 px-3 py-2 bg-gray-950/50 rounded text-xs font-mono text-gray-500 overflow-x-auto">
+                    <div className="mb-3 px-3 py-2 bg-gray-950/50 rounded text-xs text-gray-500 overflow-x-auto">
                       <span className="text-gray-600">Action: </span>
-                      {JSON.stringify(job.action, null, 0)}
+                      {(() => {
+                        const action = job.action as { endpoint?: string; method?: string };
+                        const preset = ACTION_PRESETS.find((p) => p.value === action?.endpoint);
+                        return preset
+                          ? <span className="text-gray-400">{preset.label}</span>
+                          : <span className="text-gray-400 font-mono">{action?.method || "POST"} {action?.endpoint || "unknown"}</span>;
+                      })()}
                     </div>
 
                     {runsLoading ? (
