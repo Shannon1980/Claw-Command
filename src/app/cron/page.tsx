@@ -493,7 +493,7 @@ export default function CronPage() {
                   {describeCron(buildCronFromSchedule(formData))}
                 </p>
               )}
-              </>
+                </div>
               )}
             </div>
 
