@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri =
     process.env.GOOGLE_REDIRECT_URI ||
-    `${request.nextUrl.origin}/api/email/oauth/callback`;
+    `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : request.nextUrl.origin}/api/email/oauth/callback`;
 
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(
@@ -98,10 +98,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL("/email?connected=1", request.url)
     );
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[Email OAuth] Callback error:", err);
+    let message = "oauth_exchange_failed";
+    if (err instanceof Error) {
+      message = err.message;
+    }
     return NextResponse.redirect(
-      new URL(`/email?error=${encodeURIComponent(String(err))}`, request.url)
+      new URL(`/email?error=${encodeURIComponent(message)}`, request.url)
     );
   }
 }
