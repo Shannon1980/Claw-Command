@@ -39,7 +39,7 @@ export default function RootLayout({
             <Navigation />
             <div className="flex-1 flex flex-col min-w-0">
               <TopBar />
-              <main className="flex-1 overflow-auto">{children}</main>
+              <main className="flex-1 overflow-auto scroll-smooth">{children}</main>
             </div>
             <LiveFeedSidebar />
           </EventStreamProvider>

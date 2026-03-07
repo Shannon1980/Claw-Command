@@ -1,15 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
+import { useAgentStore } from "@/lib/stores/agentStore";
+import { useTaskStore } from "@/lib/stores/taskStore";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import CommandPalette from "@/components/layout/CommandPalette";
 import ChatFlyout from "@/components/chat/ChatFlyout";
 
 export default function TopBar() {
   const { unreadCount, toggleBell, bellOpen } = useNotificationStore();
+  const { agents } = useAgentStore();
+  const { tasks } = useTaskStore();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [clock, setClock] = useState("");
+
+  const agentsOnline = agents.filter((a) => a.status === "active").length;
+  const tasksBlocked = tasks.filter((t) => t.status === "blocked").length;
+  const tasksReview = tasks.filter(
+    (t) => t.status === "review" || t.status === "quality_review"
+  ).length;
 
   useEffect(() => {
     const tick = () => {
@@ -63,6 +74,33 @@ export default function TopBar() {
             Ctrl+K
           </kbd>
         </button>
+
+        {/* Center: Quick status indicators */}
+        <div className="hidden md:flex items-center gap-4 text-[11px] font-mono">
+          <Link
+            href="/agents"
+            className="flex items-center gap-1.5 text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <span>{agentsOnline} agent{agentsOnline !== 1 ? "s" : ""}</span>
+          </Link>
+          {tasksReview > 0 && (
+            <Link
+              href="/tasks"
+              className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              <span>{tasksReview} review</span>
+            </Link>
+          )}
+          {tasksBlocked > 0 && (
+            <Link
+              href="/tasks"
+              className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 transition-colors"
+            >
+              <span>{tasksBlocked} blocked</span>
+            </Link>
+          )}
+        </div>
 
         {/* Right: Status + Controls */}
         <div className="flex items-center gap-3">
