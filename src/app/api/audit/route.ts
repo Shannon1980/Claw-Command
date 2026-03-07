@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
 
     const result = await pool.query(
-      `SELECT a.*, u.username
+      `SELECT a.id, a.action, a.resource_type, a.resource_id, a.details, a.created_at, u.username
        FROM audit_events a
        LEFT JOIN users u ON u.id = a.user_id
        ${where}
@@ -49,7 +49,17 @@ export async function GET(request: NextRequest) {
       vals
     );
 
-    return NextResponse.json(result.rows);
+    const rows = result.rows.map((r) => ({
+      id: r.id,
+      user: r.username ?? r.user_id ?? "",
+      action: r.action,
+      resourceType: r.resource_type,
+      resourceId: r.resource_id,
+      details: typeof r.details === "string" ? r.details : JSON.stringify(r.details ?? {}),
+      createdAt: r.created_at,
+    }));
+
+    return NextResponse.json(rows);
   } catch (error) {
     console.error("[Audit API] GET error:", error);
     return NextResponse.json({ error: "Failed to list audit events" }, { status: 500 });
