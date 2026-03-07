@@ -31,18 +31,17 @@ async function ensureSchema() {
       updated_at TEXT NOT NULL DEFAULT (now()::text)
     );
   `);
+  // Add linked_to column if it doesn't exist (for existing tables)
   await pool.query(`
-    DO $$ BEGIN
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to JSONB DEFAULT '[]'::jsonb;
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb;
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS review_status TEXT DEFAULT 'pending_review';
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'uncategorized';
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS notes JSONB DEFAULT '[]'::jsonb;
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS assignments JSONB DEFAULT '[]'::jsonb;
-    EXCEPTION WHEN others THEN NULL;
-    END $$;
-  `);
+    ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to TEXT DEFAULT '[]';
+  // Add columns if they don't exist (migration for existing tables)
+  await pool.query(
+    "DO " + "$$" + " BEGIN" +
+    " ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to JSONB DEFAULT '[]'::jsonb;" +
+    " ALTER TABLE docs ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb;" +
+    " EXCEPTION WHEN others THEN NULL;" +
+    " END " + "$$" + ";"
+  );
   schemaReady = true;
 }
 

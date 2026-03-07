@@ -8,7 +8,16 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+// GET for Vercel cron, POST for manual triggers
+export async function GET() {
+  return runScan();
+}
+
 export async function POST() {
+  return runScan();
+}
+
+async function runScan() {
   const samApiKey = process.env.SAM_GOV_API_KEY;
 
   if (!samApiKey) {
