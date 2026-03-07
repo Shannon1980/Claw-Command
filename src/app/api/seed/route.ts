@@ -42,7 +42,7 @@ const TASKS = [
   { id: "task-6", title: "GovForecast data pipeline architecture", assigned_to_agent_id: "forge", depends_on_shannon: false, status: "in_progress", due_date: "2026-03-12" },
   { id: "task-7", title: "SEAS IT quarterly status report", assigned_to_agent_id: "skylar", depends_on_shannon: true, status: "in_progress", due_date: "2026-03-07" },
   { id: "task-8", title: "PTA spring fundraiser planning", assigned_to_agent_id: "harmony", depends_on_shannon: true, status: "backlog", due_date: "2026-03-25" },
-  { id: "task-9", title: "Navy Cybersecurity past performance write-up", assigned_to_agent_id: "bertha", depends_on_shannon: false, status: "in_progress", due_date: "2026-03-11" },
+  { id: "task-9", title: "Navy Cybersecurity past performance write-up", assigned_to_agent_id: "bertha", depends_on_shannon: false, status: "done", due_date: "2026-03-11" },
   { id: "task-10", title: "Brand guidelines v2 for Vorentoe", assigned_to_agent_id: "muse", depends_on_shannon: false, status: "backlog", due_date: "2026-03-30" },
 ];
 
@@ -101,7 +101,7 @@ const DOCS = [
     priority: "high",
     review_status: "approved",
     category: "govcon",
-    linked_to: JSON.stringify([]),
+    linked_to: JSON.stringify([{ type: "task", id: "task-9", name: "Navy Cybersecurity past performance write-up" }]),
     version_history: JSON.stringify([{ timestamp: "2026-02-15T10:00:00Z", summary: "Document created" }]),
     created_at: "2026-02-15T10:00:00Z",
     updated_at: "2026-02-20T14:30:00Z",
@@ -161,7 +161,7 @@ const DOCS = [
     priority: "high",
     review_status: "pending_review",
     category: "govcon",
-    linked_to: JSON.stringify([{ type: "deal", id: "opp-navy-cyber", name: "Navy Cybersecurity Operations" }]),
+    linked_to: JSON.stringify([{ type: "deal", id: "opp-navy-cyber", name: "Navy Cybersecurity Operations" }, { type: "task", id: "task-9", name: "Navy Cybersecurity past performance write-up" }]),
     version_history: JSON.stringify([{ timestamp: "2026-02-28T10:30:00Z", summary: "Document created" }]),
     created_at: "2026-02-28T10:30:00Z",
     updated_at: "2026-03-04T13:15:00Z",
