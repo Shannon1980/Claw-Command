@@ -94,7 +94,8 @@ export default function CronPage() {
   const [formData, setFormData] = useState({
     name: "",
     schedule: "",
-    action: '{\n  "endpoint": "/api/example",\n  "method": "POST",\n  "payload": {}\n}',
+    endpoint: "/api/",
+    method: "POST",
     enabled: true,
   });
 
@@ -211,40 +212,27 @@ export default function CronPage() {
 
   const handleAdd = async () => {
     setError(null);
+    if (!formData.name.trim()) { setError("Please enter a job name"); return; }
+    if (!formData.schedule) { setError("Please select a schedule"); return; }
+    if (!formData.endpoint.trim() || formData.endpoint === "/api/") { setError("Please enter an API endpoint"); return; }
     try {
-      let parsedAction;
-      try {
-        parsedAction = JSON.parse(formData.action);
-      } catch {
-        setError("Invalid JSON in action field");
-        return;
-      }
       const res = await fetch("/api/cron", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name,
           schedule: formData.schedule,
-          action: parsedAction,
+          action: { endpoint: formData.endpoint, method: formData.method, payload: {} },
           enabled: formData.enabled,
         }),
       });
       if (!res.ok) throw new Error("Failed to create cron job");
       setShowForm(false);
-      setFormData({
-        name: "",
-        schedule: "",
-        action: '{\n  "endpoint": "/api/example",\n  "method": "POST",\n  "payload": {}\n}',
-        enabled: true,
-      });
+      setFormData({ name: "", schedule: "", endpoint: "/api/", method: "POST", enabled: true });
       fetchJobs();
     } catch (err) {
       setError((err as Error).message);
     }
-  };
-
-  const applyPreset = (value: string) => {
-    setFormData({ ...formData, schedule: value });
   };
 
   return (
@@ -283,69 +271,66 @@ export default function CronPage() {
 
         {/* Create form */}
         {showForm && (
-          <div className="mb-6 bg-gray-900/50 border border-gray-800 rounded-lg p-4 space-y-4">
+          <div className="mb-6 bg-gray-900/50 border border-gray-800 rounded-lg p-5 space-y-5">
             <h2 className="text-sm font-medium text-gray-300">New Cron Job</h2>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 font-mono mb-1">Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Daily report sync"
-                  className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 font-mono mb-1">Schedule</label>
-                <input
-                  type="text"
-                  value={formData.schedule}
-                  onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                  placeholder="*/5 * * * *"
-                  className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono"
-                />
-                {formData.schedule && (
-                  <p className="mt-1 text-xs text-gray-500">{describeCron(formData.schedule)}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Schedule presets */}
+            {/* Job name */}
             <div>
-              <label className="block text-xs text-gray-500 font-mono mb-1.5">Quick presets</label>
-              <div className="flex flex-wrap gap-1.5">
-                {SCHEDULE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.value}
-                    onClick={() => applyPreset(preset.value)}
-                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                      formData.schedule === preset.value
-                        ? "bg-blue-600/30 text-blue-400 border border-blue-500/40"
-                        : "bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-gray-300"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-500 font-mono mb-1">Action (JSON)</label>
-              <textarea
-                value={formData.action}
-                onChange={(e) => setFormData({ ...formData, action: e.target.value })}
-                rows={4}
-                className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono"
+              <label className="block text-xs text-gray-400 mb-1.5">What should this job be called?</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. Daily report sync, Hourly data cleanup..."
+                className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
               />
+            </div>
+
+            {/* Schedule — dropdown only */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">How often should it run?</label>
+              <select
+                value={formData.schedule}
+                onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+              >
+                <option value="">Select a schedule...</option>
+                {SCHEDULE_PRESETS.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Endpoint & method — simple fields */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">Which API endpoint should it call?</label>
+              <div className="flex gap-2">
+                <select
+                  value={formData.method}
+                  onChange={(e) => setFormData({ ...formData, method: e.target.value })}
+                  className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 w-28 shrink-0"
+                >
+                  <option value="POST">POST</option>
+                  <option value="GET">GET</option>
+                  <option value="PUT">PUT</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+                <input
+                  type="text"
+                  value={formData.endpoint}
+                  onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })}
+                  placeholder="/api/your-endpoint"
+                  className="flex-1 px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono"
+                />
+              </div>
               <p className="mt-1 text-xs text-gray-600">
-                Format: {`{ "endpoint": "/api/...", "method": "POST", "payload": {} }`}
+                The API route that will be called each time this job runs
               </p>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pt-1">
               <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
                 <input
                   type="checkbox"
@@ -353,12 +338,12 @@ export default function CronPage() {
                   onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
                   className="rounded bg-gray-900 border-gray-700"
                 />
-                Enable immediately
+                Start running immediately
               </label>
               <button
                 onClick={handleAdd}
-                disabled={!formData.name.trim() || !formData.schedule.trim()}
                 className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-40"
+                disabled={!formData.name.trim() || !formData.schedule}
               >
                 Create Job
               </button>
