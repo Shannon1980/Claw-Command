@@ -72,6 +72,7 @@ export default function DocsPage() {
     authorAgentId: string | null;
     agent: string;
     agentEmoji: string;
+    linkedTo?: LinkedItem[];
     linkedTo: LinkedItem[];
   }) => {
     try {
@@ -98,6 +99,27 @@ export default function DocsPage() {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
+  const handleDuplicate = async (doc: Document) => {
+    try {
+      const res = await fetch("/api/docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${doc.title} (copy)`,
+          type: doc.type,
+          content: doc.content,
+          authorAgentId: null,
+          linkedTo: doc.linkedTo || [],
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setDocuments((prev) => [{ ...doc, ...created, updatedAt: created.updatedAt || new Date().toISOString(), createdAt: created.createdAt || new Date().toISOString() }, ...prev]);
+        setSelectedDoc(null);
+      }
+    } catch (error) {
+      console.error("Failed to duplicate:", error);
+    }
   const handleDuplicateDoc = (doc: Document) => {
     setDocuments((prev) => [doc, ...prev]);
   };
@@ -278,6 +300,7 @@ export default function DocsPage() {
         onClose={() => setSelectedDoc(null)}
         onUpdate={handleUpdateDoc}
         onDelete={handleDeleteDoc}
+        onDuplicate={handleDuplicate}
         onDuplicate={handleDuplicateDoc}
       />
 

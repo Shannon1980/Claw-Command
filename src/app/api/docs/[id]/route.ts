@@ -38,6 +38,8 @@ export async function PATCH(
     }
 
     if (body.linkedTo !== undefined) {
+      fields.push(`linked_to = $${idx++}`);
+      values.push(JSON.stringify(Array.isArray(body.linkedTo) ? body.linkedTo : []));
       fields.push(`linked_to = $${idx++}::jsonb`);
       values.push(JSON.stringify(body.linkedTo));
     }
@@ -64,6 +66,7 @@ export async function PATCH(
 
     const result = await pool.query(
       `UPDATE docs SET ${fields.join(", ")} WHERE id = $${idx} RETURNING
+        id, title, doc_type as type, content, status, author_agent_id, linked_to, created_at, updated_at`,
         id, title, doc_type as type, content, status, author_agent_id,
         linked_to, version_history, created_at, updated_at`,
       values

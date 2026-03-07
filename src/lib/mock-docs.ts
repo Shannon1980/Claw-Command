@@ -26,6 +26,7 @@ export interface Document {
   agentEmoji: string;
   status: DocumentStatus;
   content: string;
+  linkedTo?: LinkedItem[];
   createdAt: string;
   updatedAt: string;
   linkedTo?: LinkedItem[];

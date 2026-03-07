@@ -424,11 +424,14 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
 
           {/* Content */}
           {isEditing ? (
-            <textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              className="w-full h-[70vh] bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm text-gray-300 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
-            />
+            <div>
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full h-[70vh] bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm text-gray-300 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-600 text-right">{wordCount(editedContent).toLocaleString()} words</p>
+            </div>
           ) : (
             <div className="prose prose-invert prose-sm max-w-none">
               {document.content ? (

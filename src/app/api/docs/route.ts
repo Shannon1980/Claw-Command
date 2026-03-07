@@ -20,12 +20,16 @@ async function ensureSchema() {
       author_agent_id TEXT,
       status TEXT NOT NULL DEFAULT 'draft',
       file_path TEXT,
+      linked_to TEXT DEFAULT '[]',
       linked_to JSONB DEFAULT '[]'::jsonb,
       version_history JSONB DEFAULT '[]'::jsonb,
       created_at TEXT NOT NULL DEFAULT (now()::text),
       updated_at TEXT NOT NULL DEFAULT (now()::text)
     );
   `);
+  // Add linked_to column if it doesn't exist (for existing tables)
+  await pool.query(`
+    ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to TEXT DEFAULT '[]';
   // Add columns if they don't exist (migration for existing tables)
   await pool.query(`
     DO $$ BEGIN
@@ -55,6 +59,7 @@ export async function GET(request: NextRequest) {
   try {
     let query = `
       SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id,
+             d.status, d.file_path, d.linked_to, d.created_at, d.updated_at,
              d.status, d.file_path, d.linked_to, d.version_history,
              d.created_at, d.updated_at,
              a.name as agent_name, a.emoji as agent_emoji
@@ -85,6 +90,25 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY d.updated_at DESC";
 
     const result = await pool.query(query, params);
+    const docs = result.rows.map((row: Record<string, unknown>) => {
+      let linkedTo: unknown[] = [];
+      try { linkedTo = JSON.parse((row.linked_to as string) || "[]"); } catch { /* */ }
+      return {
+        id: row.id,
+        title: row.title,
+        filename: row.filename,
+        type: row.doc_type,
+        content: row.content || "",
+        authorAgentId: row.author_agent_id,
+        status: row.status,
+        filePath: row.file_path,
+        linkedTo: Array.isArray(linkedTo) ? linkedTo : [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        agent: (row.agent_name as string) || "Unknown",
+        agentEmoji: (row.agent_emoji as string) || "",
+      };
+    });
     const docs = result.rows.map((row: Record<string, unknown>) => ({
       id: row.id,
       title: row.title,
@@ -120,6 +144,10 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+    const linkedTo = JSON.stringify(Array.isArray(body.linkedTo) ? body.linkedTo : []);
+    await pool.query(
+      `INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status, linked_to, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $8)`,
     const linkedTo = Array.isArray(body.linkedTo) ? body.linkedTo : [];
     const versionHistory = [{ timestamp: now, summary: "Document created" }];
 
@@ -133,6 +161,7 @@ export async function POST(request: NextRequest) {
         body.type || body.docType || "report",
         body.content || "",
         body.authorAgentId || null,
+        linkedTo,
         JSON.stringify(linkedTo),
         JSON.stringify(versionHistory),
         now,
@@ -145,6 +174,7 @@ export async function POST(request: NextRequest) {
       type: body.type || body.docType || "report",
       content: body.content || "",
       status: "draft",
+      linkedTo: body.linkedTo || [],
       agent: body.agent || "Unknown",
       agentEmoji: body.agentEmoji || "",
       linkedTo,
