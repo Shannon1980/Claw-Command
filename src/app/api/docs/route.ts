@@ -1,7 +1,141 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
+import { Pool } from "pg";
+import { connectionString } from "@/lib/db/config";
+import { mockDocuments } from "@/lib/mock-docs";
+import fs from "fs";
+import path from "path";
+import os from "os";
+
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 let schemaReady = false;
+
+// ─── Agent metadata for workspace docs ────────────────────────────────────
+
+const AGENT_META: Record<string, { name: string; emoji: string }> = {
+  bob: { name: "Bob", emoji: "\u{1F916}" },
+  bertha: { name: "Bertha", emoji: "\u{1F4BC}" },
+  veronica: { name: "Veronica", emoji: "\u{1F3AF}" },
+  depa: { name: "Depa", emoji: "\u{1F4CA}" },
+  forge: { name: "Forge", emoji: "\u{2699}\u{FE0F}" },
+  atlas: { name: "Atlas", emoji: "\u{1F5A5}\u{FE0F}" },
+  muse: { name: "Muse", emoji: "\u{1F3A8}" },
+  peter: { name: "Peter", emoji: "\u{1F4CB}" },
+  harmony: { name: "Harmony", emoji: "\u{1F465}" },
+  skylar: { name: "Skylar", emoji: "\u{1F324}\u{FE0F}" },
+  sentinel: { name: "Sentinel", emoji: "\u{1F6E1}\u{FE0F}" },
+};
+
+// ─── Workspace file reading (mirrors sync/docs/trigger logic) ─────────────
+
+const EXCLUDED_FILES = ["MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md", "TOOLS.md", "HEARTBEAT.md"];
+
+function guessAgent(filename: string, content: string): string {
+  const fn = filename.toLowerCase();
+  if (fn.includes("cpars") || fn.includes("seas") || fn.includes("skyward")) return "skylar";
+  if (fn.includes("mbe") || fn.includes("cert") || fn.includes("wosb") || fn.includes("lsbrp")) return "veronica";
+  if (fn.includes("capability") || fn.includes("brand") || fn.includes("muse")) return "muse";
+  if (fn.includes("bd-") || fn.includes("opportunity") || fn.includes("capture") || fn.includes("scout") || fn.includes("competitive")) return "bertha";
+  if (fn.includes("safe") || fn.includes("itbiz") || fn.includes("lesson") || fn.includes("teaching")) return "bob";
+  if (fn.includes("agent") || fn.includes("subagent") || fn.includes("dashboard") || fn.includes("task")) return "bob";
+  if (fn.includes("api-") || fn.includes("component") || fn.includes("implementation") || fn.includes("sam-")) return "forge";
+  if (fn.includes("depa")) return "depa";
+  if (fn.includes("pta") || fn.includes("community") || fn.includes("courtyard")) return "harmony";
+  return "bob";
+}
+
+function guessType(filename: string): string {
+  const fn = filename.toLowerCase();
+  if (fn.includes("capability") || fn.includes("proposal") || fn.includes("rfi") || fn.includes("capture")) return "proposal";
+  if (fn.includes("cert") || fn.includes("mbe") || fn.includes("wosb") || fn.includes("lsbrp")) return "certification_doc";
+  if (fn.includes("cpars") || fn.includes("report") || fn.includes("seas")) return "report";
+  if (fn.includes("template")) return "template";
+  return "report";
+}
+
+function guessStatus(content: string): string {
+  const c = (content || "").toLowerCase().slice(0, 1000);
+  if (c.includes("draft") || c.includes("tbd") || c.includes("pending")) return "draft";
+  if (c.includes("ready for review") || c.includes("in review")) return "in_review";
+  if (c.includes("approved") || c.includes("complete") || c.includes("final")) return "approved";
+  return "draft";
+}
+
+function guessCategory(filename: string, content: string): string {
+  const fn = filename.toLowerCase();
+  const c = (content || "").toLowerCase().slice(0, 1000);
+  if (fn.includes("cert") || fn.includes("mbe") || fn.includes("wosb") || fn.includes("cpars") || c.includes("compliance")) return "compliance";
+  if (fn.includes("capability") || fn.includes("proposal") || fn.includes("capture") || fn.includes("bd-") || c.includes("govcon")) return "govcon";
+  if (fn.includes("api-") || fn.includes("spec") || fn.includes("design") || c.includes("technical")) return "technical";
+  if (fn.includes("agent") || fn.includes("dashboard") || fn.includes("task")) return "internal";
+  return "uncategorized";
+}
+
+function titleFromFilename(filename: string): string {
+  return filename
+    .replace(/\.(md|txt)$/i, "")
+    .replace(/[-_]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function getWorkspacePath(): string {
+  return process.env.OPENCLAW_WORKSPACE || path.join(os.homedir(), ".openclaw", "workspace");
+}
+
+function readWorkspaceDocs(): Array<Record<string, unknown>> {
+  const workspacePath = getWorkspacePath();
+  if (!fs.existsSync(workspacePath)) return [];
+
+  try {
+    const files = fs.readdirSync(workspacePath).filter(
+      (f) => (f.endsWith(".md") || f.endsWith(".txt")) && !EXCLUDED_FILES.includes(f)
+    );
+
+    const now = new Date().toISOString();
+    return files.map((f) => {
+      const filePath = path.join(workspacePath, f);
+      let content = "";
+      let stat: fs.Stats | null = null;
+      try {
+        content = fs.readFileSync(filePath, "utf8");
+        stat = fs.statSync(filePath);
+      } catch { /* ignore */ }
+
+      const agentId = guessAgent(f, content);
+      const meta = AGENT_META[agentId] || AGENT_META.bob;
+
+      return {
+        id: "ws-" + f.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase(),
+        title: titleFromFilename(f),
+        filename: f,
+        type: guessType(f),
+        content: content.slice(0, 50000),
+        authorAgentId: agentId,
+        status: guessStatus(content),
+        filePath,
+        agent: meta.name,
+        agentEmoji: meta.emoji,
+        linkedTo: [],
+        versionHistory: [{ timestamp: stat?.mtime?.toISOString() || now, summary: "Synced from workspace" }],
+        priority: "medium",
+        reviewStatus: "pending_review",
+        category: guessCategory(f, content),
+        notes: [],
+        assignments: [],
+        createdAt: stat?.birthtime?.toISOString() || now,
+        updatedAt: stat?.mtime?.toISOString() || now,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
 
 function getMockFallback() {
   return mockDocuments.map((doc) => ({
@@ -10,6 +144,13 @@ function getMockFallback() {
     filePath: null,
     filename: null,
   }));
+}
+
+/** Get documents from best available source: DB → workspace → mock */
+function getFallbackDocs() {
+  const workspaceDocs = readWorkspaceDocs();
+  if (workspaceDocs.length > 0) return workspaceDocs;
+  return getMockFallback();
 }
 
 async function ensureSchema() {
@@ -37,12 +178,12 @@ async function ensureSchema() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!pool) return NextResponse.json(getMockFallback());
+  if (!pool) return NextResponse.json(getFallbackDocs());
 
   try {
     await ensureSchema();
   } catch {
-    return NextResponse.json(getMockFallback());
+    return NextResponse.json(getFallbackDocs());
   }
 
   const { searchParams } = new URL(request.url);
@@ -121,13 +262,13 @@ export async function GET(request: NextRequest) {
     }));
 
     if (docs.length === 0 && !docType && !search && !linkedType && !reviewStatus && !category && !priority) {
-      return NextResponse.json(getMockFallback());
+      return NextResponse.json(getFallbackDocs());
     }
 
     return NextResponse.json(docs);
   } catch (error) {
     console.error("[Docs API] Error:", error);
-    return NextResponse.json(getMockFallback());
+    return NextResponse.json(getFallbackDocs());
   }
 }
 
