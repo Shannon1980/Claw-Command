@@ -44,6 +44,11 @@ const REAL_OPPORTUNITIES = [
 async function seedRealOpportunities() {
   console.log("🌱 Seeding REAL Opportunities...");
 
+  if (!db) {
+    console.error("❌ Database not configured. Set DATABASE_URL.");
+    process.exit(1);
+  }
+
   try {
     // 1. Clear existing opportunities
     console.log("🧹 Clearing existing opportunities...");
