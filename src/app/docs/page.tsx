@@ -5,6 +5,7 @@ import type {
   Document,
   DocumentType,
   DocumentStatus,
+  LinkedItem,
 } from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
@@ -22,6 +23,7 @@ export default function DocsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [linkedFilter, setLinkedFilter] = useState<string>("all");
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -56,6 +58,10 @@ export default function DocsPage() {
     if (typeFilter !== "all" && doc.type !== typeFilter) return false;
     if (agentFilter !== "all" && doc.agent !== agentFilter) return false;
     if (statusFilter !== "all" && doc.status !== statusFilter) return false;
+    if (linkedFilter !== "all") {
+      const [linkType, linkId] = linkedFilter.split(":");
+      if (!(doc.linkedTo || []).some((l) => l.type === linkType && l.id === linkId)) return false;
+    }
     return true;
   });
 
@@ -66,6 +72,7 @@ export default function DocsPage() {
     authorAgentId: string | null;
     agent: string;
     agentEmoji: string;
+    linkedTo: LinkedItem[];
   }) => {
     try {
       const res = await fetch("/api/docs", {
@@ -91,7 +98,24 @@ export default function DocsPage() {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
+  const handleDuplicateDoc = (doc: Document) => {
+    setDocuments((prev) => [doc, ...prev]);
+  };
+
   const agents = ["all", ...new Set(documents.map((d) => d.agent).filter(Boolean))];
+
+  // Collect all unique linked items across documents for filtering
+  const allLinkedItems: { key: string; label: string }[] = [];
+  const seenLinks = new Set<string>();
+  for (const doc of documents) {
+    for (const link of doc.linkedTo || []) {
+      const key = `${link.type}:${link.id}`;
+      if (!seenLinks.has(key)) {
+        seenLinks.add(key);
+        allLinkedItems.push({ key, label: `${link.name}` });
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -169,6 +193,21 @@ export default function DocsPage() {
             <option value="exported">Exported</option>
           </select>
 
+          {allLinkedItems.length > 0 && (
+            <select
+              value={linkedFilter}
+              onChange={(e) => setLinkedFilter(e.target.value)}
+              className="px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+            >
+              <option value="all">All Links</option>
+              {allLinkedItems.map((item) => (
+                <option key={item.key} value={item.key}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          )}
+
           <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("grid")}
@@ -239,6 +278,7 @@ export default function DocsPage() {
         onClose={() => setSelectedDoc(null)}
         onUpdate={handleUpdateDoc}
         onDelete={handleDeleteDoc}
+        onDuplicate={handleDuplicateDoc}
       />
 
       <DocCreateModal
