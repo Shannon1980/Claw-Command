@@ -184,10 +184,21 @@ if [ "$PREVIEW" = 1 ] || [ "$INTERACTIVE" = 1 ]; then
   fi
 fi
 
-# Push to dashboard
-RESPONSE=$(curl -s --max-time 30 -X POST \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD" \
-  "${DASHBOARD_URL}/api/sync/docs")
+# Push to dashboard in batches
+BATCH_SIZE=100
+OFFSET=0
 
-echo "[$(date)] ✅ Response: $RESPONSE"
+while true; do
+  export OFFSET
+  export BATCH_SIZE
+  BATCH=$(echo "$PAYLOAD" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));const o=parseInt(process.env.OFFSET||0);const s=parseInt(process.env.BATCH_SIZE||100);const b=d.docs.slice(o,o+s);if(b.length===0){process.exit(1);}console.log(JSON.stringify({docs:b}));" 2>/dev/null)
+  [ $? -ne 0 ] && break
+  RESPONSE=$(echo "$BATCH" | curl -s --max-time 30 -X POST \
+    -H "Content-Type: application/json" \
+    -d @- \
+    "${DASHBOARD_URL}/api/sync/docs")
+  echo "[$(date)] Batch offset $OFFSET: $RESPONSE"
+  OFFSET=$((OFFSET + BATCH_SIZE))
+done
+
+echo "[$(date)] Sync complete"
