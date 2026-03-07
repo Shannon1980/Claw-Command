@@ -4,6 +4,9 @@ import { chatMessages } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export async function GET() {
+  if (!db) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
   try {
     const pendingMessages = await db
       .select()
@@ -18,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!db) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
   try {
     const { agentId, content, replyToMessageId } = await request.json();
 

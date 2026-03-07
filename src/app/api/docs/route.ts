@@ -4,12 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 let schemaReady = false;
 
 function getMockFallback() {
-  return mockDocuments.map((doc) => ({
-    ...doc,
-    authorAgentId: null,
-    filePath: null,
-    filename: null,
-  }));
+  return [];
 }
 
 async function ensureSchema() {
