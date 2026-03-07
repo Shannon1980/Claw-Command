@@ -98,7 +98,28 @@ export async function POST(
       fetchOptions.body = JSON.stringify(payload);
     }
 
-    const response = await fetch(url, fetchOptions);
+    let response: Response;
+    try {
+      response = await fetch(url, fetchOptions);
+    } catch (fetchError) {
+      const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const durationMs = Date.now() - startMs;
+      const now = new Date().toISOString();
+      try {
+        await pool.query(
+          `UPDATE cron_runs SET status = 'error', error = $1, completed_at = $2, duration_ms = $3 WHERE id = $4`,
+          [`Fetch failed: ${msg}`, now, durationMs, runId]
+        );
+      } catch { /* */ }
+      return NextResponse.json({
+        ok: false,
+        runId,
+        status: "error",
+        durationMs,
+        error: `Target request failed: ${msg}`,
+        hint: "Check VERCEL_URL, NEXTAUTH_URL, or NEXT_PUBLIC_APP_URL for correct base URL",
+      }, { status: 200 });
+    }
     const result = await response.json().catch(() => ({ status: response.status }));
     const durationMs = Date.now() - startMs;
     const now = new Date().toISOString();
