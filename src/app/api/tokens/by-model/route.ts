@@ -6,10 +6,27 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   if (!pool) {
     return NextResponse.json([]);
   }
+
+  const { searchParams } = new URL(request.url);
+  const fromDate = searchParams.get("from");
+  const toDate = searchParams.get("to");
+
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+  if (fromDate) {
+    conditions.push(`created_at::date >= $${paramIndex++}`);
+    values.push(fromDate);
+  }
+  if (toDate) {
+    conditions.push(`created_at::date <= $${paramIndex++}`);
+    values.push(toDate);
+  }
+  const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
   try {
     const result = await pool.query(
@@ -17,9 +34,10 @@ export async function GET(_request: NextRequest) {
               COALESCE(SUM(input_tokens), 0) as input_tokens,
               COALESCE(SUM(output_tokens), 0) as output_tokens,
               COALESCE(SUM(cost_cents), 0) as cost_cents
-       FROM token_usage
+       FROM token_usage${whereClause}
        GROUP BY model
-       ORDER BY SUM(cost_cents) DESC`
+       ORDER BY SUM(cost_cents) DESC`,
+      values
     );
 
     const rows = result.rows.map((row: Record<string, unknown>) => ({

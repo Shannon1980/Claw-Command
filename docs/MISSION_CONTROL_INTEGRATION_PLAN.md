@@ -554,7 +554,7 @@ GITHUB_REPO=owner/repo
 GATEWAY_2_URL=http://another-gateway:18789
 
 # Budget
-TOKEN_BUDGET_MONTHLY_USD=500
+TOKEN_BUDGET_MONTHLY_USD=300
 TOKEN_ALERT_THRESHOLD_PCT=80
 
 # Claude session scanning
