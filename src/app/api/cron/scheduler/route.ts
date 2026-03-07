@@ -39,6 +39,8 @@ async function runScheduler(request: NextRequest) {
         enabled BOOLEAN DEFAULT true, last_run_at TEXT, next_run_at TEXT, run_count INTEGER DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (now()::text), updated_at TEXT NOT NULL DEFAULT (now()::text)
       );
+      ALTER TABLE cron_jobs ADD COLUMN IF NOT EXISTS action TEXT;
+      ALTER TABLE cron_jobs ADD COLUMN IF NOT EXISTS next_run_at TEXT;
       CREATE TABLE IF NOT EXISTS cron_runs (
         id TEXT PRIMARY KEY, job_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'running',
         result TEXT, error TEXT, started_at TEXT NOT NULL DEFAULT (now()::text), completed_at TEXT, duration_ms INTEGER
