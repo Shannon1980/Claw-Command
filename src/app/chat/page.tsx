@@ -2,52 +2,35 @@
 
 import { useState, useEffect } from "react";
 import ChatWindow from "@/components/chat/ChatWindow";
+import { useAgentStore } from "@/lib/stores/agentStore";
 
-interface Agent {
+interface ChatAgent {
   id: string;
   name: string;
   emoji: string;
   role: string;
 }
 
-function toChatAgent(row: { id: string; name: string; emoji: string; domain?: string }): Agent {
-  return {
-    id: row.id,
-    name: row.name,
-    emoji: row.emoji,
-    role: row.domain || "agent",
-  };
-}
-
 export default function ChatPage() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { agents: storeAgents, loading, fetchAgents } = useAgentStore();
+  const [selectedAgent, setSelectedAgent] = useState<ChatAgent | null>(null);
 
   useEffect(() => {
-    loadAgents();
-  }, []);
+    fetchAgents();
+  }, [fetchAgents]);
 
-  const loadAgents = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/agents");
-      if (response.ok) {
-        const data = await response.json();
-        // API returns array directly, not { agents: [...] }
-        const rows = Array.isArray(data) ? data : (data?.agents ?? []);
-        const list = rows.map(toChatAgent);
-        setAgents(list);
-        if (list.length > 0) {
-          setSelectedAgent(list[0]);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load agents:", error);
-    } finally {
-      setLoading(false);
+  const agents: ChatAgent[] = storeAgents.map((a) => ({
+    id: a.id,
+    name: a.name,
+    emoji: a.emoji,
+    role: a.domain || "agent",
+  }));
+
+  useEffect(() => {
+    if (agents.length > 0 && !selectedAgent) {
+      setSelectedAgent(agents[0]);
     }
-  };
+  }, [agents, selectedAgent]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">

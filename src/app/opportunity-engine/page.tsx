@@ -518,8 +518,32 @@ function AnalysisResults({ analysis }: { analysis: OpportunityAnalysis }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
+function ScanningOverlay() {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-16 gap-4">
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin" />
+        <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-transparent border-b-cyan-400/40 animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-medium text-gray-300">Scanning sources...</p>
+        <p className="text-xs text-gray-500 font-mono mt-1">Querying SAM.gov, eMaryland, eVA, DC OCP, NASPO</p>
+      </div>
+      <div className="flex gap-1 mt-2">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-cyan-400/60 animate-pulse"
+            style={{ animationDelay: `${i * 200}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function OpportunityEnginePage() {
-  const { queue, loading, scanning, error, refresh, triggerScan } = useOpportunityEngine();
+  const { queue, loading, scanning, error, lastScanResult, refresh, triggerScan, dismissScanResult } = useOpportunityEngine();
   const [activeTab, setActiveTab] = useState<ViewTab>("capture");
   const [pageMode, setPageMode] = useState<PageMode>("pipeline");
 
@@ -564,7 +588,10 @@ export default function OpportunityEnginePage() {
             </div>
             {pageMode === "pipeline" && (
               <>
-                <button onClick={triggerScan} disabled={scanning} className="px-3 py-1.5 text-sm bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/30 transition-colors disabled:opacity-50 font-mono">
+                <button onClick={triggerScan} disabled={scanning} className={`px-3 py-1.5 text-sm bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/30 transition-colors disabled:opacity-50 font-mono flex items-center gap-2 ${scanning ? "animate-pulse" : ""}`}>
+                  {scanning && (
+                    <div className="w-3.5 h-3.5 rounded-full border-2 border-cyan-400/30 border-t-cyan-400 animate-spin" />
+                  )}
                   {scanning ? "Scanning..." : "Scan Sources"}
                 </button>
                 <button onClick={refresh} disabled={loading} className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50">
@@ -577,6 +604,19 @@ export default function OpportunityEnginePage() {
 
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">{error.message}</div>
+        )}
+
+        {lastScanResult && (
+          <div className="mb-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-400">&#10003;</span>
+              <span>
+                Scan complete{lastScanResult.totalInserted > 0 ? ` — ${lastScanResult.totalInserted} new opportunities found` : " — no new opportunities found"}.
+                {lastScanResult.message && <span className="text-cyan-400/60 ml-1 text-xs font-mono">{lastScanResult.message}</span>}
+              </span>
+            </div>
+            <button onClick={dismissScanResult} className="text-cyan-400/60 hover:text-cyan-400 transition-colors text-xs ml-4 shrink-0">Dismiss</button>
+          </div>
         )}
 
         {/* Analyze Mode */}
@@ -630,11 +670,17 @@ export default function OpportunityEnginePage() {
             </div>
 
             {/* Opportunity List */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {tabOpps.map((opp) => <OpportunityDetailCard key={opp.id} opp={opp} />)}
-            </div>
+            {scanning ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <ScanningOverlay />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {tabOpps.map((opp) => <OpportunityDetailCard key={opp.id} opp={opp} />)}
+              </div>
+            )}
 
-            {tabOpps.length === 0 && !loading && (
+            {tabOpps.length === 0 && !loading && !scanning && (
               <div className="text-center py-12 text-gray-600">
                 <p className="text-sm">No opportunities in this queue.</p>
                 <p className="text-xs mt-1 font-mono">Run a scan or switch tabs.</p>

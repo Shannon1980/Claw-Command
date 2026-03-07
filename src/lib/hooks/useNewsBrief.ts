@@ -38,6 +38,10 @@ export interface DailyNewsBriefData {
   worldNews: NewsItem[];
   usNews: NewsItem[];
   localNews: NewsItem[];
+  technologyNews: NewsItem[];
+  businessNews: NewsItem[];
+  scienceNews: NewsItem[];
+  healthNews: NewsItem[];
   standupSummary: {
     date: string;
     completed: Array<{ id: string; title: string }>;
@@ -57,6 +61,7 @@ export interface DailyNewsBriefData {
   } | null;
   generatedAt: string;
   live?: boolean;
+  newsApiConfigured?: boolean;
 }
 
 const EMPTY_DATA: DailyNewsBriefData = {
@@ -68,6 +73,10 @@ const EMPTY_DATA: DailyNewsBriefData = {
   worldNews: [],
   usNews: [],
   localNews: [],
+  technologyNews: [],
+  businessNews: [],
+  scienceNews: [],
+  healthNews: [],
   standupSummary: null,
   briefSummary: null,
   skywardSummary: null,

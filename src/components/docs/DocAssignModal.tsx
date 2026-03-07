@@ -3,12 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Document, AssignTarget, DocumentPriority } from "@/lib/mock-docs";
 import { PRIORITY_OPTIONS } from "@/lib/mock-docs";
-
-interface Agent {
-  id: string;
-  name: string;
-  emoji: string;
-}
+import { useAgentStore } from "@/lib/stores/agentStore";
 
 interface Pipeline {
   id: string;
@@ -35,15 +30,13 @@ export default function DocAssignModal({ isOpen, document, onClose, onAssign }: 
   const [instructions, setInstructions] = useState("");
   const [priority, setPriority] = useState<DocumentPriority>("medium");
   const [pipelineId, setPipelineId] = useState("");
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { agents, fetchAgents } = useAgentStore();
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    fetch("/api/agents").then((r) => r.json()).then((data) => {
-      setAgents(Array.isArray(data) ? data : []);
-    }).catch(() => {});
+    fetchAgents();
 
     fetch("/api/pipelines").then((r) => r.json()).then((data) => {
       setPipelines(Array.isArray(data) ? data : []);
