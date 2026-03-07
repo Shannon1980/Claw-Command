@@ -6,17 +6,45 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pipelines (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      steps TEXT DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TEXT NOT NULL DEFAULT (now()::text),
+      updated_at TEXT NOT NULL DEFAULT (now()::text)
+    );
+    CREATE TABLE IF NOT EXISTS pipeline_runs (
+      id TEXT PRIMARY KEY,
+      pipeline_id TEXT NOT NULL REFERENCES pipelines(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'running',
+      current_step_index INTEGER DEFAULT 0,
+      started_at TEXT NOT NULL DEFAULT (now()::text),
+      completed_at TEXT,
+      results TEXT DEFAULT '{}'
+    );
+  `);
+  schemaReady = true;
+}
+
 export async function GET() {
   if (!pool) return NextResponse.json([]);
 
   try {
+    await ensureSchema();
     const result = await pool.query(
       `SELECT * FROM pipelines ORDER BY updated_at DESC`
     );
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error("[Pipelines API] GET error:", error);
-    return NextResponse.json({ error: "Failed to list pipelines" }, { status: 500 });
+    return NextResponse.json([], { status: 200 });
   }
 }
 
@@ -26,6 +54,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureSchema();
     const body = await request.json();
     const { name, description, steps } = body;
     const id = `pipe-${Date.now()}`;
@@ -34,7 +63,7 @@ export async function POST(request: NextRequest) {
     const result = await pool.query(
       `INSERT INTO pipelines (id, name, description, steps, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, 'draft', $5, $6) RETURNING *`,
-      [id, name, description || "", steps, now, now]
+      [id, name, description || "", typeof steps === "string" ? steps : JSON.stringify(steps), now, now]
     );
 
     return NextResponse.json(result.rows[0], { status: 201 });

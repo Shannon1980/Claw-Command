@@ -52,7 +52,7 @@ const navSections: NavSection[] = [
     title: "DOMAIN",
     items: [
       { href: "/brief", label: "Brief", icon: icon("M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16v6M17 16v6m3-13V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h10a2 2 0 002-2z") },
-      { href: "/pipeline", label: "Pipeline", icon: icon("M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0-4l4-4m-4 4l-4-4") },
+      { href: "/deals", label: "Deals", icon: icon("M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0-4l4-4m-4 4l-4-4") },
       { href: "/certifications", label: "Certifications", icon: icon("M12 14l9-5-9-5-9 5 9 5z") },
       { href: "/calendar", label: "Calendar", icon: icon("M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z") },
       { href: "/email", label: "Email", icon: icon("M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z") },
