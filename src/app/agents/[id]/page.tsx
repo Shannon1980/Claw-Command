@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ChatWindow from "@/components/chat/ChatWindow";
 import type { Task, TaskStatus } from "@/lib/stores/taskStore";
 
@@ -46,17 +46,20 @@ function taskStatusColor(status: string) {
   return colors[status] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
 }
 
-type Tab = "tasks" | "chat";
+type Tab = "tasks" | "completed" | "chat";
 
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const agentId = params.id as string;
+
+  const initialTab = (searchParams.get("tab") as Tab) || "tasks";
 
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("tasks");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -507,9 +510,24 @@ export default function AgentDetailPage() {
             }`}
           >
             Tasks
-            {tasks.length > 0 && (
+            {(tasks.length - doneTasks.length) > 0 && (
               <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-mono bg-gray-800 rounded">
-                {tasks.length}
+                {tasks.length - doneTasks.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTab("completed")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === "completed"
+                ? "border-green-500 text-gray-100"
+                : "border-transparent text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            Completed
+            {doneTasks.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-mono bg-green-500/10 text-green-400 rounded">
+                {doneTasks.length}
               </span>
             )}
           </button>
@@ -528,11 +546,19 @@ export default function AgentDetailPage() {
         {/* Tab content */}
         {tab === "tasks" && (
           <div>
-            {tasks.length === 0 ? (
+            {(tasks.length - doneTasks.length) === 0 ? (
               <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
                 <p className="text-sm text-gray-500">
-                  No tasks assigned to this agent.
+                  No active tasks assigned to this agent.
                 </p>
+                {doneTasks.length > 0 && (
+                  <button
+                    onClick={() => setTab("completed")}
+                    className="mt-2 text-xs text-green-400 hover:text-green-300"
+                  >
+                    View {doneTasks.length} completed task{doneTasks.length !== 1 ? "s" : ""}
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -543,8 +569,166 @@ export default function AgentDetailPage() {
                 )}
                 {renderTaskGroup("Active", activeTasks, "text-blue-400")}
                 {renderTaskGroup("Backlog", otherTasks)}
-                {renderTaskGroup("Completed", doneTasks, "text-green-400")}
               </>
+            )}
+          </div>
+        )}
+
+        {tab === "completed" && (
+          <div>
+            {doneTasks.length === 0 ? (
+              <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
+                <p className="text-sm text-gray-500">
+                  No completed tasks yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {doneTasks
+                  .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                  .map((task) => (
+                  <div
+                    key={task.id}
+                    className="bg-gray-900/80 border border-gray-800 rounded-lg overflow-hidden"
+                  >
+                    <div
+                      className="p-3 cursor-pointer hover:bg-gray-800/30 transition-colors"
+                      onClick={() =>
+                        setExpandedTask(expandedTask === task.id ? null : task.id)
+                      }
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-gray-200 leading-tight">
+                            {task.title}
+                          </h4>
+                          <p className="text-[10px] text-gray-500 font-mono mt-1">
+                            Completed {new Date(task.updatedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {task.priority !== "medium" && (
+                            <span
+                              className={`px-1.5 py-0.5 text-[10px] font-mono rounded ${
+                                task.priority === "high"
+                                  ? "bg-red-500/20 text-red-400"
+                                  : "bg-green-500/20 text-green-400"
+                              }`}
+                            >
+                              {task.priority}
+                            </span>
+                          )}
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono rounded border bg-green-500/20 text-green-400 border-green-500/30">
+                            done
+                          </span>
+                        </div>
+                      </div>
+                      {task.outcome && (
+                        <div className="mt-2 px-2 py-1.5 bg-green-500/5 border border-green-500/20 rounded text-xs text-green-300">
+                          <span className="font-mono text-green-500 text-[10px]">
+                            OUTPUT:{" "}
+                          </span>
+                          {task.outcome}
+                        </div>
+                      )}
+                    </div>
+
+                    {expandedTask === task.id && (
+                      <div className="border-t border-gray-800 p-3 space-y-3">
+                        {task.description && (
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-mono uppercase mb-1">
+                              Description
+                            </p>
+                            <p className="text-xs text-gray-300 whitespace-pre-wrap">
+                              {task.description}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Outcome display/edit */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] text-gray-500 font-mono uppercase">
+                              Output / Deliverable
+                            </p>
+                            {outcomeEditing !== task.id && (
+                              <button
+                                onClick={() => {
+                                  setOutcomeEditing(task.id);
+                                  setOutcomeText(task.outcome || "");
+                                }}
+                                className="text-[10px] text-blue-400 hover:text-blue-300"
+                              >
+                                {task.outcome ? "Edit" : "Add output"}
+                              </button>
+                            )}
+                          </div>
+                          {outcomeEditing === task.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={outcomeText}
+                                onChange={(e) => setOutcomeText(e.target.value)}
+                                rows={3}
+                                placeholder="Describe the output, paste a link, or summarize the deliverable..."
+                                className="w-full px-3 py-2 text-xs bg-gray-950 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-600 resize-none"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleSaveOutcome(task.id)}
+                                  disabled={actionLoading === task.id}
+                                  className="px-2 py-1 text-[11px] font-mono bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setOutcomeEditing(null);
+                                    setOutcomeText("");
+                                  }}
+                                  className="px-2 py-1 text-[11px] font-mono text-gray-500 hover:text-gray-300"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : task.outcome ? (
+                            <p className="text-xs text-gray-300 whitespace-pre-wrap bg-gray-950/50 border border-gray-800 rounded p-2">
+                              {task.outcome}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-600 italic">
+                              No output recorded
+                            </p>
+                          )}
+                        </div>
+
+                        {task.project && (
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-mono uppercase mb-1">
+                              Project
+                            </p>
+                            <p className="text-xs text-cyan-400">{task.project}</p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-gray-800">
+                          <button
+                            onClick={() => router.push("/tasks")}
+                            className="px-3 py-1.5 text-xs font-mono text-gray-500 hover:text-gray-300 ml-auto"
+                          >
+                            View in Kanban
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
