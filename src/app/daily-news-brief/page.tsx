@@ -8,6 +8,7 @@ import type {
   YouTubeItem,
   DailyNewsBriefData,
 } from "@/lib/hooks/useNewsBrief";
+import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -34,6 +35,39 @@ function relativeTime(dateStr: string): string {
 
 // ── Section Components ──────────────────────────────────────────────────
 
+function WeatherSummaryCard() {
+  const { weather, loading } = useWeather();
+
+  if (loading) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <div className="text-gray-500 text-sm animate-pulse">Loading weather...</div>
+      </div>
+    );
+  }
+
+  if (!weather) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <div className="text-2xl mb-1">{"\uD83C\uDF24\uFE0F"}</div>
+        <div className="text-xs text-gray-500">Burtonsville, MD</div>
+        <div className="text-sm text-gray-500">Weather unavailable</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+      <div className="text-2xl mb-1">{getWeatherEmoji(weather.icon)}</div>
+      <div className="text-xs text-gray-500">Burtonsville, MD</div>
+      <div className="text-2xl font-bold text-gray-100">{weather.temperature}&deg;F</div>
+      <div className="text-[10px] text-gray-500 mt-0.5">
+        {weather.description} &middot; H:{weather.high}&deg; L:{weather.low}&deg;
+      </div>
+    </div>
+  );
+}
+
 function SummaryCards({ brief }: { brief: DailyNewsBriefData["briefSummary"] }) {
   if (!brief?.summary) return null;
   const { tasksCompleted, newAlerts, pendingApprovals } = brief.summary;
@@ -45,7 +79,8 @@ function SummaryCards({ brief }: { brief: DailyNewsBriefData["briefSummary"] }) 
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-4 gap-4">
+      <WeatherSummaryCard />
       {cards.map((c) => (
         <div
           key={c.label}

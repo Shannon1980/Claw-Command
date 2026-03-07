@@ -15,7 +15,9 @@ export default function WeatherCard() {
 
   if (error || !weather) {
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 hover:border-gray-700 transition-colors">
+        <div className="text-3xl mb-2">{"\uD83C\uDF24\uFE0F"}</div>
+        <div className="text-gray-400 text-sm mb-1">Burtonsville, MD</div>
         <div className="text-gray-500 text-sm">Weather unavailable</div>
       </div>
     );
