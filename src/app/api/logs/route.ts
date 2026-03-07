@@ -6,6 +6,26 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+function mapRow(row: Record<string, unknown>) {
+  let metadata: Record<string, unknown> = {};
+  try {
+    metadata = typeof row.metadata === "string" ? JSON.parse(row.metadata) : (row.metadata as Record<string, unknown>) ?? {};
+  } catch {
+    metadata = {};
+  }
+  return {
+    id: row.id,
+    agentId: row.agent_id ?? null,
+    agentName: row.agent_name ?? undefined,
+    agentEmoji: row.agent_emoji ?? undefined,
+    sessionId: row.session_id ?? null,
+    level: row.level ?? "info",
+    message: row.message ?? "",
+    metadata,
+    createdAt: row.created_at,
+  };
+}
+
 export async function GET(request: NextRequest) {
   if (!pool) {
     return NextResponse.json([]);
@@ -51,7 +71,7 @@ export async function GET(request: NextRequest) {
     values.push(limit);
 
     const result = await pool.query(query, values);
-    return NextResponse.json(result.rows);
+    return NextResponse.json(result.rows.map(mapRow));
   } catch (error) {
     console.error("[Logs API] Error:", error);
     return NextResponse.json([]);

@@ -239,6 +239,9 @@ CREATE TABLE IF NOT EXISTS cron_jobs (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+-- API expects 'action' column; add it (use command as fallback)
+ALTER TABLE cron_jobs ADD COLUMN IF NOT EXISTS action TEXT;
+UPDATE cron_jobs SET action = command WHERE action IS NULL AND command IS NOT NULL;
 
 -- 21. mc_memories: add category, updated_at
 ALTER TABLE mc_memories ADD COLUMN IF NOT EXISTS category TEXT;

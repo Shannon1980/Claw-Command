@@ -24,8 +24,13 @@ export async function POST(
     }
 
     const job = jobResult.rows[0];
-    const action = typeof job.action === "string" ? JSON.parse(job.action) : job.action;
+    const actionRaw = job.action ?? job.command;
+    const action = typeof actionRaw === "string" ? (() => { try { return JSON.parse(actionRaw); } catch { return {}; } })() : (actionRaw ?? {});
     const { endpoint, method, payload } = action;
+
+    if (!endpoint) {
+      return NextResponse.json({ error: "Cron job has no endpoint in action" }, { status: 400 });
+    }
 
     const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;

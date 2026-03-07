@@ -95,6 +95,19 @@ const CALENDAR_EVENTS = [
   { id: "evt-9", title: "PTA Planning Call", domain: "community", start_time: getWeekDate(5, 11, 0), end_time: getWeekDate(5, 12, 0), protected: false, description: null },
 ];
 
+const AGENT_LOGS = [
+  { id: "log-1", agent_id: "bob", session_id: "sess-001", level: "info", message: "Orchestration cycle started" },
+  { id: "log-2", agent_id: "bertha", session_id: "sess-002", level: "info", message: "Drafting DHS Border Tech capability statement" },
+  { id: "log-3", agent_id: "veronica", session_id: "sess-003", level: "warn", message: "MBE docs pending Shannon approval" },
+  { id: "log-4", agent_id: "forge", session_id: "sess-004", level: "info", message: "GovForecast data pipeline architecture in progress" },
+  { id: "log-5", agent_id: "depa", session_id: "sess-005", level: "debug", message: "Intel aggregation complete for Army NETCOM" },
+  { id: "log-6", agent_id: "skylar", session_id: "sess-006", level: "info", message: "SEAS IT quarterly status report drafted" },
+  { id: "log-7", agent_id: "bertha", session_id: "sess-002", level: "error", message: "VA proposal pricing lookup failed - retrying" },
+  { id: "log-8", agent_id: "forge", session_id: "sess-004", level: "info", message: "NoteTaker AI beta testing plan created" },
+  { id: "log-9", agent_id: "bob", session_id: "sess-001", level: "info", message: "Task assignments distributed to 4 agents" },
+  { id: "log-10", agent_id: "peter", session_id: "sess-007", level: "info", message: "Sprint backlog updated" },
+];
+
 const TOKEN_USAGE = [
   { id: "tu-1", agent_id: "bob", session_id: "sess-001", model: "claude-sonnet-4-20250514", input_tokens: 2400, output_tokens: 800, cost_cents: 1.2 },
   { id: "tu-2", agent_id: "bob", session_id: "sess-001", model: "claude-sonnet-4-20250514", input_tokens: 3100, output_tokens: 1200, cost_cents: 1.8 },
@@ -268,6 +281,7 @@ export async function POST() {
     `);
 
     // Clear existing data (reverse FK order)
+    await client.query("DELETE FROM agent_logs");
     await client.query("DELETE FROM activities");
     await client.query("DELETE FROM alerts");
     await client.query("DELETE FROM tasks");
@@ -359,6 +373,15 @@ export async function POST() {
       );
     }
 
+    // Seed agent logs (for logs page)
+    for (const l of AGENT_LOGS) {
+      await client.query(
+        `INSERT INTO agent_logs (id, agent_id, session_id, level, message, metadata, created_at)
+         VALUES ($1,$2,$3,$4,$5,'{}',$6)`,
+        [l.id, l.agent_id, l.session_id, l.level, l.message, now]
+      );
+    }
+
     // Seed calendar events
     for (const e of CALENDAR_EVENTS) {
       await client.query(
@@ -382,6 +405,7 @@ export async function POST() {
         certifications: CERTIFICATIONS.length,
         calendar_events: CALENDAR_EVENTS.length,
         token_usage: TOKEN_USAGE.length,
+        agent_logs: AGENT_LOGS.length,
       },
     });
   } catch (error) {
