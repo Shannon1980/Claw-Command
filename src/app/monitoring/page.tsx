@@ -132,6 +132,12 @@ function ActivityTab({ agents, filterAgent }: { agents: AgentOption[]; filterAge
     fetchActivities();
   }, [fetchActivities]);
 
+  // Auto-refresh every 10s
+  useEffect(() => {
+    const interval = setInterval(() => fetchActivities(), 10000);
+    return () => clearInterval(interval);
+  }, [fetchActivities]);
+
   return (
     <>
       {/* Extra filters */}
@@ -240,6 +246,13 @@ function LogsTab({ filterAgent }: { filterAgent: string }) {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  // Auto-refresh every 10s (respects pause)
+  useEffect(() => {
+    if (paused) return;
+    const interval = setInterval(() => fetchLogs(), 10000);
+    return () => clearInterval(interval);
+  }, [fetchLogs, paused]);
 
   // Sync shared agent filter into log store
   useEffect(() => {

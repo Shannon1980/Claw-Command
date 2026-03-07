@@ -12,7 +12,9 @@ function getPresetRange(preset: string): DateRange {
   const now = new Date();
   const to = now.toISOString().slice(0, 10);
   let from: string;
-  if (preset === "7") {
+  if (preset === "today") {
+    from = to;
+  } else if (preset === "7") {
     const d = new Date(now);
     d.setDate(d.getDate() - 7);
     from = d.toISOString().slice(0, 10);
@@ -104,7 +106,7 @@ export default function TokensPage() {
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <span className="text-xs text-gray-500 font-mono">Filter:</span>
           <div className="flex gap-1">
-            {(["7", "30", "90", "month"] as const).map((p) => (
+            {(["today", "7", "30", "90", "month"] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => applyPreset(p)}
@@ -114,7 +116,7 @@ export default function TokensPage() {
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300"
                 }`}
               >
-                {p === "month" ? "This month" : `Last ${p} days`}
+                {p === "today" ? "Today" : p === "month" ? "This month" : `Last ${p} days`}
               </button>
             ))}
           </div>
