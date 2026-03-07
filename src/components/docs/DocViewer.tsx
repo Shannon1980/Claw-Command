@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Document, DocumentStatus, LinkedItem } from "@/lib/mock-docs";
 import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
-import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { saveAs } from "file-saver";
+import LinkPicker, { linkTypeConfig } from "@/components/docs/LinkPicker";
 
 interface DocViewerProps {
   document: Document | null;
@@ -21,114 +20,9 @@ const statusOptions: { value: DocumentStatus; label: string }[] = [
   { value: "exported", label: "Exported" },
 ];
 
-const linkTypeColors: Record<string, string> = {
-  deal: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
-  certification: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  task: "bg-purple-500/10 text-purple-400 border-purple-500/30",
-};
-
-function wordCount(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function markdownToDocxParagraphs(md: string): Paragraph[] {
-  const lines = md.split("\n");
-  const paragraphs: Paragraph[] = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      paragraphs.push(new Paragraph({ text: "" }));
-      continue;
-    }
-
-    // Headings
-    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)/);
-    if (headingMatch) {
-      const level = headingMatch[1].length;
-      const headingMap: Record<number, typeof HeadingLevel[keyof typeof HeadingLevel]> = {
-        1: HeadingLevel.HEADING_1,
-        2: HeadingLevel.HEADING_2,
-        3: HeadingLevel.HEADING_3,
-        4: HeadingLevel.HEADING_4,
-        5: HeadingLevel.HEADING_5,
-        6: HeadingLevel.HEADING_6,
-      };
-      paragraphs.push(new Paragraph({
-        heading: headingMap[level] || HeadingLevel.HEADING_1,
-        children: parseInlineFormatting(headingMatch[2]),
-      }));
-      continue;
-    }
-
-    // Bullet lists
-    const bulletMatch = trimmed.match(/^[-*+]\s+(.+)/);
-    if (bulletMatch) {
-      const checkboxMatch = bulletMatch[1].match(/^\[([ x])\]\s*(.*)/);
-      if (checkboxMatch) {
-        const checked = checkboxMatch[1] === "x";
-        paragraphs.push(new Paragraph({
-          bullet: { level: 0 },
-          children: [
-            new TextRun({ text: checked ? "[x] " : "[ ] ", bold: true }),
-            ...parseInlineFormatting(checkboxMatch[2]),
-          ],
-        }));
-      } else {
-        paragraphs.push(new Paragraph({
-          bullet: { level: 0 },
-          children: parseInlineFormatting(bulletMatch[1]),
-        }));
-      }
-      continue;
-    }
-
-    // Numbered lists
-    const numMatch = trimmed.match(/^\d+\.\s+(.+)/);
-    if (numMatch) {
-      paragraphs.push(new Paragraph({
-        bullet: { level: 0 },
-        children: parseInlineFormatting(numMatch[1]),
-      }));
-      continue;
-    }
-
-    // Horizontal rule
-    if (/^[-*_]{3,}$/.test(trimmed)) {
-      paragraphs.push(new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "---" })],
-      }));
-      continue;
-    }
-
-    // Regular paragraph
-    paragraphs.push(new Paragraph({
-      children: parseInlineFormatting(trimmed),
-    }));
-  }
-
-  return paragraphs;
-}
-
-function parseInlineFormatting(text: string): TextRun[] {
-  const runs: TextRun[] = [];
-  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+))/g;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    if (match[2]) {
-      runs.push(new TextRun({ text: match[2], bold: true, italics: true }));
-    } else if (match[3]) {
-      runs.push(new TextRun({ text: match[3], bold: true }));
-    } else if (match[4]) {
-      runs.push(new TextRun({ text: match[4], italics: true }));
-    } else if (match[5]) {
-      runs.push(new TextRun({ text: match[5], font: "Courier New", size: 20 }));
-    } else if (match[6]) {
-      runs.push(new TextRun({ text: match[6] }));
-    }
-  }
-  return runs.length > 0 ? runs : [new TextRun({ text })];
+function getWordCount(text: string): number {
+  if (!text || !text.trim()) return 0;
+  return text.trim().split(/\s+/).length;
 }
 
 export default function DocViewer({ document, onClose, onUpdate, onDelete, onDuplicate }: DocViewerProps) {
@@ -137,6 +31,8 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
 
   if (!document) return null;
 
@@ -154,7 +50,13 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
         body: JSON.stringify({ content: editedContent }),
       });
       if (res.ok) {
-        const updated = { ...document, content: editedContent, updatedAt: new Date().toISOString() };
+        const data = await res.json();
+        const updated = {
+          ...document,
+          content: editedContent,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        };
         onUpdate?.(updated);
         setIsEditing(false);
       }
@@ -173,7 +75,13 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
-        onUpdate?.({ ...document, status: newStatus as DocumentStatus, updatedAt: new Date().toISOString() });
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          status: newStatus as DocumentStatus,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
       }
     } catch (error) {
       console.error("Failed to update status:", error);
@@ -207,34 +115,123 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
   };
 
   const handleExportDocx = async () => {
-    const doc = new DocxDocument({
-      sections: [{
-        properties: {},
-        children: markdownToDocxParagraphs(document.content),
-      }],
-    });
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `${document.title}.docx`);
+    try {
+      const docx = await import("docx");
+      const { Document: DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = docx;
+
+      const lines = document.content.split("\n");
+      const children: InstanceType<typeof Paragraph>[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          children.push(new Paragraph({ text: "" }));
+          continue;
+        }
+
+        // Headings
+        if (trimmed.startsWith("### ")) {
+          children.push(new Paragraph({ text: trimmed.slice(4), heading: HeadingLevel.HEADING_3 }));
+        } else if (trimmed.startsWith("## ")) {
+          children.push(new Paragraph({ text: trimmed.slice(3), heading: HeadingLevel.HEADING_2 }));
+        } else if (trimmed.startsWith("# ")) {
+          children.push(new Paragraph({ text: trimmed.slice(2), heading: HeadingLevel.HEADING_1 }));
+        }
+        // Bullet lists
+        else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+          const text = trimmed.slice(2);
+          children.push(new Paragraph({
+            children: parseInlineFormatting(text, TextRun),
+            bullet: { level: 0 },
+          }));
+        }
+        // Numbered lists
+        else if (/^\d+\.\s/.test(trimmed)) {
+          const text = trimmed.replace(/^\d+\.\s/, "");
+          children.push(new Paragraph({
+            children: parseInlineFormatting(text, TextRun),
+            numbering: { reference: "default-numbering", level: 0 },
+          }));
+        }
+        // Regular paragraphs
+        else {
+          children.push(new Paragraph({
+            children: parseInlineFormatting(trimmed, TextRun),
+            alignment: AlignmentType.LEFT,
+          }));
+        }
+      }
+
+      const doc = new DocxDocument({
+        numbering: {
+          config: [{
+            reference: "default-numbering",
+            levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT }],
+          }],
+        },
+        sections: [{ children }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = url;
+      a.download = `${document.title}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export .docx:", error);
+    }
   };
 
-  const handleRemoveLink = async (linkToRemove: LinkedItem) => {
-    const updatedLinks = (document.linkedTo || []).filter(
-      (l) => !(l.type === linkToRemove.type && l.id === linkToRemove.id)
-    );
+  const handleLinkedItemsChange = async (items: LinkedItem[]) => {
     try {
       const res = await fetch(`/api/docs/${document.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ linkedTo: updatedLinks }),
+        body: JSON.stringify({ linkedTo: items }),
       });
       if (res.ok) {
-        onUpdate?.({ ...document, linkedTo: updatedLinks, updatedAt: new Date().toISOString() });
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          linkedTo: items,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
       }
-    } catch { /* */ }
+    } catch (error) {
+      console.error("Failed to update links:", error);
+    }
   };
 
-  const words = wordCount(document.content);
-  const linkedItems = document.linkedTo || [];
+  const handleDuplicate = async () => {
+    if (!onDuplicate) return;
+    try {
+      const res = await fetch("/api/docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${document.title} (Copy)`,
+          type: document.type,
+          content: document.content,
+          authorAgentId: null,
+          agent: document.agent,
+          agentEmoji: document.agentEmoji,
+          linkedTo: document.linkedTo || [],
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        onDuplicate(created);
+      }
+    } catch (error) {
+      console.error("Failed to duplicate:", error);
+    }
+  };
+
+  const wordCount = getWordCount(document.content || "");
+  const history = document.versionHistory || [];
 
   return (
     <>
@@ -254,7 +251,7 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
               <div className="flex items-center gap-3 text-xs text-gray-500">
                 <span>{document.agent}</span>
                 <span>Updated {new Date(document.updatedAt).toLocaleDateString()}</span>
-                <span>{words.toLocaleString()} words</span>
+                <span>{wordCount} words</span>
               </div>
             </div>
             <button
@@ -267,26 +264,43 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
             </button>
           </div>
 
-          {/* Linked items */}
-          {linkedItems.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {linkedItems.map((link, i) => (
-                <span
-                  key={`${link.type}-${link.id}-${i}`}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border ${linkTypeColors[link.type] || "bg-gray-500/10 text-gray-400 border-gray-500/30"}`}
+          {/* Linked Items */}
+          <div className="mb-4">
+            {!showLinkPicker ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                {(document.linkedTo || []).map((item) => {
+                  const cfg = linkTypeConfig[item.type];
+                  return (
+                    <span
+                      key={`${item.type}-${item.id}`}
+                      className={`${cfg.bg} ${cfg.color} px-2 py-0.5 rounded text-xs font-medium`}
+                    >
+                      {cfg.label}: {item.name}
+                    </span>
+                  );
+                })}
+                <button
+                  onClick={() => setShowLinkPicker(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                 >
-                  <span className="capitalize">{link.type}:</span> {link.name}
-                  <button
-                    onClick={() => handleRemoveLink(link)}
-                    className="ml-0.5 hover:opacity-70 text-[10px]"
-                    title="Remove link"
-                  >
-                    x
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
+                  {(document.linkedTo || []).length > 0 ? "Edit links" : "+ Link to..."}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <LinkPicker
+                  linkedItems={document.linkedTo || []}
+                  onChange={handleLinkedItemsChange}
+                />
+                <button
+                  onClick={() => setShowLinkPicker(false)}
+                  className="text-xs text-gray-500 hover:text-gray-300 mt-1 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Controls */}
           <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-800/50 flex-wrap">
@@ -312,7 +326,7 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
                 </button>
                 {onDuplicate && (
                   <button
-                    onClick={() => onDuplicate(document)}
+                    onClick={handleDuplicate}
                     className="px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
                   >
                     Duplicate
@@ -350,6 +364,20 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
               ))}
             </select>
 
+            {/* Version History Toggle */}
+            {history.length > 0 && (
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  showHistory
+                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-800 border border-transparent"
+                }`}
+              >
+                History ({history.length})
+              </button>
+            )}
+
             {/* Delete */}
             {!confirmDelete ? (
               <button
@@ -377,6 +405,23 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
             )}
           </div>
 
+          {/* Version History Panel */}
+          {showHistory && history.length > 0 && (
+            <div className="mb-4 bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <h3 className="text-xs font-bold text-gray-400 mb-2">Version History</h3>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {[...history].reverse().map((entry, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-500 font-mono whitespace-nowrap">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </span>
+                    <span className="text-gray-400">{entry.summary}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Content */}
           {isEditing ? (
             <div>
@@ -400,4 +445,35 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
       </div>
     </>
   );
+}
+
+// Helper to parse bold/italic in text for docx export
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseInlineFormatting(text: string, TextRun: any): any[] {
+  const runs: any[] = [];
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      runs.push(new TextRun({ text: text.slice(lastIndex, match.index) }));
+    }
+    if (match[2]) {
+      runs.push(new TextRun({ text: match[2], bold: true }));
+    } else if (match[3]) {
+      runs.push(new TextRun({ text: match[3], italics: true }));
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    runs.push(new TextRun({ text: text.slice(lastIndex) }));
+  }
+
+  if (runs.length === 0) {
+    runs.push(new TextRun({ text }));
+  }
+
+  return runs;
 }

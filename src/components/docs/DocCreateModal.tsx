@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { DocumentType, LinkedItem } from "@/lib/mock-docs";
+import LinkPicker from "@/components/docs/LinkPicker";
 
 interface Agent {
   id: string;
@@ -42,6 +43,7 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
   const [type, setType] = useState<DocumentType>("report");
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [content, setContent] = useState("");
+  const [linkedTo, setLinkedTo] = useState<LinkedItem[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [linkedTo, setLinkedTo] = useState<LinkedItem[]>([]);
 
@@ -230,6 +232,11 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
                 </button>
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1 font-medium">Link to</label>
+            <LinkPicker linkedItems={linkedTo} onChange={setLinkedTo} />
           </div>
 
           <div>

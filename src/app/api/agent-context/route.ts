@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     let certifications: Array<Record<string, unknown>> = [];
     let alerts: Array<Record<string, unknown>> = [];
     let tasks: Array<Record<string, unknown>> = [];
+    let memories: Array<Record<string, unknown>> = [];
 
     if (pool && connectionString) {
       if (scope === "certifications" || scope === "all") {
@@ -85,6 +86,16 @@ export async function GET(request: NextRequest) {
       }
 
       if (scope === "all") {
+        const memRes = await pool.query(
+          `SELECT id, content, source, category FROM mc_memories ORDER BY created_at DESC LIMIT 50`
+        ).catch(() => ({ rows: [] }));
+        memories = memRes.rows.map((row) => ({
+          id: row.id,
+          content: row.content,
+          source: row.source,
+          category: row.category,
+        }));
+
         const alertRes = await pool.query(
           `SELECT id, title, severity, trigger_type, resource_id, due_date, created_at
            FROM alerts WHERE dismissed_at IS NULL
@@ -144,7 +155,7 @@ export async function GET(request: NextRequest) {
     if (format === "json") {
       return NextResponse.json({
         certifications,
-        ...(scope === "all" && { alerts, tasks }),
+        ...(scope === "all" && { alerts, tasks, memories }),
         agentId: agentId ?? null,
         timestamp: new Date().toISOString(),
       });
@@ -177,6 +188,17 @@ export async function GET(request: NextRequest) {
         const shannon = t.depends_on_shannon ? " [needs Shannon approval]" : "";
         sections.push(`- [${t.status}] ${t.title}${due}${shannon}`);
       });
+      sections.push("");
+    }
+
+    if (scope === "all" && memories.length > 0) {
+      sections.push("## Stored Memories (Knowledge Base)\n");
+      memories.forEach((m) => {
+        const cat = m.category ? ` [${m.category}]` : "";
+        const src = m.source ? ` (source: ${m.source})` : "";
+        sections.push(`-${cat}${src} ${(m.content as string)?.slice(0, 200)}${(m.content as string)?.length > 200 ? "..." : ""}`);
+      });
+      sections.push("");
     }
 
     const text = sections.join("\n").trim() || "No context available.";

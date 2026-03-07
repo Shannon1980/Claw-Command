@@ -47,8 +47,11 @@ export async function PATCH(
 
     for (const key of ["name", "schedule", "action", "enabled", "last_run_at", "next_run_at", "run_count"]) {
       const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-      const val = body[key] ?? body[camelKey];
+      let val = body[key] ?? body[camelKey];
       if (val !== undefined) {
+        if (key === "action" && typeof val === "object") {
+          val = JSON.stringify(val ?? {});
+        }
         fields.push(`${key} = $${idx++}`);
         values.push(val);
       }

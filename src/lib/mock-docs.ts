@@ -13,6 +13,11 @@ export interface LinkedItem {
   name: string;
 }
 
+export interface VersionEntry {
+  timestamp: string;
+  summary: string;
+}
+
 export interface Document {
   id: string;
   title: string;
@@ -24,6 +29,8 @@ export interface Document {
   linkedTo?: LinkedItem[];
   createdAt: string;
   updatedAt: string;
+  linkedTo?: LinkedItem[];
+  versionHistory?: VersionEntry[];
 }
 
 export const mockDocuments: Document[] = [

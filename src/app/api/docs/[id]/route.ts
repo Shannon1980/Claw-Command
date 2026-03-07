@@ -40,19 +40,35 @@ export async function PATCH(
     if (body.linkedTo !== undefined) {
       fields.push(`linked_to = $${idx++}`);
       values.push(JSON.stringify(Array.isArray(body.linkedTo) ? body.linkedTo : []));
+      fields.push(`linked_to = $${idx++}::jsonb`);
+      values.push(JSON.stringify(body.linkedTo));
     }
 
     if (fields.length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
+    // Build version history entry
+    const now = new Date().toISOString();
+    const changeParts: string[] = [];
+    if (body.content !== undefined) changeParts.push("content edited");
+    if (body.title !== undefined) changeParts.push("title updated");
+    if (body.status !== undefined) changeParts.push(`status → ${body.status}`);
+    if (body.linkedTo !== undefined) changeParts.push("links updated");
+    const summary = changeParts.length > 0 ? changeParts.join(", ") : "updated";
+
+    fields.push(`version_history = COALESCE(version_history, '[]'::jsonb) || $${idx++}::jsonb`);
+    values.push(JSON.stringify([{ timestamp: now, summary }]));
+
     fields.push(`updated_at = $${idx++}`);
-    values.push(new Date().toISOString());
+    values.push(now);
     values.push(id);
 
     const result = await pool.query(
       `UPDATE docs SET ${fields.join(", ")} WHERE id = $${idx} RETURNING
         id, title, doc_type as type, content, status, author_agent_id, linked_to, created_at, updated_at`,
+        id, title, doc_type as type, content, status, author_agent_id,
+        linked_to, version_history, created_at, updated_at`,
       values
     );
 
@@ -60,7 +76,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    return NextResponse.json(result.rows[0]);
+    const row = result.rows[0];
+    return NextResponse.json({
+      ...row,
+      linkedTo: row.linked_to || [],
+      versionHistory: row.version_history || [],
+    });
   } catch (error) {
     console.error("[Docs API] PATCH error:", error);
     return NextResponse.json({ error: "Failed to update document" }, { status: 500 });

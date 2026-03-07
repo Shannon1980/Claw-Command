@@ -8,22 +8,6 @@ import type {
 } from "./types";
 import type { AgentStatus } from "@/lib/gateway/types";
 
-export function nodeToAgentStatus(node: OpenClawNode): AgentStatus {
-  return {
-    id: node.node_id,
-    name: node.name || node.node_id,
-    status: (node.status as "active" | "idle" | "offline") || "idle",
-    activeTasks: node.activeTasks || 0,
-    lastHeartbeat: node.lastHeartbeat || new Date().toISOString(),
-  };
-}
-
-export function nodesToAgents(nodes: OpenClawNode[]): AgentStatus[] {
-  return nodes.map((node) => nodeToAgentStatus(node));
-}
-
-// ─── Map OpenClaw sessions to sync/activity entities ────────────────────────
-
 const AGENT_MAP: Record<string, { id: string; name: string }> = {
   bob: { id: "bob", name: "Bob" },
   bertha: { id: "bertha", name: "Bertha" },
@@ -38,6 +22,33 @@ const AGENT_MAP: Record<string, { id: string; name: string }> = {
   sentinel: { id: "sentinel", name: "Sentinel" },
   main: { id: "bob", name: "Bob" },
 };
+
+/** Map OpenClaw node_id to canonical agent ID so AgentCard can match DB agents */
+export function toCanonicalAgentId(nodeId: string): string {
+  const lower = nodeId.toLowerCase().trim();
+  if (AGENT_MAP[lower]) return AGENT_MAP[lower].id;
+  for (const [key, agent] of Object.entries(AGENT_MAP)) {
+    if (lower.includes(key)) return agent.id;
+  }
+  return nodeId;
+}
+
+export function nodeToAgentStatus(node: OpenClawNode): AgentStatus {
+  const canonicalId = toCanonicalAgentId(node.node_id);
+  return {
+    id: canonicalId,
+    name: node.name || node.node_id,
+    status: (node.status as "active" | "idle" | "offline") || "idle",
+    activeTasks: node.activeTasks || 0,
+    lastHeartbeat: node.lastHeartbeat || new Date().toISOString(),
+  };
+}
+
+export function nodesToAgents(nodes: OpenClawNode[]): AgentStatus[] {
+  return nodes.map((node) => nodeToAgentStatus(node));
+}
+
+// ─── Map OpenClaw sessions to sync/activity entities ────────────────────────
 
 function resolveAgent(
   session: OpenClawSession

@@ -7,6 +7,34 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cron_jobs (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, schedule TEXT NOT NULL, action TEXT DEFAULT '{}',
+      enabled BOOLEAN DEFAULT true, last_run_at TEXT, next_run_at TEXT, run_count INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (now()::text), updated_at TEXT NOT NULL DEFAULT (now()::text)
+    );
+    CREATE TABLE IF NOT EXISTS cron_runs (
+      id TEXT PRIMARY KEY, job_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'running',
+      result TEXT, error TEXT, started_at TEXT NOT NULL DEFAULT (now()::text), completed_at TEXT, duration_ms INTEGER
+    );
+  `);
+  schemaReady = true;
+}
+
+function getBaseUrl(): string {
+  return (
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    "http://localhost:3000"
+  );
+}
+
 export async function POST(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -22,6 +50,7 @@ export async function POST(
   const startMs = Date.now();
 
   try {
+    await ensureSchema();
     const jobResult = await pool.query(`SELECT * FROM cron_jobs WHERE id = $1`, [id]);
     if (jobResult.rows.length === 0) {
       return NextResponse.json({ error: "Cron job not found" }, { status: 404 });
@@ -53,18 +82,44 @@ export async function POST(
       return NextResponse.json({ error: "Cron job has no endpoint in action" }, { status: 400 });
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;
+    const baseUrl = getBaseUrl();
+    const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && !endpoint.startsWith("http")) {
+      headers["Authorization"] = `Bearer ${cronSecret}`;
+    }
     const fetchOptions: RequestInit = {
       method: method || "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
     };
     if (payload && method !== "GET") {
       fetchOptions.body = JSON.stringify(payload);
     }
 
-    const response = await fetch(url, fetchOptions);
+    let response: Response;
+    try {
+      response = await fetch(url, fetchOptions);
+    } catch (fetchError) {
+      const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const durationMs = Date.now() - startMs;
+      const now = new Date().toISOString();
+      try {
+        await pool.query(
+          `UPDATE cron_runs SET status = 'error', error = $1, completed_at = $2, duration_ms = $3 WHERE id = $4`,
+          [`Fetch failed: ${msg}`, now, durationMs, runId]
+        );
+      } catch { /* */ }
+      return NextResponse.json({
+        ok: false,
+        runId,
+        status: "error",
+        durationMs,
+        error: `Target request failed: ${msg}`,
+        hint: "Check VERCEL_URL, NEXTAUTH_URL, or NEXT_PUBLIC_APP_URL for correct base URL",
+      }, { status: 200 });
+    }
     const result = await response.json().catch(() => ({ status: response.status }));
     const durationMs = Date.now() - startMs;
     const now = new Date().toISOString();

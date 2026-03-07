@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface Memory {
   id: string;
@@ -21,6 +21,9 @@ export default function MemoryPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     content: "",
     source: "",
@@ -28,7 +31,7 @@ export default function MemoryPage() {
     category: "fact",
   });
 
-  const fetchMemories = async () => {
+  const fetchMemories = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -36,7 +39,7 @@ export default function MemoryPage() {
       if (search) params.set("search", search);
       if (categoryFilter !== "all") params.set("category", categoryFilter);
       if (tagFilter) params.set("tag", tagFilter);
-      const res = await fetch(`/api/memory?${params}`);
+      const res = await fetch(`/api/memory?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch memories");
       const data = await res.json();
       setMemories(Array.isArray(data) ? data : []);
@@ -45,12 +48,11 @@ export default function MemoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, categoryFilter, tagFilter]);
 
   useEffect(() => {
     fetchMemories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilter, tagFilter]);
+  }, [fetchMemories]);
 
   const handleAdd = async () => {
     try {
@@ -71,13 +73,53 @@ export default function MemoryPage() {
     }
   };
 
+  const handleEdit = (m: Memory) => {
+    setEditingId(m.id);
+    setFormData({
+      content: m.content,
+      source: m.source || "",
+      tags: (m.tags || []).join(", "),
+      category: m.category || "fact",
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    try {
+      const res = await fetch(`/api/memory/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          tags: formData.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update memory");
+      setEditingId(null);
+      setFormData({ content: "", source: "", tags: "", category: "fact" });
+      fetchMemories();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await fetch(`/api/memory/${id}`, { method: "DELETE" });
+      setDeleteConfirmId(null);
       fetchMemories();
     } catch {
-      // silent
+      setDeleteConfirmId(null);
     }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const allTags = [...new Set(memories.flatMap((m) => m.tags || []))];
@@ -94,12 +136,25 @@ export default function MemoryPage() {
             <h1 className="text-lg font-bold text-gray-100">Memory</h1>
             <p className="text-xs text-gray-500 font-mono">Knowledge base and stored memories</p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
-          >
-            {showForm ? "Cancel" : "Add Memory"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fetchMemories()}
+              disabled={loading}
+              className="px-3 py-2 text-sm font-medium bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg transition-colors"
+              title="Refresh"
+            >
+              ↻ Refresh
+            </button>
+            <button
+              onClick={() => {
+                setShowForm(!showForm);
+                setEditingId(null);
+              }}
+              className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+            >
+              {showForm ? "Cancel" : "Add Memory"}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -108,7 +163,8 @@ export default function MemoryPage() {
           </div>
         )}
 
-        {showForm && (
+        {/* Add form */}
+        {showForm && !editingId && (
           <div className="mb-6 bg-gray-900/50 border border-gray-800 rounded-lg p-4 space-y-3">
             <h2 className="text-sm font-medium text-gray-300">Add Memory</h2>
             <div>
@@ -158,6 +214,71 @@ export default function MemoryPage() {
             >
               Save Memory
             </button>
+          </div>
+        )}
+
+        {/* Edit form */}
+        {editingId && (
+          <div className="mb-6 bg-gray-900/50 border border-blue-500/30 rounded-lg p-4 space-y-3">
+            <h2 className="text-sm font-medium text-gray-300">Edit Memory</h2>
+            <div>
+              <label className="block text-xs text-gray-500 font-mono mb-1">Content</label>
+              <textarea
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                rows={4}
+                className="w-full px-3 py-1.5 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 font-mono mb-1">Source</label>
+                <input
+                  type="text"
+                  value={formData.source}
+                  onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 font-mono mb-1">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  value={formData.tags}
+                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 font-mono mb-1">Category</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500"
+                >
+                  {categories.filter((c) => c !== "all").map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-500 rounded-lg transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({ content: "", source: "", tags: "", category: "fact" });
+                }}
+                className="px-4 py-2 text-sm font-medium bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -220,20 +341,58 @@ export default function MemoryPage() {
 
         {/* Memories */}
         {loading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-gray-900/50 border border-gray-800 rounded-lg p-4 animate-pulse">
+                <div className="h-4 bg-gray-800 rounded w-3/4 mb-3" />
+                <div className="h-4 bg-gray-800 rounded w-1/2 mb-3" />
+                <div className="h-4 bg-gray-800 rounded w-2/3 mb-4" />
+                <div className="flex gap-2 mb-2">
+                  <div className="h-5 bg-gray-800 rounded w-16" />
+                  <div className="h-5 bg-gray-800 rounded w-12" />
+                </div>
+                <div className="h-3 bg-gray-800 rounded w-24" />
+              </div>
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
-            <p className="text-sm text-gray-500">No memories found. Add one to get started.</p>
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-12 text-center">
+            <p className="text-sm text-gray-500 mb-2">No memories found.</p>
+            <p className="text-xs text-gray-600 mb-4">Add knowledge that agents can recall during tasks and chats.</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+            >
+              Add your first memory
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filtered.map((m) => (
               <div key={m.id} className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-                <p className="text-sm text-gray-300 line-clamp-3 mb-3">{m.content}</p>
+                <div
+                  className={`text-sm text-gray-300 mb-3 cursor-pointer ${expandedIds.has(m.id) ? "" : "line-clamp-3"}`}
+                  onClick={() => toggleExpand(m.id)}
+                >
+                  {m.content}
+                </div>
+                {m.content.length > 120 && (
+                  <button
+                    onClick={() => toggleExpand(m.id)}
+                    className="text-xs text-blue-400 hover:text-blue-300 mb-2"
+                  >
+                    {expandedIds.has(m.id) ? "Show less" : "Show more"}
+                  </button>
+                )}
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="px-1.5 py-0.5 text-[11px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">
                     {m.source || "unknown"}
                   </span>
+                  {m.category && (
+                    <span className="px-1.5 py-0.5 text-[11px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
+                      {m.category}
+                    </span>
+                  )}
                   {(m.tags || []).map((tag) => (
                     <span
                       key={tag}
@@ -247,12 +406,37 @@ export default function MemoryPage() {
                   <span className="text-[11px] text-gray-600 font-mono">
                     {new Date(m.createdAt).toLocaleString()}
                   </span>
-                  <button
-                    onClick={() => handleDelete(m.id)}
-                    className="px-2 py-1 text-[11px] font-medium bg-red-600/20 text-red-400 hover:bg-red-600/40 rounded transition-colors"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handleEdit(m)}
+                      className="px-2 py-1 text-[11px] font-medium bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                    >
+                      Edit
+                    </button>
+                    {deleteConfirmId === m.id ? (
+                      <span className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDelete(m.id)}
+                          className="px-2 py-1 text-[11px] font-medium bg-red-600 text-white rounded"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="px-2 py-1 text-[11px] font-medium bg-gray-600 text-gray-300 rounded"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(m.id)}
+                        className="px-2 py-1 text-[11px] font-medium bg-red-600/20 text-red-400 hover:bg-red-600/40 rounded transition-colors"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
