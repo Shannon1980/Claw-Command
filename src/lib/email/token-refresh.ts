@@ -2,13 +2,8 @@
  * Refresh OAuth tokens and persist to DB.
  */
 
+import { pool } from "@/lib/db/client";
 import { google } from "googleapis";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 export async function refreshAndPersistTokens(
   accountId: string,

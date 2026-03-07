@@ -1,13 +1,8 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import crypto from "crypto";
 import { emitNotification } from "@/lib/events/emitActivity";
 import { logAuditEvent } from "@/lib/events/auditLog";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 export async function GET(
   _request: NextRequest,

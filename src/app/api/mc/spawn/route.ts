@@ -1,15 +1,8 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
 import { requireMcAuth } from "@/lib/mc/auth";
 
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
 
 /**
  * Mission Control–compatible spawn.
@@ -36,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const title = taskTitle || `Spawned task for ${agent}`;
 
-    if (pool && connectionString) {
+    if (pool) {
       const id = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const now = new Date().toISOString();
 

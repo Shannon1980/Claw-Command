@@ -1,10 +1,5 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 async function refreshHeartbeats() {
   if (!pool) {

@@ -3,13 +3,8 @@
  * Supports: spawn_agent, http_request, wait_for_task
  */
 
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
+import { pool } from "@/lib/db/client";
 import { emitPipelineProgress } from "@/lib/events/emitActivity";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 function getBaseUrl(): string {
   return (

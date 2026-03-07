@@ -3,8 +3,6 @@
  * Called by cron or manual trigger via /api/email/worker/run
  */
 
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import {
   listMessages,
   archiveMessage,
@@ -12,12 +10,9 @@ import {
   moveMessage,
   type GmailMessage,
 } from "./gmail";
+import { pool } from "@/lib/db/client";
 import { classifyEmail } from "./ai";
 import { refreshAndPersistTokens } from "./token-refresh";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 function generateId(): string {
   return `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
