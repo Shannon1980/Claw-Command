@@ -7,6 +7,10 @@
     {
       "path": "/api/heartbeat-all",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/opportunity-engine/scan",
+      "schedule": "0 6 * * *"
     }
   ]
 }

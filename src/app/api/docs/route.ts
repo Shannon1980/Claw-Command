@@ -31,13 +31,13 @@ async function ensureSchema() {
   await pool.query(`
     ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to TEXT DEFAULT '[]';
   // Add columns if they don't exist (migration for existing tables)
-  await pool.query(`
-    DO $$ BEGIN
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to JSONB DEFAULT '[]'::jsonb;
-      ALTER TABLE docs ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb;
-    EXCEPTION WHEN others THEN NULL;
-    END $$;
-  `);
+  await pool.query(
+    "DO " + "$$" + " BEGIN" +
+    " ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to JSONB DEFAULT '[]'::jsonb;" +
+    " ALTER TABLE docs ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb;" +
+    " EXCEPTION WHEN others THEN NULL;" +
+    " END " + "$$" + ";"
+  );
   schemaReady = true;
 }
 
