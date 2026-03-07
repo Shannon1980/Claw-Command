@@ -38,9 +38,7 @@ export default function OverviewPage() {
   const tasksNeedingReview = tasks.filter(
     (t) => t.status === "review" || t.status === "quality_review"
   ).length;
-  const tasksNeedingApproval = tasks.filter(
-    (t) => (t as Record<string, unknown>).dependsOnShannon === true
-  ).length;
+  const tasksNeedingApproval = tasks.filter((t) => t.dependsOnShannon === true).length;
   const tasksByStatus: Record<string, number> = {};
   for (const t of tasks) {
     tasksByStatus[t.status] = (tasksByStatus[t.status] || 0) + 1;
