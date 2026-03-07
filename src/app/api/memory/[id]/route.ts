@@ -45,10 +45,17 @@ export async function PATCH(
     const values: unknown[] = [];
     let idx = 1;
 
-    for (const key of ["content", "source", "tags"]) {
+    for (const key of ["content", "source", "tags", "category"]) {
       if (body[key] !== undefined) {
         fields.push(`${key} = $${idx++}`);
-        values.push(body[key]);
+        const val = body[key];
+        values.push(
+          key === "tags" && Array.isArray(val)
+            ? JSON.stringify(val)
+            : key === "tags" && typeof val === "string"
+              ? val
+              : val
+        );
       }
     }
 
@@ -68,7 +75,15 @@ export async function PATCH(
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Memory not found" }, { status: 404 });
     }
-    return NextResponse.json(result.rows[0]);
+    const row = result.rows[0] as Record<string, unknown>;
+    return NextResponse.json({
+      id: row.id,
+      content: row.content,
+      source: row.source || null,
+      category: row.category || null,
+      tags: typeof row.tags === "string" ? (() => { try { const p = JSON.parse(row.tags as string); return Array.isArray(p) ? p : []; } catch { return []; } })() : [],
+      createdAt: row.updated_at || row.created_at,
+    });
   } catch (error) {
     console.error("[Memory API] PATCH error:", error);
     return NextResponse.json({ error: "Failed to update memory" }, { status: 500 });
