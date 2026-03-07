@@ -1,6 +1,6 @@
 "use client";
 
-import { usePolling } from "./usePolling";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export interface SkywardTask {
   id: string;
@@ -39,21 +39,40 @@ export interface SkywardData {
   timestamp: string;
 }
 
-export function useSkyward() {
-  const { data, loading, error, refresh } = usePolling<SkywardData>({
-    url: "/api/skyward",
-    interval: 15000,
-  });
+const EMPTY_DATA: SkywardData = {
+  workstreams: [],
+  actionItemsForShannon: [],
+  keyUpdates: [],
+  timestamp: new Date().toISOString(),
+};
 
-  return {
-    data: data || {
-      workstreams: [],
-      actionItemsForShannon: [],
-      keyUpdates: [],
-      timestamp: new Date().toISOString(),
-    },
-    loading,
-    error,
-    refresh,
-  };
+export function useSkyward() {
+  const [data, setData] = useState<SkywardData>(EMPTY_DATA);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/skyward");
+      if (!res.ok) throw new Error("Failed to fetch skyward data");
+      const json = await res.json();
+      setData(json);
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    intervalRef.current = setInterval(refresh, 15000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [refresh]);
+
+  return { data, loading, error, refresh };
 }

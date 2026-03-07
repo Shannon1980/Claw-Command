@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import RichInput from "./RichInput";
 import { useChat, AttachmentFile } from "@/lib/hooks/useChat";
-import { recall, remember } from "@/lib/mission-control/extensionBridge";
 
 interface ChatWindowProps {
   agentId: string;
@@ -31,9 +30,11 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
       const query = trimmed.slice(8).trim();
       setMcResult(null);
       try {
-        const { results } = await recall(query);
-        const text = Array.isArray(results) && results.length > 0
-          ? (results as { content?: string }[]).map((r) => r.content ?? JSON.stringify(r)).join("\n\n")
+        const res = await fetch(`/api/memory/recall?q=${encodeURIComponent(query)}`);
+        const results = await res.json();
+        const items = Array.isArray(results) ? results : [];
+        const text = items.length > 0
+          ? items.map((r: { content?: string }) => r.content ?? JSON.stringify(r)).join("\n\n")
           : "No memories found.";
         setMcResult(`**Recall:** ${query}\n\n${text}`);
         setTimeout(() => setMcResult(null), 8000);
@@ -46,7 +47,11 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
       const content = trimmed.slice(10).trim();
       setMcResult(null);
       try {
-        await remember(content, "chat");
+        await fetch("/api/memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, source: "chat" }),
+        });
         setMcResult(`Remembered: "${content}"`);
         setTimeout(() => setMcResult(null), 5000);
       } catch (err) {

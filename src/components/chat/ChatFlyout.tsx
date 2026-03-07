@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import ChatWindow from "./ChatWindow";
-import { useAgents } from "@/lib/hooks/useAgents";
+import { useAgentStore } from "@/lib/stores/agentStore";
 
 export default function ChatFlyout() {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +13,7 @@ export default function ChatFlyout() {
     name: string;
     emoji: string;
   } | null>(null);
-  const { agents } = useAgents();
+  const agents = useAgentStore((s) => s.agents);
 
   useEffect(() => setMounted(true), []);
 

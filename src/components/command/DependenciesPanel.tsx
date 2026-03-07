@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTasks } from "@/lib/hooks/useTasks";
+import { useTaskStore } from "@/lib/stores/taskStore";
 
 function getUrgency(dueDate: string | null): { class: string; label: string } {
   if (!dueDate)
@@ -37,7 +37,9 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function DependenciesPanel() {
-  const { tasks, loading } = useTasks(true);
+  const allTasks = useTaskStore((s) => s.tasks);
+  const loading = useTaskStore((s) => s.loading);
+  const tasks = allTasks.filter((t) => t.dependsOnShannon);
   const [actioned, setActioned] = useState<
     Record<string, "approved" | "rejected">
   >({});
@@ -58,10 +60,10 @@ export default function DependenciesPanel() {
   };
 
   const sorted = [...tasks].sort((a, b) => {
-    if (!a.due_date && !b.due_date) return 0;
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
-    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
   return (
@@ -86,7 +88,7 @@ export default function DependenciesPanel() {
       ) : (
         <div className="divide-y divide-gray-800/50">
           {sorted.map((task) => {
-            const urgency = getUrgency(task.due_date);
+            const urgency = getUrgency(task.dueDate);
             const action = actioned[task.id];
 
             return (
@@ -109,7 +111,7 @@ export default function DependenciesPanel() {
                     {urgency.label}
                   </span>
                   <span className="text-xs text-gray-500">
-                    Due {formatDate(task.due_date)}
+                    Due {formatDate(task.dueDate)}
                   </span>
                   <span className="text-xs text-gray-600">•</span>
                   <span className="text-xs text-gray-400">
