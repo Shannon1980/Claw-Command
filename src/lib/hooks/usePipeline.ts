@@ -44,6 +44,12 @@ export function usePipeline() {
     fetchAll();
   }, [fetchAll]);
 
+  // Auto-refresh every 15s
+  useEffect(() => {
+    const interval = setInterval(fetchAll, 15000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
+
   const updateOpportunityStage = useCallback(
     async (id: string, stage: string) => {
       const res = await fetch(`/api/opportunities/${id}`, {

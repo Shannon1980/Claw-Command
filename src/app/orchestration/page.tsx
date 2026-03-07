@@ -46,6 +46,15 @@ export default function OrchestrationPage() {
     fetchPipelines();
   }, [fetchPipelines]);
 
+  // Auto-refresh every 15s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPipelines();
+      if (selectedPipelineId) fetchRuns(selectedPipelineId);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchPipelines, fetchRuns, selectedPipelineId]);
+
   useEffect(() => {
     if (selectedPipelineId) {
       fetchRuns(selectedPipelineId);
