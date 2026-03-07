@@ -6,27 +6,29 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
-let schemaReady = false;
-
-async function ensureSchema() {
-  if (schemaReady || !pool) return;
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS token_usage (
-      id TEXT PRIMARY KEY, agent_id TEXT, session_id TEXT, model TEXT,
-      input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
-      cost_cents NUMERIC NOT NULL DEFAULT 0, created_at TEXT NOT NULL
-    );
-  `);
-  schemaReady = true;
-}
-
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   if (!pool) {
     return NextResponse.json([]);
   }
 
+  const { searchParams } = new URL(request.url);
+  const fromDate = searchParams.get("from");
+  const toDate = searchParams.get("to");
+
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+  if (fromDate) {
+    conditions.push(`tu.created_at::date >= $${paramIndex++}`);
+    values.push(fromDate);
+  }
+  if (toDate) {
+    conditions.push(`tu.created_at::date <= $${paramIndex++}`);
+    values.push(toDate);
+  }
+  const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
+
   try {
-    await ensureSchema();
     const result = await pool.query(
       `SELECT tu.agent_id,
               COALESCE(a.name, 'Unknown') as agent_name,
@@ -35,9 +37,10 @@ export async function GET(_request: NextRequest) {
               COALESCE(SUM(tu.output_tokens), 0) as output_tokens,
               COALESCE(SUM(tu.cost_cents), 0) as cost_cents
        FROM token_usage tu
-       LEFT JOIN agents a ON tu.agent_id = a.id
+       LEFT JOIN agents a ON tu.agent_id = a.id${whereClause}
        GROUP BY tu.agent_id, a.name, a.emoji
-       ORDER BY SUM(tu.cost_cents) DESC`
+       ORDER BY SUM(tu.cost_cents) DESC`,
+      values
     );
 
     const rows = result.rows.map((row: Record<string, unknown>) => ({

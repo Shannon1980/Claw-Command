@@ -27,6 +27,18 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get("days") || "30", 10);
+  const fromDate = searchParams.get("from");
+  const toDate = searchParams.get("to");
+
+  let whereClause: string;
+  const values: unknown[] = [];
+  if (fromDate && toDate) {
+    whereClause = "WHERE created_at::date >= $1 AND created_at::date <= $2";
+    values.push(fromDate, toDate);
+  } else {
+    whereClause = "WHERE created_at::timestamptz >= NOW() - INTERVAL '1 day' * $1";
+    values.push(days);
+  }
 
   try {
     await ensureSchema();
@@ -36,10 +48,10 @@ export async function GET(request: NextRequest) {
               COALESCE(SUM(output_tokens), 0) as output_tokens,
               COALESCE(SUM(cost_cents), 0) as cost_cents
        FROM token_usage
-       WHERE created_at::timestamptz >= NOW() - INTERVAL '1 day' * $1
+       ${whereClause}
        GROUP BY DATE(created_at::timestamptz)
        ORDER BY DATE(created_at::timestamptz) ASC`,
-      [days]
+      values
     );
 
     const rows = result.rows.map((row: Record<string, unknown>) => ({
