@@ -28,8 +28,11 @@ export default function AuditPage() {
       if (userFilter) params.set("user", userFilter);
       if (actionFilter) params.set("action", actionFilter);
       if (sinceFilter) params.set("since", sinceFilter);
-      const res = await fetch(`/api/audit?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch audit events");
+      const res = await fetch(`/api/audit?${params}`, { cache: "no-store" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Failed to fetch audit events");
+      }
       const data = await res.json();
       setEvents(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -50,9 +53,18 @@ export default function AuditPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="max-w-[1400px] mx-auto px-6 py-6">
-        <div className="mb-6">
-          <h1 className="text-lg font-bold text-gray-100">Audit Log</h1>
-          <p className="text-xs text-gray-500 font-mono">System activity and change tracking</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-lg font-bold text-gray-100">Audit Log</h1>
+            <p className="text-xs text-gray-500 font-mono">System activity and change tracking</p>
+          </div>
+          <button
+            onClick={() => fetchEvents()}
+            disabled={loading}
+            className="px-3 py-1.5 text-sm font-medium bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg transition-colors"
+          >
+            {loading ? "Loading…" : "↻ Refresh"}
+          </button>
         </div>
 
         {error && (
@@ -107,7 +119,10 @@ export default function AuditPage() {
           <p className="text-sm text-gray-400">Loading...</p>
         ) : events.length === 0 ? (
           <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
-            <p className="text-sm text-gray-500">No audit events found</p>
+            <p className="text-sm text-gray-500 mb-2">No audit events found</p>
+            <p className="text-xs text-gray-600 max-w-md mx-auto">
+              Events are logged when users log in, create/update agents, users, or webhooks. Try logging in or making changes elsewhere to generate events.
+            </p>
           </div>
         ) : (
           <div className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
