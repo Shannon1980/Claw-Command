@@ -484,12 +484,11 @@ export default function CronPage() {
                     ))}
                   </select>
                 )}
-              </div>
-              {formData.cadence && (
-                <p className="mt-1.5 text-xs text-gray-500">
-                  {describeCron(buildCronFromSchedule(formData))}
-                </p>
-              )}
+                {formData.cadence && (
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    {describeCron(buildCronFromSchedule(formData))}
+                  </p>
+                )}
               </div>
               )}
             </div>
