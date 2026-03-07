@@ -5,14 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useLogStore } from "@/lib/stores/logStore";
 import type { LogLevel } from "@/lib/stores/logStore";
 import { useSessionStore } from "@/lib/stores/sessionStore";
-
-// --- Shared types ---
-
-interface AgentOption {
-  id: string;
-  name: string;
-  emoji: string;
-}
+import { useAgentStore, type Agent } from "@/lib/stores/agentStore";
 
 // --- Tab definition ---
 
@@ -96,7 +89,7 @@ function formatDuration(created: string, ended: string | null): string {
 // Activity Tab
 // =============================================================================
 
-function ActivityTab({ agents, filterAgent }: { agents: AgentOption[]; filterAgent: string }) {
+function ActivityTab({ agents, filterAgent }: { agents: Agent[]; filterAgent: string }) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -530,15 +523,12 @@ function MonitoringContent() {
   const tabParam = searchParams.get("tab");
   const activeTab: Tab = (["activity", "logs", "sessions"].includes(tabParam ?? "") ? tabParam : "activity") as Tab;
 
-  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const { agents, fetchAgents } = useAgentStore();
   const [filterAgent, setFilterAgent] = useState("");
 
   useEffect(() => {
-    fetch("/api/agents")
-      .then((r) => r.json())
-      .then((data) => setAgents(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
+    fetchAgents();
+  }, [fetchAgents]);
 
   const setTab = (tab: Tab) => {
     const params = new URLSearchParams(searchParams.toString());

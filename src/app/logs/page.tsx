@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLogStore } from "@/lib/stores/logStore";
 import type { LogLevel } from "@/lib/stores/logStore";
+import { useAgentStore } from "@/lib/stores/agentStore";
 
 const levelColors: Record<LogLevel, string> = {
   info: "text-green-400",
@@ -18,12 +19,6 @@ const levelBgColors: Record<LogLevel, string> = {
   debug: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
 
-interface AgentOption {
-  id: string;
-  name: string;
-  emoji: string;
-}
-
 export default function LogsPage() {
   const {
     loading,
@@ -36,7 +31,7 @@ export default function LogsPage() {
     filters,
   } = useLogStore();
 
-  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const { agents, fetchAgents } = useAgentStore();
   const [activeLevels, setActiveLevels] = useState<Set<LogLevel>>(
     new Set(["info", "warn", "error", "debug"])
   );
@@ -45,11 +40,8 @@ export default function LogsPage() {
 
   useEffect(() => {
     fetchLogs();
-    fetch("/api/agents")
-      .then((r) => r.json())
-      .then((data) => setAgents(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, [fetchLogs]);
+    fetchAgents();
+  }, [fetchLogs, fetchAgents]);
 
   useEffect(() => {
     if (!paused && logEndRef.current) {

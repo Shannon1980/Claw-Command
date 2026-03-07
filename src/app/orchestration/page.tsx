@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePipelineStore } from "@/lib/stores/pipelineStore";
+import { useAgentStore } from "@/lib/stores/agentStore";
 import type { Pipeline, PipelineStep } from "@/lib/stores/pipelineStore";
 
 const STEP_TYPES = [
@@ -30,12 +31,6 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: "bg-slate-500/20 text-slate-400 border-slate-500/30",
 };
 
-interface AgentOption {
-  id: string;
-  name: string;
-  emoji: string;
-}
-
 export default function OrchestrationPage() {
   const {
     pipelines,
@@ -48,7 +43,7 @@ export default function OrchestrationPage() {
     selectPipeline,
   } = usePipelineStore();
 
-  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const { agents, fetchAgents: fetchAgentsFromStore } = useAgentStore();
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -70,11 +65,8 @@ export default function OrchestrationPage() {
   });
 
   useEffect(() => {
-    fetch("/api/agents")
-      .then((r) => r.json())
-      .then((data) => setAgents(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
+    fetchAgentsFromStore();
+  }, [fetchAgentsFromStore]);
 
   useEffect(() => {
     fetchPipelines();

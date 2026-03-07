@@ -3,12 +3,7 @@
 import { useState, useEffect } from "react";
 import { DocumentType, LinkedItem } from "@/lib/mock-docs";
 import LinkPicker from "@/components/docs/LinkPicker";
-
-interface Agent {
-  id: string;
-  name: string;
-  emoji: string;
-}
+import { useAgentStore } from "@/lib/stores/agentStore";
 
 interface DocCreateModalProps {
   isOpen: boolean;
@@ -44,7 +39,7 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [content, setContent] = useState("");
   const [linkedTo, setLinkedTo] = useState<LinkedItem[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { agents, fetchAgents } = useAgentStore();
 
   // Linkable items
   const [deals, setDeals] = useState<{ id: string; name: string }[]>([]);
@@ -56,11 +51,7 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
 
   useEffect(() => {
     if (isOpen) {
-      fetch("/api/agents").then((r) => r.json()).then((data) => {
-        const list = Array.isArray(data) ? data : [];
-        setAgents(list);
-        if (list.length > 0 && !selectedAgentId) setSelectedAgentId(list[0].id);
-      }).catch(() => {});
+      fetchAgents();
 
       fetch("/api/opportunities").then((r) => r.json()).then((data) => {
         setDeals((Array.isArray(data) ? data : []).map((d: Record<string, string>) => ({ id: d.id, name: d.title || d.name || d.id })));
@@ -75,7 +66,14 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
         setTasks(list.map((t: Record<string, string>) => ({ id: t.id, name: t.title || t.name || t.id })));
       }).catch(() => {});
     }
-  }, [isOpen, selectedAgentId]);
+  }, [isOpen, fetchAgents]);
+
+  // Auto-select first agent when agents load
+  useEffect(() => {
+    if (isOpen && agents.length > 0 && !selectedAgentId) {
+      setSelectedAgentId(agents[0].id);
+    }
+  }, [isOpen, agents, selectedAgentId]);
 
   if (!isOpen) return null;
 
