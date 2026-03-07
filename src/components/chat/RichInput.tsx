@@ -22,44 +22,15 @@ export default function RichInput({ onSend, disabled, placeholder }: RichInputPr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const maxChars = 5000;
-  const charCount = message.length;
 
   useEffect(() => {
-    // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       const scrollHeight = textareaRef.current.scrollHeight;
-      const maxHeight = 4 * 24; // 4 lines * ~24px line height
+      const maxHeight = 5 * 24;
       textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
     }
   }, [message]);
-
-  const insertFormatting = (prefix: string, suffix?: string) => {
-    if (!textareaRef.current || disabled) return;
-
-    const start = textareaRef.current.selectionStart;
-    const end = textareaRef.current.selectionEnd;
-    const selectedText = message.substring(start, end);
-    const actualSuffix = suffix || prefix;
-
-    const newMessage =
-      message.substring(0, start) +
-      prefix +
-      selectedText +
-      actualSuffix +
-      message.substring(end);
-
-    setMessage(newMessage);
-
-    // Restore cursor position
-    setTimeout(() => {
-      if (textareaRef.current) {
-        const newPos = start + prefix.length + selectedText.length;
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newPos, newPos);
-      }
-    }, 0);
-  };
 
   const handleSend = () => {
     if (!message.trim() || disabled) return;
@@ -77,50 +48,7 @@ export default function RichInput({ onSend, disabled, placeholder }: RichInputPr
   };
 
   return (
-    <div className="space-y-3">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 px-1">
-        <button
-          onClick={() => insertFormatting("**")}
-          disabled={disabled}
-          className="px-3 py-1.5 text-sm font-bold bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Bold"
-        >
-          B
-        </button>
-        <button
-          onClick={() => insertFormatting("*")}
-          disabled={disabled}
-          className="px-3 py-1.5 text-sm italic bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Italic"
-        >
-          I
-        </button>
-        <button
-          onClick={() => insertFormatting("`")}
-          disabled={disabled}
-          className="px-3 py-1.5 text-sm font-mono bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Code"
-        >
-          {"</>"}
-        </button>
-        <button
-          onClick={() => setShowAttachments(!showAttachments)}
-          disabled={disabled}
-          className={`px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-            showAttachments ? "bg-blue-600 hover:bg-blue-700" : ""
-          }`}
-          title="Attach files"
-        >
-          📎 Attach
-        </button>
-        {attachments.length > 0 && (
-          <span className="text-xs text-gray-400 ml-2">
-            {attachments.length} file{attachments.length > 1 ? "s" : ""}
-          </span>
-        )}
-      </div>
-
+    <div className="space-y-2">
       {/* File attachment area */}
       {showAttachments && (
         <FileAttachment
@@ -129,47 +57,57 @@ export default function RichInput({ onSend, disabled, placeholder }: RichInputPr
         />
       )}
 
-      {/* Input area */}
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          placeholder={disabled ? "Select an agent to start chatting" : placeholder || "Type a message..."}
-          className={`
-            w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg
-            text-gray-100 placeholder-gray-500 resize-none
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-all
-          `}
-          rows={1}
-          maxLength={maxChars}
-        />
-        <div className="absolute bottom-2 right-3 flex items-center gap-3">
-          <span className={`text-xs ${charCount > maxChars * 0.9 ? "text-amber-400" : "text-gray-500"}`}>
-            {charCount}/{maxChars}
-          </span>
+      {/* Attachments indicator */}
+      {attachments.length > 0 && !showAttachments && (
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span>{attachments.length} file{attachments.length > 1 ? "s" : ""} attached</span>
+          <button onClick={() => setShowAttachments(true)} className="text-blue-500 hover:text-blue-400">edit</button>
         </div>
-      </div>
+      )}
 
-      {/* Send button */}
-      <div className="flex justify-end">
+      {/* Input row */}
+      <div className="flex items-end gap-2">
+        {/* Attach button */}
+        <button
+          onClick={() => setShowAttachments(!showAttachments)}
+          disabled={disabled}
+          className={`p-2 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors shrink-0 ${
+            showAttachments ? "text-blue-400" : ""
+          }`}
+          title="Attach files"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+          </svg>
+        </button>
+
+        {/* Textarea */}
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            placeholder={disabled ? "Select an agent to start chatting" : placeholder || "Type a message..."}
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-800 rounded-xl text-sm text-gray-100 placeholder-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 disabled:opacity-50 transition-colors"
+            rows={1}
+            maxLength={maxChars}
+          />
+        </div>
+
+        {/* Send button */}
         <button
           onClick={handleSend}
           disabled={!message.trim() || disabled}
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+          className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors disabled:opacity-30 disabled:hover:bg-blue-600 shrink-0"
+          title="Send"
         >
-          Send
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
         </button>
       </div>
-
-      {/* Helper text */}
-      <p className="text-xs text-gray-500 text-center">
-        Press <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-xs">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-xs">Shift+Enter</kbd> for new line
-      </p>
     </div>
   );
 }

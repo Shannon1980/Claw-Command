@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runEmailWorker } from "@/lib/email/worker";
 
-/**
- * Trigger the email worker.
- * Call via cron (e.g. Vercel Cron) or manually.
- * Optional: require CRON_SECRET in Authorization header for cron jobs.
- */
-export async function POST(request: NextRequest) {
+async function handleRun(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
@@ -29,4 +24,14 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/** GET - Vercel Cron calls GET */
+export async function GET(request: NextRequest) {
+  return handleRun(request);
+}
+
+/** POST - manual trigger */
+export async function POST(request: NextRequest) {
+  return handleRun(request);
 }

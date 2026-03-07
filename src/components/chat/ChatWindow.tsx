@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import RichInput from "./RichInput";
 import { useChat, AttachmentFile } from "@/lib/hooks/useChat";
-import { recall, remember } from "@/lib/mission-control/extensionBridge";
 
 interface ChatWindowProps {
   agentId: string;
@@ -13,13 +12,13 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindowProps) {
-  const { messages, loading, error, sendMessage } = useChat(agentId);
+  const { messages, loading, error, sendMessage, agentTyping } = useChat(agentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mcResult, setMcResult] = useState<string | null>(null);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, agentTyping]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,9 +30,11 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
       const query = trimmed.slice(8).trim();
       setMcResult(null);
       try {
-        const { results } = await recall(query);
-        const text = Array.isArray(results) && results.length > 0
-          ? (results as { content?: string }[]).map((r) => r.content ?? JSON.stringify(r)).join("\n\n")
+        const res = await fetch(`/api/memory/recall?q=${encodeURIComponent(query)}`);
+        const results = await res.json();
+        const items = Array.isArray(results) ? results : [];
+        const text = items.length > 0
+          ? items.map((r: { content?: string }) => r.content ?? JSON.stringify(r)).join("\n\n")
           : "No memories found.";
         setMcResult(`**Recall:** ${query}\n\n${text}`);
         setTimeout(() => setMcResult(null), 8000);
@@ -46,7 +47,11 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
       const content = trimmed.slice(10).trim();
       setMcResult(null);
       try {
-        await remember(content, "chat");
+        await fetch("/api/memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, source: "chat" }),
+        });
         setMcResult(`Remembered: "${content}"`);
         setTimeout(() => setMcResult(null), 5000);
       } catch (err) {
@@ -63,9 +68,9 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    if (diffMins < 1) return "now";
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`;
 
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
@@ -77,116 +82,112 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
   if (loading && messages.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-400">Loading messages...</div>
+        <div className="text-sm text-gray-600">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-800 bg-gray-900/50">
-        {error && (
-          <div className="mb-3 px-3 py-2 bg-amber-950/50 border border-amber-800 text-amber-200 text-sm rounded">
-            {error}
-          </div>
-        )}
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">{agentEmoji}</span>
-          <div>
-            <h2 className="text-xl font-semibold text-gray-100">{agentName}</h2>
-            <p className="text-sm text-gray-400">Agent ID: {agentId}</p>
-          </div>
+    <div className="flex flex-col h-full bg-gray-950">
+      {/* Error banner */}
+      {error && (
+        <div className="px-4 py-2 bg-red-950/40 border-b border-red-900/30 text-red-400 text-xs">
+          {error}
         </div>
-      </div>
+      )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[70%] ${
-                msg.sender === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-800 text-gray-100"
-              } rounded-lg px-4 py-3 shadow-lg relative group`}
-            >
-              {/* Agent header for agent messages */}
-              {msg.sender === "agent" && (
-                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-700">
-                  <span className="text-lg">{agentEmoji}</span>
-                  <span className="text-sm font-medium text-gray-300">{agentName}</span>
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+        {messages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-gray-600">Start a conversation with {agentName}</p>
+          </div>
+        )}
+
+        {messages.map((msg) => {
+          const isUser = msg.sender === "user";
+          return (
+            <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[80%] rounded-2xl px-3.5 py-2 ${
+                  isUser
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-900 text-gray-200 border border-gray-800/50"
+                }`}
+              >
+                {/* Message content */}
+                <div className="prose prose-invert prose-sm max-w-none break-words [&>p]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
+                  <MarkdownRenderer content={msg.content} />
                 </div>
-              )}
 
-              {/* Message content */}
-              <div className="prose prose-invert prose-sm max-w-none break-words">
-                <MarkdownRenderer content={msg.content} />
-              </div>
-
-              {/* Attachments */}
-              {msg.hasAttachments && msg.attachments && msg.attachments.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-700 space-y-1">
-                  {msg.attachments.map((file, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm text-gray-300">
-                      <span>📎</span>
-                      <span className="font-medium">{file.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Timestamp and Status */}
-              <div className="mt-2 text-xs opacity-70 flex items-center justify-end gap-1">
-                <span>{formatTimestamp(msg.timestamp)}</span>
-                
-                {msg.sender === "user" && (
-                  <span className="ml-1 font-bold">
-                    {msg.status === "sending" && "..."}
-                    {msg.status === "sent" && "✓"}
-                    {msg.status === "read" && "✓✓"}
-                    {msg.status === "failed" && (
-                      <button 
-                        onClick={() => handleSend(msg.content, msg.attachments || [])}
-                        className="text-red-300 hover:text-red-100 underline ml-1"
-                        title="Retry"
-                      >
-                        Retry
-                      </button>
-                    )}
-                  </span>
+                {/* Attachments */}
+                {msg.hasAttachments && msg.attachments && msg.attachments.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-700/50 space-y-0.5">
+                    {msg.attachments.map((file, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-xs opacity-80">
+                        <span>+</span>
+                        <span>{file.name}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
+
+                {/* Timestamp */}
+                <div className={`mt-1 text-[10px] flex items-center justify-end gap-1 ${isUser ? "text-blue-200/50" : "text-gray-600"}`}>
+                  <span>{formatTimestamp(msg.timestamp)}</span>
+                  {isUser && (
+                    <span>
+                      {msg.status === "sending" && "..."}
+                      {msg.status === "sent" && "sent"}
+                      {msg.status === "read" && "read"}
+                      {msg.status === "failed" && (
+                        <button
+                          onClick={() => handleSend(msg.content, msg.attachments || [])}
+                          className="text-red-300 hover:text-red-100 underline"
+                        >
+                          retry
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Typing indicator */}
+        {agentTyping && (
+          <div className="flex justify-start">
+            <div className="bg-gray-900 border border-gray-800/50 rounded-2xl px-4 py-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
             </div>
           </div>
-        ))}
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* MC Result */}
       {mcResult && (
-        <div className="mx-6 mb-2 px-4 py-3 bg-gray-800/80 border border-gray-700 rounded-lg">
-          <div className="prose prose-invert prose-sm max-w-none">
+        <div className="mx-4 mb-2 px-3 py-2 bg-gray-900/80 border border-gray-800/50 rounded-lg">
+          <div className="prose prose-invert prose-sm max-w-none text-xs">
             <MarkdownRenderer content={mcResult} />
           </div>
           <button
             onClick={() => setMcResult(null)}
-            className="mt-2 text-xs text-gray-500 hover:text-gray-300"
+            className="mt-1 text-[10px] text-gray-600 hover:text-gray-400"
           >
-            Dismiss
+            dismiss
           </button>
         </div>
       )}
 
       {/* Input */}
-      <div className="px-6 py-4 border-t border-gray-800 bg-gray-900/50">
-        <p className="text-xs text-gray-500 mb-2">
-          MC commands: <kbd className="px-1.5 py-0.5 bg-gray-800 rounded">/recall &lt;query&gt;</kbd>{" "}
-          <kbd className="px-1.5 py-0.5 bg-gray-800 rounded">/remember &lt;text&gt;</kbd>
-        </p>
+      <div className="px-4 py-3 border-t border-gray-800/50">
         <RichInput
           onSend={handleSend}
           disabled={false}

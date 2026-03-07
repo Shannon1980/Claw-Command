@@ -1,12 +1,6 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 function generateId(): string {
   return `acc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -64,6 +58,10 @@ export async function GET(request: NextRequest) {
     const expiresAt = tokens.expiry_date
       ? new Date(tokens.expiry_date).toISOString()
       : null;
+
+    if (!pool) {
+      return NextResponse.redirect(new URL("/email?error=db_not_configured", request.url));
+    }
 
     const existing = await pool.query(
       `SELECT id FROM email_accounts WHERE provider = 'gmail' AND email = $1`,

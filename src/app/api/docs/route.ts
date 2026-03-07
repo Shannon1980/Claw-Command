@@ -1,44 +1,224 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
+let schemaReady = false;
+
+// ─── Agent metadata for workspace docs ────────────────────────────────────
+
+const AGENT_META: Record<string, { name: string; emoji: string }> = {
+  bob: { name: "Bob", emoji: "\u{1F916}" },
+  bertha: { name: "Bertha", emoji: "\u{1F4BC}" },
+  veronica: { name: "Veronica", emoji: "\u{1F3AF}" },
+  depa: { name: "Depa", emoji: "\u{1F4CA}" },
+  forge: { name: "Forge", emoji: "\u{2699}\u{FE0F}" },
+  atlas: { name: "Atlas", emoji: "\u{1F5A5}\u{FE0F}" },
+  muse: { name: "Muse", emoji: "\u{1F3A8}" },
+  peter: { name: "Peter", emoji: "\u{1F4CB}" },
+  harmony: { name: "Harmony", emoji: "\u{1F465}" },
+  skylar: { name: "Skylar", emoji: "\u{1F324}\u{FE0F}" },
+  sentinel: { name: "Sentinel", emoji: "\u{1F6E1}\u{FE0F}" },
+};
+
+// ─── Workspace file reading (mirrors sync/docs/trigger logic) ─────────────
+
+const EXCLUDED_FILES = ["MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md", "TOOLS.md", "HEARTBEAT.md"];
+
+function guessAgent(filename: string, content: string): string {
+  const fn = filename.toLowerCase();
+  if (fn.includes("cpars") || fn.includes("seas") || fn.includes("skyward")) return "skylar";
+  if (fn.includes("mbe") || fn.includes("cert") || fn.includes("wosb") || fn.includes("lsbrp")) return "veronica";
+  if (fn.includes("capability") || fn.includes("brand") || fn.includes("muse")) return "muse";
+  if (fn.includes("bd-") || fn.includes("opportunity") || fn.includes("capture") || fn.includes("scout") || fn.includes("competitive")) return "bertha";
+  if (fn.includes("safe") || fn.includes("itbiz") || fn.includes("lesson") || fn.includes("teaching")) return "bob";
+  if (fn.includes("agent") || fn.includes("subagent") || fn.includes("dashboard") || fn.includes("task")) return "bob";
+  if (fn.includes("api-") || fn.includes("component") || fn.includes("implementation") || fn.includes("sam-")) return "forge";
+  if (fn.includes("depa")) return "depa";
+  if (fn.includes("pta") || fn.includes("community") || fn.includes("courtyard")) return "harmony";
+  return "bob";
+}
+
+function guessType(filename: string): string {
+  const fn = filename.toLowerCase();
+  if (fn.includes("capability") || fn.includes("proposal") || fn.includes("rfi") || fn.includes("capture")) return "proposal";
+  if (fn.includes("cert") || fn.includes("mbe") || fn.includes("wosb") || fn.includes("lsbrp")) return "certification_doc";
+  if (fn.includes("cpars") || fn.includes("report") || fn.includes("seas")) return "report";
+  if (fn.includes("template")) return "template";
+  return "report";
+}
+
+function guessStatus(content: string): string {
+  const c = (content || "").toLowerCase().slice(0, 1000);
+  if (c.includes("draft") || c.includes("tbd") || c.includes("pending")) return "draft";
+  if (c.includes("ready for review") || c.includes("in review")) return "in_review";
+  if (c.includes("approved") || c.includes("complete") || c.includes("final")) return "approved";
+  return "draft";
+}
+
+function guessCategory(filename: string, content: string): string {
+  const fn = filename.toLowerCase();
+  const c = (content || "").toLowerCase().slice(0, 1000);
+  if (fn.includes("cert") || fn.includes("mbe") || fn.includes("wosb") || fn.includes("cpars") || c.includes("compliance")) return "compliance";
+  if (fn.includes("capability") || fn.includes("proposal") || fn.includes("capture") || fn.includes("bd-") || c.includes("govcon")) return "govcon";
+  if (fn.includes("api-") || fn.includes("spec") || fn.includes("design") || c.includes("technical")) return "technical";
+  if (fn.includes("agent") || fn.includes("dashboard") || fn.includes("task")) return "internal";
+  return "uncategorized";
+}
+
+function titleFromFilename(filename: string): string {
+  return filename
+    .replace(/\.(md|txt)$/i, "")
+    .replace(/[-_]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function getWorkspacePath(): string {
+  return process.env.OPENCLAW_WORKSPACE || path.join(os.homedir(), ".openclaw", "workspace");
+}
+
+function readWorkspaceDocs(): Array<Record<string, unknown>> {
+  const workspacePath = getWorkspacePath();
+  if (!fs.existsSync(workspacePath)) return [];
+
+  try {
+    const files = fs.readdirSync(workspacePath).filter(
+      (f) => (f.endsWith(".md") || f.endsWith(".txt")) && !EXCLUDED_FILES.includes(f)
+    );
+
+    const now = new Date().toISOString();
+    return files.map((f) => {
+      const filePath = path.join(workspacePath, f);
+      let content = "";
+      let stat: fs.Stats | null = null;
+      try {
+        content = fs.readFileSync(filePath, "utf8");
+        stat = fs.statSync(filePath);
+      } catch { /* ignore */ }
+
+      const agentId = guessAgent(f, content);
+      const meta = AGENT_META[agentId] || AGENT_META.bob;
+
+      return {
+        id: "ws-" + f.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase(),
+        title: titleFromFilename(f),
+        filename: f,
+        type: guessType(f),
+        content: content.slice(0, 50000),
+        authorAgentId: agentId,
+        status: guessStatus(content),
+        filePath,
+        agent: meta.name,
+        agentEmoji: meta.emoji,
+        linkedTo: [],
+        versionHistory: [{ timestamp: stat?.mtime?.toISOString() || now, summary: "Synced from workspace" }],
+        priority: "medium",
+        reviewStatus: "pending_review",
+        category: guessCategory(f, content),
+        notes: [],
+        assignments: [],
+        createdAt: stat?.birthtime?.toISOString() || now,
+        updatedAt: stat?.mtime?.toISOString() || now,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+function getMockFallback(): Array<Record<string, unknown>> {
+  return [];
+}
+
+/** Get documents from best available source: DB → workspace → mock */
+function getFallbackDocs() {
+  const workspaceDocs = readWorkspaceDocs();
+  if (workspaceDocs.length > 0) return workspaceDocs;
+  return getMockFallback();
+}
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  const createTable =
+    "CREATE TABLE IF NOT EXISTS docs (" +
+    "id TEXT PRIMARY KEY, title TEXT NOT NULL, filename TEXT, doc_type TEXT NOT NULL DEFAULT 'report', " +
+    "content TEXT DEFAULT '', author_agent_id TEXT, status TEXT NOT NULL DEFAULT 'draft', file_path TEXT, " +
+    "linked_to JSONB DEFAULT '[]'::jsonb, version_history JSONB DEFAULT '[]'::jsonb, " +
+    "priority TEXT DEFAULT 'medium', review_status TEXT DEFAULT 'pending_review', category TEXT DEFAULT 'uncategorized', " +
+    "notes JSONB DEFAULT '[]'::jsonb, assignments JSONB DEFAULT '[]'::jsonb, " +
+    "created_at TEXT NOT NULL DEFAULT (now()::text), updated_at TEXT NOT NULL DEFAULT (now()::text));";
+  await pool.query(createTable);
+  const alterTable =
+    "DO $$ BEGIN " +
+    "ALTER TABLE docs ADD COLUMN IF NOT EXISTS linked_to JSONB DEFAULT '[]'::jsonb; " +
+    "ALTER TABLE docs ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb; " +
+    "EXCEPTION WHEN others THEN NULL; END $$;";
+  try {
+    await pool.query(alterTable);
+  } catch {
+    /* ignore */
+  }
+  schemaReady = true;
+}
 
 export async function GET(request: NextRequest) {
-  if (!pool || !connectionString) {
-    return NextResponse.json(
-      { docs: [], total: 0, error: "Database not configured" },
-      { status: 503 }
-    );
+  if (!pool) return NextResponse.json(getFallbackDocs());
+
+  try {
+    await ensureSchema();
+  } catch {
+    return NextResponse.json(getFallbackDocs());
   }
 
   const { searchParams } = new URL(request.url);
   const docType = searchParams.get("type");
   const search = searchParams.get("search");
+  const linkedType = searchParams.get("linkedType");
+  const linkedId = searchParams.get("linkedId");
+  const reviewStatus = searchParams.get("reviewStatus");
+  const category = searchParams.get("category");
+  const priority = searchParams.get("priority");
 
   try {
-    let query = `
-      SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, 
-             d.status, d.file_path, d.created_at, d.updated_at,
-             a.name as agent_name, a.emoji as agent_emoji
-      FROM docs d
-      LEFT JOIN agents a ON d.author_agent_id = a.id
-    `;
+    const baseQuery =
+      "SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, " +
+      "d.status, d.file_path, d.linked_to, d.version_history, " +
+      "d.priority, d.review_status, d.category, d.notes, d.assignments, " +
+      "d.created_at, d.updated_at, " +
+      "a.name as agent_name, a.emoji as agent_emoji " +
+      "FROM docs d LEFT JOIN agents a ON d.author_agent_id = a.id";
+    let query = baseQuery;
     const conditions: string[] = [];
     const params: string[] = [];
 
     if (docType) {
       params.push(docType);
-      conditions.push(`d.doc_type = $${params.length}`);
+      conditions.push("d.doc_type = $" + params.length);
     }
     if (search) {
-      params.push(`%${search}%`);
-      conditions.push(`(d.title ILIKE $${params.length} OR d.content ILIKE $${params.length})`);
+      params.push("%" + search + "%");
+      conditions.push("(d.title ILIKE $" + params.length + " OR d.content ILIKE $" + params.length + ")");
+    }
+    if (linkedType && linkedId) {
+      params.push(linkedType);
+      params.push(linkedId);
+      conditions.push("d.linked_to @> jsonb_build_array(jsonb_build_object('type', $" + (params.length - 1) + "::text, 'id', $" + params.length + "::text))");
+    }
+    if (reviewStatus) {
+      params.push(reviewStatus);
+      conditions.push("d.review_status = $" + params.length);
+    }
+    if (category) {
+      params.push(category);
+      conditions.push("d.category = $" + params.length);
+    }
+    if (priority) {
+      params.push(priority);
+      conditions.push("d.priority = $" + params.length);
     }
 
     if (conditions.length > 0) {
@@ -47,54 +227,95 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY d.updated_at DESC";
 
     const result = await pool.query(query, params);
-    const docs = result.rows.map((row: any) => ({
+    const docs = result.rows.map((row: Record<string, unknown>) => ({
       id: row.id,
       title: row.title,
       filename: row.filename,
-      docType: row.doc_type,
-      type: row.doc_type, // Frontend compatibility
-      content: row.content,
+      type: row.doc_type,
+      content: row.content || "",
       authorAgentId: row.author_agent_id,
       status: row.status,
       filePath: row.file_path,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      agent: row.agent_name || "Bob", // Fallback for missing agent join
-      agentEmoji: row.agent_emoji || "🤖", // Fallback
+      agent: (row.agent_name as string) || "Unknown",
+      agentEmoji: (row.agent_emoji as string) || "",
+      linkedTo: row.linked_to || [],
+      versionHistory: row.version_history || [],
+      priority: row.priority || "medium",
+      reviewStatus: row.review_status || "pending_review",
+      category: row.category || "uncategorized",
+      notes: row.notes || [],
+      assignments: row.assignments || [],
     }));
-    
-    // Return both formats to satisfy different frontend versions
-    return NextResponse.json({ docs, total: docs.length });
+
+    if (docs.length === 0 && !docType && !search && !linkedType && !reviewStatus && !category && !priority) {
+      return NextResponse.json(getFallbackDocs());
+    }
+
+    return NextResponse.json(docs);
   } catch (error) {
     console.error("[Docs API] Error:", error);
-    return NextResponse.json({ docs: [], total: 0, error: String(error) }, { status: 500 });
+    return NextResponse.json(getFallbackDocs());
   }
 }
 
 export async function POST(request: NextRequest) {
-  if (!pool || !connectionString) {
-    return NextResponse.json(
-      { success: false, error: "Database not configured" },
-      { status: 503 }
-    );
+  if (!pool) {
+    return NextResponse.json({ error: "No database connection" }, { status: 503 });
   }
+
   try {
+    await ensureSchema();
     const body = await request.json();
     const now = new Date().toISOString();
-    const id = `doc-${Date.now()}`;
+    const id = "doc-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+
+    const linkedTo = Array.isArray(body.linkedTo) ? body.linkedTo : [];
+    const versionHistory = [{ timestamp: now, summary: "Document created" }];
+    const priority = body.priority || "medium";
+    const category = body.category || "uncategorized";
 
     await pool.query(
-      `INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [id, body.title, body.filename || `${id}.md`, body.docType || "document", body.content || "", body.authorAgentId || null, "draft", now, now]
+      "INSERT INTO docs (id, title, filename, doc_type, content, author_agent_id, status, " +
+        "linked_to, version_history, priority, review_status, category, notes, assignments, " +
+        "created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, 'draft', " +
+        "$7::jsonb, $8::jsonb, $9, 'pending_review', $10, '[]'::jsonb, '[]'::jsonb, $11, $11)",
+      [
+        id,
+        body.title,
+        body.filename || id + ".md",
+        body.type || body.docType || "report",
+        body.content || "",
+        body.authorAgentId || null,
+        JSON.stringify(linkedTo),
+        JSON.stringify(versionHistory),
+        priority,
+        category,
+        now,
+      ]
     );
 
-    return NextResponse.json({ id, success: true });
+    return NextResponse.json({
+      id,
+      title: body.title,
+      type: body.type || body.docType || "report",
+      content: body.content || "",
+      status: "draft",
+      agent: body.agent || "Unknown",
+      agentEmoji: body.agentEmoji || "",
+      linkedTo,
+      versionHistory,
+      priority,
+      reviewStatus: "pending_review",
+      category,
+      notes: [],
+      assignments: [],
+      createdAt: now,
+      updatedAt: now,
+    }, { status: 201 });
   } catch (error) {
     console.error("[Docs API] Create error:", error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Unknown" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create document" }, { status: 500 });
   }
 }

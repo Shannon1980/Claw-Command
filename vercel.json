@@ -1,8 +1,20 @@
 {
   "crons": [
     {
+      "path": "/api/cron/scheduler",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/email/worker/run",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/heartbeat-all",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/opportunity-engine/scan",
+      "schedule": "0 6 * * *"
     }
   ]
 }

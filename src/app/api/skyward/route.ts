@@ -1,13 +1,31 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
+
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS skyward_workstreams (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      status TEXT NOT NULL DEFAULT 'on_track',
+      owner_agent_id TEXT,
+      key_dates TEXT NOT NULL DEFAULT '[]',
+      description TEXT DEFAULT '',
+      risk_factors TEXT DEFAULT '[]',
+      updated_at TEXT NOT NULL DEFAULT (now()::text)
+    );
+    ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS name TEXT;
+    ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS owner_agent_id TEXT;
+    ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS key_dates TEXT NOT NULL DEFAULT '[]';
+    ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+    ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS risk_factors TEXT DEFAULT '[]';
+    ALTER TABLE skyward_workstreams ADD COLUMN IF NOT EXISTS updated_at TEXT;
+  `);
+  schemaReady = true;
+}
 
 const SKYWARD_AGENT_IDS = ["skylar", "depa"];
 const SKYWARD_KEYWORDS = ["SEAS", "Skyward", "CPARS", "CMS", "portal", "recompete"];
@@ -44,6 +62,7 @@ export async function GET() {
   }
 
   try {
+    await ensureSchema();
     const now = new Date().toISOString();
 
     // 1. Workstreams from DB (fallback to seed if empty)
@@ -52,7 +71,7 @@ export async function GET() {
               a.name as owner_name, a.emoji as owner_emoji
        FROM skyward_workstreams w
        LEFT JOIN agents a ON w.owner_agent_id = a.id
-       ORDER BY w.name`
+       ORDER BY w.name NULLS LAST`
     );
 
     if (workstreamsRes.rows.length === 0) {
@@ -62,7 +81,7 @@ export async function GET() {
                 a.name as owner_name, a.emoji as owner_emoji
          FROM skyward_workstreams w
          LEFT JOIN agents a ON w.owner_agent_id = a.id
-         ORDER BY w.name`
+         ORDER BY w.name NULLS LAST`
       );
     }
 

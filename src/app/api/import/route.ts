@@ -1,11 +1,5 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 interface AgentInput {
   id: string;
@@ -42,7 +36,7 @@ interface ImportPayload {
 }
 
 export async function POST(request: NextRequest) {
-  if (!connectionString) {
+  if (!pool) {
     return NextResponse.json(
       { error: "Database not configured" },
       { status: 503 }

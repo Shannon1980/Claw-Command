@@ -15,6 +15,10 @@ export const agents = pgTable("agents", {
   domain: text("domain").notNull(), // vorentoe | skyward | community | teaching
   status: text("status").notNull().default("idle"), // idle | active | blocked | waiting_for_shannon
   currentTaskId: text("current_task_id"),
+  soul: text("soul"),
+  capabilities: text("capabilities"), // JSON
+  apiKey: text("api_key"),
+  retiredAt: text("retired_at"),
   updatedAt: text("updated_at").notNull(),
 });
 
@@ -55,11 +59,15 @@ export const applications = pgTable("applications", {
 export const tasks = pgTable("tasks", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
+  description: text("description").notNull().default(""),
   assignedToAgentId: text("assigned_to_agent_id").references(() => agents.id), // null = assigned to Shannon (me)
   dependsOnShannon: boolean("depends_on_shannon").notNull().default(false),
-  status: text("status").notNull().default("backlog"), // backlog | ready | in_progress | blocked | done
+  status: text("status").notNull().default("backlog"), // inbox | backlog | in_progress | review | quality_review | blocked | done
   priority: text("priority").notNull().default("medium"), // high | medium | low
   dueDate: text("due_date"),
+  outcome: text("outcome"),
+  project: text("project"),
+  ticketRef: text("ticket_ref"),
   parentOpportunityId: text("parent_opportunity_id").references(
     () => opportunities.id
   ),
@@ -202,7 +210,9 @@ export const mcMemories = pgTable("mc_memories", {
   content: text("content").notNull(),
   source: text("source"),
   tags: text("tags"), // JSON array
+  category: text("category"),
   createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at"),
 });
 
 // ─── CHAT MESSAGES ──────────────────────────────────────────────────────────
@@ -215,4 +225,252 @@ export const chatMessages = pgTable("chat_messages", {
   status: text("status").default("sent"), // sent | delivered | read
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ─── USERS (Auth) ───────────────────────────────────────────────────────────
+
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  username: text("username").unique().notNull(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("viewer"), // viewer | operator | admin
+  email: text("email"),
+  googleId: text("google_id"),
+  approved: boolean("approved").default(true),
+  lastLoginAt: text("last_login_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── AUTH SESSIONS ──────────────────────────────────────────────────────────
+
+export const sessionsAuth = pgTable("sessions_auth", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  token: text("token").unique().notNull(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── AGENT SOULS (SOUL System) ──────────────────────────────────────────────
+
+export const agentSouls = pgTable("agent_souls", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id")
+    .notNull()
+    .references(() => agents.id),
+  personality: text("personality").notNull().default(""),
+  capabilities: text("capabilities").notNull().default("[]"), // JSON array
+  systemPrompt: text("system_prompt").notNull().default(""),
+  constraints: text("constraints").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── AGENT MESSAGES (Inter-agent Messaging) ─────────────────────────────────
+
+export const agentMessages = pgTable("agent_messages", {
+  id: text("id").primaryKey(),
+  fromAgentId: text("from_agent_id")
+    .notNull()
+    .references(() => agents.id),
+  toAgentId: text("to_agent_id")
+    .notNull()
+    .references(() => agents.id),
+  content: text("content").notNull(),
+  readAt: text("read_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── AGENT LOGS (Log Ingestion) ─────────────────────────────────────────────
+
+export const agentLogs = pgTable("agent_logs", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id").references(() => agents.id),
+  sessionId: text("session_id"),
+  level: text("level").notNull().default("info"), // info | warn | error | debug
+  message: text("message").notNull(),
+  metadata: text("metadata").notNull().default("{}"), // JSON
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── TOKEN USAGE (Cost Tracking) ────────────────────────────────────────────
+
+export const tokenUsage = pgTable("token_usage", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id").references(() => agents.id),
+  sessionId: text("session_id"),
+  model: text("model").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  costCents: integer("cost_cents").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── CRON JOBS (Scheduler) ──────────────────────────────────────────────────
+
+export const cronJobs = pgTable("cron_jobs", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  schedule: text("schedule").notNull(), // cron expression
+  action: text("action").notNull().default("{}"), // JSON: endpoint + payload
+  enabled: boolean("enabled").notNull().default(true),
+  lastRunAt: text("last_run_at"),
+  nextRunAt: text("next_run_at"),
+  runCount: integer("run_count").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── PIPELINES (Orchestration) ──────────────────────────────────────────────
+
+export const pipelines = pgTable("pipelines", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  steps: text("steps").notNull().default("[]"), // JSON array
+  status: text("status").notNull().default("draft"), // draft | active | paused | completed
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── PIPELINE RUNS (Pipeline Execution) ─────────────────────────────────────
+
+export const pipelineRuns = pgTable("pipeline_runs", {
+  id: text("id").primaryKey(),
+  pipelineId: text("pipeline_id")
+    .notNull()
+    .references(() => pipelines.id),
+  status: text("status").notNull().default("running"), // running | completed | failed | cancelled
+  startedAt: text("started_at").notNull(),
+  completedAt: text("completed_at"),
+  results: text("results").notNull().default("{}"), // JSON
+});
+
+// ─── WEBHOOKS (Outbound Webhooks) ───────────────────────────────────────────
+
+export const webhooks = pgTable("webhooks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  events: text("events").notNull().default("[]"), // JSON array of event types
+  secret: text("secret").notNull(), // HMAC signing key
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── WEBHOOK DELIVERIES (Delivery Log) ──────────────────────────────────────
+
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  id: text("id").primaryKey(),
+  webhookId: text("webhook_id")
+    .notNull()
+    .references(() => webhooks.id),
+  eventType: text("event_type").notNull(),
+  payload: text("payload").notNull(),
+  status: text("status").notNull().default("pending"), // pending | success | failed
+  responseCode: integer("response_code"),
+  responseBody: text("response_body"),
+  attempts: integer("attempts").notNull().default(0),
+  nextRetryAt: text("next_retry_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── ALERT RULES (Configurable Alerts) ──────────────────────────────────────
+
+export const alertRules = pgTable("alert_rules", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  condition: text("condition").notNull().default("{}"), // JSON
+  channels: text("channels").notNull().default("[]"), // JSON
+  enabled: boolean("enabled").notNull().default(true),
+  lastFiredAt: text("last_fired_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── AUDIT EVENTS (Audit Trail) ─────────────────────────────────────────────
+
+export const auditEvents = pgTable("audit_events", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  resourceType: text("resource_type").notNull(),
+  resourceId: text("resource_id").notNull(),
+  details: text("details").notNull().default("{}"), // JSON
+  ipAddress: text("ip_address"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── NOTIFICATIONS (Notification Center) ────────────────────────────────────
+
+export const notifications = pgTable("notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  type: text("type").notNull().default("info"),
+  resourceUrl: text("resource_url"),
+  readAt: text("read_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── CERTIFICATIONS ─────────────────────────────────────────────────────────
+
+export const certifications = pgTable("certifications", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  level: text("level").notNull().default("Federal"),
+  authority: text("authority").notNull().default(""),
+  status: text("status").notNull().default("NOT_STARTED"),
+  dueDate: text("due_date"),
+  appliedDate: text("applied_date"),
+  decisionExpected: text("decision_expected"),
+  expiresDate: text("expires_date"),
+  description: text("description"),
+  notes: text("notes"),
+  documents: text("documents").notNull().default("[]"), // JSON array
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── CALENDAR EVENTS ────────────────────────────────────────────────────────
+
+export const calendarEvents = pgTable("calendar_events", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  domain: text("domain").notNull().default("vorentoe"),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  protected: boolean("protected").notNull().default(false),
+  description: text("description"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── TASK COMMENTS ──────────────────────────────────────────────────────────
+
+export const taskComments = pgTable("task_comments", {
+  id: text("id").primaryKey(),
+  taskId: text("task_id")
+    .notNull()
+    .references(() => tasks.id),
+  author: text("author").notNull(),
+  content: text("content").notNull(),
+  parentCommentId: text("parent_comment_id"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ─── GATEWAYS (Multi-gateway) ───────────────────────────────────────────────
+
+export const gateways = pgTable("gateways", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  status: text("status").notNull().default("unknown"), // online | offline | unknown
+  lastCheckAt: text("last_check_at"),
+  createdAt: text("created_at").notNull(),
 });

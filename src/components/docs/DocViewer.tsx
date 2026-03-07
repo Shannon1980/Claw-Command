@@ -1,11 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Document, DocumentStatus } from "@/lib/mock-docs";
+import type { Document, DocumentStatus, DocumentPriority, ReviewStatus, DocumentCategory, LinkedItem } from "@/lib/mock-docs";
+import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/mock-docs";
+import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
+import LinkPicker, { linkTypeConfig } from "@/components/docs/LinkPicker";
+import DocNotes from "@/components/docs/DocNotes";
+import { priorityStyles, reviewStatusStyles } from "@/lib/ui-config";
+import { getWordCount } from "@/lib/utils/formatting";
 
 interface DocViewerProps {
   document: Document | null;
   onClose: () => void;
+  onUpdate?: (doc: Document) => void;
+  onDelete?: (id: string) => void;
+  onDuplicate?: (doc: Document) => void;
+  onAssign?: (doc: Document) => void;
 }
 
 const statusOptions: { value: DocumentStatus; label: string }[] = [
@@ -15,9 +25,15 @@ const statusOptions: { value: DocumentStatus; label: string }[] = [
   { value: "exported", label: "Exported" },
 ];
 
-export default function DocViewer({ document, onClose }: DocViewerProps) {
+export default function DocViewer({ document, onClose, onUpdate, onDelete, onDuplicate, onAssign }: DocViewerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
   if (!document) return null;
 
@@ -26,33 +42,275 @@ export default function DocViewer({ document, onClose }: DocViewerProps) {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    // In a real app, this would save to the database
-    console.log("Saving document:", editedContent);
-    setIsEditing(false);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editedContent }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const updated = {
+          ...document,
+          content: editedContent,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        };
+        onUpdate?.(updated);
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error("Failed to save:", error);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleExport = (format: "md" | "pdf") => {
-    // In a real app, this would trigger a download
-    const blob = new Blob([document.content], { type: "text/plain" });
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          status: newStatus as DocumentStatus,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update status:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onDelete?.(document.id);
+        onClose();
+      }
+    } catch (error) {
+      console.error("Failed to delete:", error);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  const handleExportMd = () => {
+    const blob = new Blob([document.content], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = window.document.createElement("a");
     a.href = url;
-    a.download = `${document.title}.${format}`;
+    a.download = `${document.title}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const handleExportDocx = async () => {
+    try {
+      const docxMod = await import("docx");
+      const { Document: DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = docxMod;
+
+      const lines = document.content.split("\n");
+      const children: InstanceType<typeof Paragraph>[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          children.push(new Paragraph({ text: "" }));
+          continue;
+        }
+
+        // Headings
+        if (trimmed.startsWith("### ")) {
+          children.push(new Paragraph({ text: trimmed.slice(4), heading: HeadingLevel.HEADING_3 }));
+        } else if (trimmed.startsWith("## ")) {
+          children.push(new Paragraph({ text: trimmed.slice(3), heading: HeadingLevel.HEADING_2 }));
+        } else if (trimmed.startsWith("# ")) {
+          children.push(new Paragraph({ text: trimmed.slice(2), heading: HeadingLevel.HEADING_1 }));
+        }
+        // Bullet lists
+        else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+          const text = trimmed.slice(2);
+          children.push(new Paragraph({
+            children: parseInlineFormatting(text, TextRun),
+            bullet: { level: 0 },
+          }));
+        }
+        // Numbered lists
+        else if (/^\d+\.\s/.test(trimmed)) {
+          const text = trimmed.replace(/^\d+\.\s/, "");
+          children.push(new Paragraph({
+            children: parseInlineFormatting(text, TextRun),
+            numbering: { reference: "default-numbering", level: 0 },
+          }));
+        }
+        // Regular paragraphs
+        else {
+          children.push(new Paragraph({
+            children: parseInlineFormatting(trimmed, TextRun),
+            alignment: AlignmentType.LEFT,
+          }));
+        }
+      }
+
+      const doc = new DocxDocument({
+        numbering: {
+          config: [{
+            reference: "default-numbering",
+            levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT }],
+          }],
+        },
+        sections: [{ children }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = url;
+      a.download = `${document.title}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export .docx:", error);
+    }
+  };
+
+  const handleLinkedItemsChange = async (items: LinkedItem[]) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ linkedTo: items }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          linkedTo: items,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update links:", error);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!onDuplicate) return;
+    try {
+      const res = await fetch("/api/docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${document.title} (Copy)`,
+          type: document.type,
+          content: document.content,
+          authorAgentId: null,
+          agent: document.agent,
+          agentEmoji: document.agentEmoji,
+          linkedTo: document.linkedTo || [],
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        onDuplicate(created);
+      }
+    } catch (error) {
+      console.error("Failed to duplicate:", error);
+    }
+  };
+
+  const handlePriorityChange = async (newPriority: string) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: newPriority }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          priority: newPriority as DocumentPriority,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update priority:", error);
+    }
+  };
+
+  const handleReviewStatusChange = async (newStatus: string) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewStatus: newStatus }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          reviewStatus: newStatus as ReviewStatus,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update review status:", error);
+    }
+  };
+
+  const handleCategoryChange = async (newCategory: string) => {
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: newCategory }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUpdate?.({
+          ...document,
+          category: newCategory as DocumentCategory,
+          updatedAt: new Date().toISOString(),
+          versionHistory: data.versionHistory || document.versionHistory || [],
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update category:", error);
+    }
+  };
+
+  const handleNotesUpdated = (notes: typeof document.notes) => {
+    onUpdate?.({ ...document, notes: notes || [] });
+  };
+
+  const wordCount = getWordCount(document.content || "");
+  const history = document.versionHistory || [];
+  const pStyle = priorityStyles[document.priority || "medium"];
+  const rStyle = reviewStatusStyles[document.reviewStatus || "pending_review"];
+
   return (
     <>
-      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 z-40"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
         onClick={onClose}
       />
 
-      {/* Slide-over Panel */}
-      <div className="fixed right-0 top-0 h-full w-full md:w-2/3 lg:w-1/2 bg-gray-950 border-l border-gray-800 z-50 overflow-y-auto">
+      <div className="fixed right-0 top-0 h-full w-full md:w-2/3 lg:w-1/2 bg-gray-950 border-l border-gray-800/50 z-50 overflow-y-auto">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
@@ -61,52 +319,144 @@ export default function DocViewer({ document, onClose }: DocViewerProps) {
                 {document.title}
               </h2>
               <div className="flex items-center gap-3 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <span className="text-base">{document.agentEmoji}</span>
-                  {document.agent}
-                </span>
-                <span>•</span>
+                <span>{document.agent}</span>
                 <span>Updated {new Date(document.updatedAt).toLocaleDateString()}</span>
+                <span>{wordCount} words</span>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-100 text-2xl leading-none"
+              className="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors"
             >
-              ×
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
 
+          {/* Linked Items */}
+          <div className="mb-4">
+            {!showLinkPicker ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                {(document.linkedTo || []).map((item) => {
+                  const cfg = linkTypeConfig[item.type];
+                  return (
+                    <span
+                      key={`${item.type}-${item.id}`}
+                      className={`${cfg.bg} ${cfg.color} px-2 py-0.5 rounded text-xs font-medium`}
+                    >
+                      {cfg.label}: {item.name}
+                    </span>
+                  );
+                })}
+                <button
+                  onClick={() => setShowLinkPicker(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  {(document.linkedTo || []).length > 0 ? "Edit links" : "+ Link to..."}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <LinkPicker
+                  linkedItems={document.linkedTo || []}
+                  onChange={handleLinkedItemsChange}
+                />
+                <button
+                  onClick={() => setShowLinkPicker(false)}
+                  className="text-xs text-gray-500 hover:text-gray-300 mt-1 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Priority / Category / Review row */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {/* Priority */}
+            <select
+              value={document.priority || "medium"}
+              onChange={(e) => handlePriorityChange(e.target.value)}
+              className={`px-2 py-1 rounded text-[11px] font-medium border bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500/50 ${pStyle.color} ${pStyle.border}`}
+            >
+              {PRIORITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label} Priority</option>
+              ))}
+            </select>
+
+            {/* Category */}
+            <select
+              value={document.category || "uncategorized"}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="px-2 py-1 rounded text-[11px] font-medium border bg-gray-900 text-gray-300 border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+            >
+              {CATEGORY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+
+            {/* Review Status */}
+            <select
+              value={document.reviewStatus || "pending_review"}
+              onChange={(e) => handleReviewStatusChange(e.target.value)}
+              className={`px-2 py-1 rounded text-[11px] font-medium border bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500/50 ${rStyle.color} ${rStyle.border}`}
+            >
+              {REVIEW_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+
+            {/* Assign button */}
+            {onAssign && (
+              <button
+                onClick={() => onAssign(document)}
+                className="ml-auto px-3 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[11px] font-medium hover:bg-indigo-500/30 transition-colors"
+              >
+                Assign To...
+              </button>
+            )}
+          </div>
+
           {/* Controls */}
-          <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-800">
+          <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-800/50 flex-wrap">
             {!isEditing ? (
               <>
                 <button
                   onClick={handleEdit}
                   className="px-3 py-1.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-xs font-medium hover:bg-blue-500/30 transition-colors"
                 >
-                  ✏️ Edit
+                  Edit
                 </button>
                 <button
-                  onClick={() => handleExport("md")}
+                  onClick={handleExportMd}
                   className="px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
                 >
-                  📥 Export .md
+                  Export .md
                 </button>
                 <button
-                  onClick={() => handleExport("pdf")}
+                  onClick={handleExportDocx}
                   className="px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
                 >
-                  📄 Export .pdf
+                  Export .docx
                 </button>
+                {onDuplicate && (
+                  <button
+                    onClick={handleDuplicate}
+                    className="px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
+                  >
+                    Duplicate
+                  </button>
+                )}
               </>
             ) : (
               <>
                 <button
                   onClick={handleSave}
-                  className="px-3 py-1.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded text-xs font-medium hover:bg-green-500/30 transition-colors"
+                  disabled={saving}
+                  className="px-3 py-1.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded text-xs font-medium hover:bg-green-500/30 transition-colors disabled:opacity-50"
                 >
-                  💾 Save
+                  {saving ? "Saving..." : "Save"}
                 </button>
                 <button
                   onClick={() => setIsEditing(false)}
@@ -117,13 +467,10 @@ export default function DocViewer({ document, onClose }: DocViewerProps) {
               </>
             )}
 
-            {/* Status Dropdown */}
+            {/* Status */}
             <select
               value={document.status}
-              onChange={(e) => {
-                // In a real app, this would update the status
-                console.log("Status changed to:", e.target.value);
-              }}
+              onChange={(e) => handleStatusChange(e.target.value)}
               className="ml-auto px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
             >
               {statusOptions.map((opt) => (
@@ -132,24 +479,172 @@ export default function DocViewer({ document, onClose }: DocViewerProps) {
                 </option>
               ))}
             </select>
+
+            {/* Notes Toggle */}
+            <button
+              onClick={() => setShowNotes(!showNotes)}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                showNotes
+                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  : "text-gray-500 hover:text-gray-300 hover:bg-gray-800 border border-transparent"
+              }`}
+            >
+              Notes ({(document.notes || []).length})
+            </button>
+
+            {/* Version History Toggle */}
+            {history.length > 0 && (
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  showHistory
+                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-800 border border-transparent"
+                }`}
+              >
+                History ({history.length})
+              </button>
+            )}
+
+            {/* Delete */}
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="px-3 py-1.5 text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 rounded text-xs font-medium transition-colors"
+              >
+                Delete
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-3 py-1.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-xs font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? "..." : "Confirm"}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-2 py-1.5 text-gray-500 text-xs hover:text-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Version History Panel */}
+          {showHistory && history.length > 0 && (
+            <div className="mb-4 bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <h3 className="text-xs font-bold text-gray-400 mb-2">Version History</h3>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {[...history].reverse().map((entry, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-500 font-mono whitespace-nowrap">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </span>
+                    <span className="text-gray-400">{entry.summary}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes Panel */}
+          {showNotes && (
+            <div className="mb-4">
+              <DocNotes
+                docId={document.id}
+                notes={document.notes || []}
+                onNoteAdded={handleNotesUpdated}
+              />
+            </div>
+          )}
+
+          {/* Assignments */}
+          {document.assignments && document.assignments.length > 0 && (
+            <div className="mb-4 bg-gray-900 border border-gray-800 rounded-lg p-3">
+              <h3 className="text-xs font-bold text-gray-400 mb-2">Assignments</h3>
+              <div className="space-y-1.5">
+                {document.assignments.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className={`px-1.5 py-0.5 rounded font-medium ${
+                      a.target === "task" ? "bg-purple-500/10 text-purple-400" :
+                      a.target === "memory" ? "bg-green-500/10 text-green-400" :
+                      "bg-cyan-500/10 text-cyan-400"
+                    }`}>
+                      {a.target}
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded ${
+                      a.status === "completed" ? "bg-green-500/10 text-green-400" :
+                      a.status === "failed" ? "bg-red-500/10 text-red-400" :
+                      a.status === "in_progress" ? "bg-blue-500/10 text-blue-400" :
+                      "bg-gray-500/10 text-gray-400"
+                    }`}>
+                      {a.status}
+                    </span>
+                    {a.agentId && <span className="text-gray-500">agent: {a.agentId}</span>}
+                    <span className="text-gray-600 font-mono ml-auto">
+                      {new Date(a.assignedAt).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Content */}
           {isEditing ? (
-            <textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              className="w-full h-96 bg-gray-900 border border-gray-800 rounded p-4 text-sm text-gray-300 font-mono focus:outline-none focus:border-gray-700"
-            />
+            <div>
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full h-[70vh] bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm text-gray-300 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-600 text-right">{getWordCount(editedContent).toLocaleString()} words</p>
+            </div>
           ) : (
             <div className="prose prose-invert prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap text-sm text-gray-300 font-mono bg-gray-900 border border-gray-800 rounded p-4">
-                {document.content}
-              </pre>
+              {document.content ? (
+                <MarkdownRenderer content={document.content} />
+              ) : (
+                <p className="text-gray-600 italic">No content yet. Click Edit to add content.</p>
+              )}
             </div>
           )}
         </div>
       </div>
     </>
   );
+}
+
+// Helper to parse bold/italic in text for docx export
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseInlineFormatting(text: string, TextRun: any): any[] {
+  const runs: any[] = [];
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      runs.push(new TextRun({ text: text.slice(lastIndex, match.index) }));
+    }
+    if (match[2]) {
+      runs.push(new TextRun({ text: match[2], bold: true }));
+    } else if (match[3]) {
+      runs.push(new TextRun({ text: match[3], italics: true }));
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    runs.push(new TextRun({ text: text.slice(lastIndex) }));
+  }
+
+  if (runs.length === 0) {
+    runs.push(new TextRun({ text }));
+  }
+
+  return runs;
 }

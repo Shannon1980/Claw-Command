@@ -1,17 +1,13 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
+
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     // Parse optional reason from request body

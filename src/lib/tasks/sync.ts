@@ -4,18 +4,12 @@
  * OpenClaw-sourced tasks use id prefix "oc-" to avoid collisions with seeded tasks.
  */
 
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
+import { pool } from "@/lib/db/client";
 import type { OpenClawSession } from "@/lib/openclaw/types";
 import {
   mapSessionsToAgentStatus,
   mapSessionsToTasks,
 } from "@/lib/openclaw/mappers";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 export type SyncTasksResult = {
   tasksSynced: number;
@@ -31,7 +25,7 @@ export async function syncTasksFromSessions(
     agentsUpserted: 0,
   };
 
-  if (!connectionString) {
+  if (!pool) {
     result.error = "Database not configured";
     return result;
   }

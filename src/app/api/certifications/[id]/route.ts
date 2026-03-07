@@ -1,13 +1,5 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
 
 function rowToCert(row: Record<string, unknown>) {
   const documents = (() => {
@@ -39,11 +31,8 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  if (!pool || !connectionString) {
-    return NextResponse.json(
-      { error: "Database not configured" },
-      { status: 503 }
-    );
+  if (!pool) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
   try {
     const result = await pool.query(
@@ -70,11 +59,8 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  if (!pool || !connectionString) {
-    return NextResponse.json(
-      { error: "Database not configured" },
-      { status: 503 }
-    );
+  if (!pool) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
   try {
     const body = await request.json();
@@ -82,17 +68,17 @@ export async function PATCH(
     const values: unknown[] = [];
     let paramIndex = 1;
 
-    const fields: Array<[string, string, unknown]> = [
-      ["name", "name", body.name],
-      ["level", "level", body.level],
-      ["authority", "authority", body.authority],
-      ["status", "status", body.status],
-      ["due_date", "dueDate", body.dueDate],
-      ["applied_date", "appliedDate", body.appliedDate],
-      ["decision_expected", "decisionExpected", body.decisionExpected],
-      ["expires_date", "expiresDate", body.expiresDate],
-      ["description", "description", body.description],
-      ["notes", "notes", body.notes],
+    const fields: Array<[string, string]> = [
+      ["name", "name"],
+      ["level", "level"],
+      ["authority", "authority"],
+      ["status", "status"],
+      ["due_date", "dueDate"],
+      ["applied_date", "appliedDate"],
+      ["decision_expected", "decisionExpected"],
+      ["expires_date", "expiresDate"],
+      ["description", "description"],
+      ["notes", "notes"],
     ];
 
     for (const [col, key] of fields) {
@@ -121,7 +107,7 @@ export async function PATCH(
     values.push(id);
 
     const result = await pool.query(
-      `UPDATE certifications SET ${updates.join(", ")} WHERE id = $${paramIndex} RETURNING id`,
+      `UPDATE certifications SET ${updates.join(", ")} WHERE id = $${paramIndex} RETURNING *`,
       values
     );
 
@@ -129,17 +115,37 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const getResult = await pool.query(
-      `SELECT id, name, level, authority, status, due_date, applied_date,
-              decision_expected, expires_date, description, notes, documents
-       FROM certifications WHERE id = $1`,
-      [id]
-    );
-    return NextResponse.json(rowToCert(getResult.rows[0]));
+    return NextResponse.json(rowToCert(result.rows[0]));
   } catch (error) {
     console.error("[Certifications API] Patch error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Update failed" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  if (!pool) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+  try {
+    const result = await pool.query(
+      `DELETE FROM certifications WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, id });
+  } catch (error) {
+    console.error("[Certifications API] Delete error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Delete failed" },
       { status: 500 }
     );
   }

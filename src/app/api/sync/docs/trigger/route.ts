@@ -1,14 +1,8 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import fs from "fs";
 import path from "path";
 import os from "os";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 const EXCLUDED_FILES = [
   "MEMORY.md",
@@ -152,7 +146,7 @@ export async function POST() {
     );
   }
 
-  if (!connectionString) {
+  if (!pool) {
     return NextResponse.json(
       { success: false, error: "Database not configured" },
       { status: 503 }

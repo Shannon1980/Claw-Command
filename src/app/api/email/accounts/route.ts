@@ -1,17 +1,12 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 function generateId(): string {
   return `acc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 export async function GET() {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const res = await pool.query(
       `SELECT id, provider, email, created_at FROM email_accounts ORDER BY created_at DESC`
@@ -19,14 +14,12 @@ export async function GET() {
     return NextResponse.json(res.rows);
   } catch (err) {
     console.error("[Email API] List accounts error:", err);
-    return NextResponse.json(
-      { error: "Failed to list accounts" },
-      { status: 500 }
-    );
+    return NextResponse.json([]);
   }
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const body = await request.json();
     const provider = (body.provider as string)?.toLowerCase() || "gmail";

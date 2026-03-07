@@ -1,11 +1,5 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 const now = new Date().toISOString();
 
@@ -96,11 +90,263 @@ const CALENDAR_EVENTS = [
   { id: "evt-9", title: "PTA Planning Call", domain: "community", start_time: getWeekDate(5, 11, 0), end_time: getWeekDate(5, 12, 0), protected: false, description: null },
 ];
 
+const DOCS = [
+  {
+    id: "doc-1",
+    title: "Vorentoe Capability Statement v2",
+    doc_type: "capability_statement",
+    content: `# Vorentoe LLC - Capability Statement\n\n## Company Overview\nVorentoe LLC is an EDWOSB-certified technology consulting firm specializing in AI/ML solutions, IT program management, and government contracting services.\n\n## Core Capabilities\n- AI/ML Integration & Implementation\n- IT Program Management\n- Procurement Automation\n- Low-Code Platform Development\n- Cybersecurity Solutions\n\n## Past Performance\n- CMS SEAS IT Program Support (2023-Present)\n- Navy Cybersecurity Infrastructure Upgrade (2024)\n- DHS Border Technology Assessment (2025)\n\n## Certifications\n- EDWOSB (In Progress)\n- WOSB (In Progress)\n- Maryland MBE (Submitted)\n\n## Contact\nShannon Gueringer, CEO\nshannon@govorentoe.com\nwww.govorentoe.com`,
+    author_agent_id: "muse",
+    status: "approved",
+    priority: "high",
+    review_status: "approved",
+    category: "govcon",
+    linked_to: JSON.stringify([]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-15T10:00:00Z", summary: "Document created" }]),
+    created_at: "2026-02-15T10:00:00Z",
+    updated_at: "2026-02-20T14:30:00Z",
+  },
+  {
+    id: "doc-2",
+    title: "DHS Border Tech Capture Plan",
+    doc_type: "proposal",
+    content: `# DHS Border Tech Capture Plan\n\n## Opportunity Overview\n**Agency:** Department of Homeland Security\n**Solicitation:** DHS-2026-BT-001\n**Set-Aside:** WOSB\n**Value:** $2.5M - $5M\n\n## Capture Strategy\n1. Partner with established prime contractor\n2. Leverage Navy cybersecurity past performance\n3. Highlight AI/ML capabilities for threat detection\n4. Emphasize WOSB certification\n\n## Key Discriminators\n- AI-driven analytics platform\n- Real-time threat monitoring\n- Low-code rapid prototyping\n- Veterans on team\n\n## Next Steps\n- Schedule teaming call with potential prime (March 15)\n- Draft technical approach (March 20)\n- Complete capability briefing (March 25)`,
+    author_agent_id: "bertha",
+    status: "draft",
+    priority: "critical",
+    review_status: "pending_review",
+    category: "govcon",
+    linked_to: JSON.stringify([{ type: "deal", id: "opp-dhs-border", name: "DHS Border Technology Modernization" }]),
+    version_history: JSON.stringify([{ timestamp: "2026-03-01T09:00:00Z", summary: "Document created" }]),
+    created_at: "2026-03-01T09:00:00Z",
+    updated_at: "2026-03-03T16:45:00Z",
+  },
+  {
+    id: "doc-3",
+    title: "CPARS Self-Assessment FY2025",
+    doc_type: "report",
+    content: `# CPARS Self-Assessment FY2025\n\n## Contract Performance Assessment\n\n**Contract:** SEAS IT Support\n**Prime:** Skyward IT Solutions\n**Period:** FY2025\n\n## Performance Ratings\n\n### Quality of Work: Exceptional\n- Zero critical defects\n- 98% first-time acceptance rate\n- Proactive issue identification\n\n### Timeliness: Very Good\n- All milestones met or exceeded\n- Average delivery 3 days ahead of schedule\n\n### Cost Control: Satisfactory\n- Within budget constraints\n- Some overruns on scope changes\n\n### Customer Satisfaction: Exceptional\n- Positive feedback from CMS stakeholders\n- Responsive communication\n- Strong partnership approach\n\n## Recommendations\nContinue current performance trajectory. Address cost control processes for scope changes.`,
+    author_agent_id: "skylar",
+    status: "in_review",
+    priority: "medium",
+    review_status: "pending_review",
+    category: "compliance",
+    linked_to: JSON.stringify([]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-10T08:00:00Z", summary: "Document created" }]),
+    created_at: "2026-02-10T08:00:00Z",
+    updated_at: "2026-03-02T11:20:00Z",
+  },
+  {
+    id: "doc-4",
+    title: "Maryland MBE Application Notes",
+    doc_type: "certification_doc",
+    content: `# Maryland MBE Application Notes\n\n## Submission Checklist\n- [x] Articles of Organization\n- [x] Operating Agreement\n- [x] Tax Returns (3 years)\n- [ ] Section 4 Form (Economic Disadvantage Certification)\n- [ ] Navy Fed Signature Card\n\n## Outstanding Items\n1. **Section 4 Form** - Needs personal financial statement from Shannon\n2. **Bank Signature Card** - Request from Navy Federal (est. 5 business days)\n\n## Submission Deadline\n**March 7, 2026** (CRITICAL)\n\n## Follow-Up Actions\n- Call MDOT certification office to confirm received docs (March 8)\n- Schedule interview if required\n- Track decision timeline (typically 60-90 days)\n\n## Notes\nApplication submitted via MDOT portal. Confirmation email received Feb 15, 2026.`,
+    author_agent_id: "veronica",
+    status: "draft",
+    priority: "critical",
+    review_status: "pending_review",
+    category: "compliance",
+    linked_to: JSON.stringify([{ type: "certification", id: "md-mbe", name: "Maryland MBE" }]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-15T14:00:00Z", summary: "Document created" }]),
+    created_at: "2026-02-15T14:00:00Z",
+    updated_at: "2026-03-04T09:00:00Z",
+  },
+  {
+    id: "doc-5",
+    title: "Navy Cybersecurity Past Performance",
+    doc_type: "proposal",
+    content: `# Navy Cybersecurity Infrastructure Upgrade - Past Performance\n\n## Contract Details\n**Client:** U.S. Navy\n**Contract:** N00178-24-C-1234\n**Period:** Jan 2024 - Dec 2024\n**Value:** $1.2M\n**Type:** Subcontractor (Prime: Northrop Grumman)\n\n## Scope of Work\nCybersecurity infrastructure upgrade for naval base network systems:\n- Network segmentation and isolation\n- Intrusion detection system deployment\n- Security operations center (SOC) setup\n- Personnel training and knowledge transfer\n\n## Performance Highlights\n- **On-Time Delivery:** 100% of milestones met\n- **Quality:** Zero security incidents post-deployment\n- **Innovation:** Implemented AI-driven threat detection (not in original SOW)\n- **Cost Savings:** Delivered 8% under budget\n\n## Client Feedback\n"Vorentoe's team demonstrated exceptional technical expertise and professionalism. Their proactive approach to threat detection exceeded our expectations."\n-- LCDR James Mitchell, Navy Cyber Command\n\n## Relevance to Current Opportunity\nDirectly applicable to DHS border technology requirements for:\n- Real-time threat monitoring\n- AI/ML-driven analytics\n- Secure infrastructure design\n- Government facility clearance experience`,
+    author_agent_id: "bertha",
+    status: "in_review",
+    priority: "high",
+    review_status: "pending_review",
+    category: "govcon",
+    linked_to: JSON.stringify([{ type: "deal", id: "opp-navy-cyber", name: "Navy Cybersecurity Operations" }]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-28T10:30:00Z", summary: "Document created" }]),
+    created_at: "2026-02-28T10:30:00Z",
+    updated_at: "2026-03-04T13:15:00Z",
+  },
+];
+
+const TOKEN_USAGE = [
+  { id: "tu-1", agent_id: "bob", session_id: "sess-001", model: "claude-sonnet-4-20250514", input_tokens: 2400, output_tokens: 800, cost_cents: 1.2 },
+  { id: "tu-2", agent_id: "bob", session_id: "sess-001", model: "claude-sonnet-4-20250514", input_tokens: 3100, output_tokens: 1200, cost_cents: 1.8 },
+  { id: "tu-3", agent_id: "bertha", session_id: "sess-002", model: "claude-sonnet-4-20250514", input_tokens: 5200, output_tokens: 2100, cost_cents: 3.4 },
+  { id: "tu-4", agent_id: "bertha", session_id: "sess-002", model: "claude-sonnet-4-20250514", input_tokens: 4800, output_tokens: 1900, cost_cents: 3.1 },
+  { id: "tu-5", agent_id: "veronica", session_id: "sess-003", model: "claude-sonnet-4-20250514", input_tokens: 1800, output_tokens: 600, cost_cents: 0.9 },
+  { id: "tu-6", agent_id: "forge", session_id: "sess-004", model: "claude-sonnet-4-20250514", input_tokens: 8200, output_tokens: 3400, cost_cents: 5.6 },
+  { id: "tu-7", agent_id: "forge", session_id: "sess-004", model: "claude-sonnet-4-20250514", input_tokens: 6100, output_tokens: 2800, cost_cents: 4.2 },
+  { id: "tu-8", agent_id: "forge", session_id: "sess-004", model: "claude-sonnet-4-20250514", input_tokens: 4500, output_tokens: 1600, cost_cents: 2.8 },
+  { id: "tu-9", agent_id: "depa", session_id: "sess-005", model: "claude-sonnet-4-20250514", input_tokens: 3200, output_tokens: 1100, cost_cents: 1.7 },
+  { id: "tu-10", agent_id: "skylar", session_id: "sess-006", model: "claude-sonnet-4-20250514", input_tokens: 2900, output_tokens: 950, cost_cents: 1.5 },
+];
+
 export async function POST() {
+  if (!pool) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured. Set DATABASE_URL." },
+      { status: 503 }
+    );
+  }
+
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    // Ensure all tables exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, emoji TEXT, domain TEXT NOT NULL DEFAULT 'vorentoe',
+        status TEXT NOT NULL DEFAULT 'idle', current_task_id TEXT, soul TEXT, capabilities TEXT,
+        api_key TEXT, retired_at TEXT, created_at TEXT, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS opportunities (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, stage TEXT NOT NULL DEFAULT 'identify',
+        value_usd NUMERIC, probability INTEGER DEFAULT 0, owner_agent_id TEXT,
+        shannon_approval BOOLEAN, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS applications (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, stage TEXT NOT NULL DEFAULT 'concept',
+        description TEXT, owner_agent_id TEXT, dependencies TEXT DEFAULT '[]',
+        shannon_approval BOOLEAN, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT DEFAULT '',
+        assigned_to_agent_id TEXT, depends_on_shannon BOOLEAN DEFAULT false,
+        status TEXT NOT NULL DEFAULT 'backlog', priority TEXT NOT NULL DEFAULT 'medium',
+        due_date TEXT, outcome TEXT, project TEXT, ticket_ref TEXT,
+        parent_opportunity_id TEXT, parent_application_id TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS activities (
+        id TEXT PRIMARY KEY, actor_agent_id TEXT, event_type TEXT NOT NULL,
+        resource_type TEXT, resource_id TEXT, details TEXT DEFAULT '{}', created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS alerts (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'info',
+        trigger_type TEXT, resource_id TEXT, due_date TEXT, dismissed BOOLEAN DEFAULT false,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS certifications (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, level TEXT NOT NULL DEFAULT 'Federal',
+        authority TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'NOT_STARTED',
+        due_date TEXT, applied_date TEXT, decision_expected TEXT, expires_date TEXT,
+        description TEXT, notes TEXT, documents TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS calendar_events (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, domain TEXT NOT NULL DEFAULT 'vorentoe',
+        start_time TEXT NOT NULL, end_time TEXT NOT NULL, protected BOOLEAN NOT NULL DEFAULT false,
+        description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS skyward_workstreams (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+        description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT, role TEXT NOT NULL DEFAULT 'viewer',
+        username TEXT, password_hash TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY, user_id TEXT, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'info', resource_url TEXT, read_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS sessions_auth (
+        token TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS token_usage (
+        id TEXT PRIMARY KEY, agent_id TEXT, session_id TEXT, model TEXT,
+        input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_cents NUMERIC NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS agent_logs (
+        id TEXT PRIMARY KEY, agent_id TEXT, session_id TEXT, level TEXT NOT NULL DEFAULT 'info',
+        message TEXT NOT NULL, metadata TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS agent_souls (
+        id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, personality TEXT NOT NULL DEFAULT '',
+        capabilities TEXT NOT NULL DEFAULT '', system_prompt TEXT NOT NULL DEFAULT '',
+        constraints TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS agent_messages (
+        id TEXT PRIMARY KEY, from_agent_id TEXT NOT NULL, to_agent_id TEXT NOT NULL,
+        content TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id TEXT PRIMARY KEY, user_id TEXT, action TEXT NOT NULL, resource_type TEXT NOT NULL,
+        resource_id TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}', ip_address TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS webhooks (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, events TEXT NOT NULL DEFAULT '[]',
+        secret TEXT NOT NULL DEFAULT '', enabled BOOLEAN NOT NULL DEFAULT true,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id TEXT PRIMARY KEY, webhook_id TEXT NOT NULL, event_type TEXT NOT NULL,
+        payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', response_code INTEGER,
+        response_body TEXT, attempts INTEGER NOT NULL DEFAULT 0, next_retry_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS alert_rules (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, condition_type TEXT NOT NULL DEFAULT '',
+        threshold TEXT, channels TEXT NOT NULL DEFAULT '[]', enabled BOOLEAN NOT NULL DEFAULT true,
+        last_fired TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pipelines (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '',
+        steps TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'draft',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pipeline_runs (
+        id TEXT PRIMARY KEY, pipeline_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'running',
+        current_step_index INTEGER NOT NULL DEFAULT 0, results TEXT NOT NULL DEFAULT '{}',
+        started_at TEXT NOT NULL, completed_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS cron_jobs (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, schedule TEXT NOT NULL,
+        command TEXT NOT NULL DEFAULT '{}', last_run_at TEXT, run_count INTEGER NOT NULL DEFAULT 0,
+        enabled BOOLEAN NOT NULL DEFAULT true, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS gateways (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'unknown', last_check_at TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS mc_memories (
+        id TEXT PRIMARY KEY, content TEXT NOT NULL, source TEXT, tags TEXT,
+        category TEXT, created_at TEXT NOT NULL, updated_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user',
+        content TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS task_comments (
+        id TEXT PRIMARY KEY, task_id TEXT NOT NULL, author TEXT NOT NULL,
+        content TEXT NOT NULL, parent_comment_id TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS email_accounts (
+        id TEXT PRIMARY KEY, provider TEXT NOT NULL DEFAULT 'gmail', email TEXT NOT NULL,
+        access_token TEXT, refresh_token TEXT, token_expires_at TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS email_rules (
+        id TEXT PRIMARY KEY, account_id TEXT NOT NULL, name TEXT NOT NULL,
+        enabled BOOLEAN NOT NULL DEFAULT true, actions TEXT NOT NULL DEFAULT '[]',
+        ai_prompt TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS email_actions (
+        id TEXT PRIMARY KEY, account_id TEXT, rule_id TEXT, message_id TEXT,
+        action TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+        details TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS docs (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, filename TEXT, doc_type TEXT NOT NULL DEFAULT 'report',
+        content TEXT DEFAULT '', author_agent_id TEXT, status TEXT NOT NULL DEFAULT 'draft', file_path TEXT,
+        linked_to JSONB DEFAULT '[]'::jsonb, version_history JSONB DEFAULT '[]'::jsonb,
+        priority TEXT DEFAULT 'medium', review_status TEXT DEFAULT 'pending_review', category TEXT DEFAULT 'uncategorized',
+        notes JSONB DEFAULT '[]'::jsonb, assignments JSONB DEFAULT '[]'::jsonb,
+        created_at TEXT NOT NULL DEFAULT (now()::text), updated_at TEXT NOT NULL DEFAULT (now()::text)
+      );
+    `);
 
     // Clear existing data (reverse FK order)
     await client.query("DELETE FROM activities");
@@ -112,6 +358,7 @@ export async function POST() {
     await client.query("DELETE FROM agents");
     await client.query("DELETE FROM calendar_events");
     await client.query("DELETE FROM certifications");
+    await client.query("DELETE FROM docs");
 
     // Seed agents
     for (const a of AGENTS) {
@@ -184,6 +431,25 @@ export async function POST() {
       );
     }
 
+    // Seed docs
+    for (const d of DOCS) {
+      await client.query(
+        `INSERT INTO docs (id, title, doc_type, content, author_agent_id, status, priority, review_status, category, linked_to, version_history, notes, assignments, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,'[]'::jsonb,'[]'::jsonb,$12,$13)`,
+        [d.id, d.title, d.doc_type, d.content, d.author_agent_id, d.status, d.priority, d.review_status, d.category, d.linked_to, d.version_history, d.created_at, d.updated_at]
+      );
+    }
+
+    // Seed token usage (for sessions page)
+    await client.query("DELETE FROM token_usage");
+    for (const tu of TOKEN_USAGE) {
+      await client.query(
+        `INSERT INTO token_usage (id, agent_id, session_id, model, input_tokens, output_tokens, cost_cents, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [tu.id, tu.agent_id, tu.session_id, tu.model, tu.input_tokens, tu.output_tokens, tu.cost_cents, now]
+      );
+    }
+
     // Seed calendar events
     for (const e of CALENDAR_EVENTS) {
       await client.query(
@@ -205,7 +471,9 @@ export async function POST() {
         alerts: ALERTS.length,
         activities: ACTIVITIES.length,
         certifications: CERTIFICATIONS.length,
+        docs: DOCS.length,
         calendar_events: CALENDAR_EVENTS.length,
+        token_usage: TOKEN_USAGE.length,
       },
     });
   } catch (error) {

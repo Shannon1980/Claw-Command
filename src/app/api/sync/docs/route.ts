@@ -1,11 +1,5 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 interface DocPush {
   id: string;
@@ -19,6 +13,8 @@ interface DocPush {
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool) return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 });
+
   try {
     const body: { docs: DocPush[] } = await request.json();
 

@@ -1,5 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
-import { usePolling } from './usePolling';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 export interface AttachmentFile {
   name: string;
@@ -10,68 +9,81 @@ export interface AttachmentFile {
 export interface Message {
   id: string;
   agentId: string;
-  sender: 'user' | 'agent'; // Changed from 'shannon' to match DB/API
-  content: string;          // Changed from 'message' to match DB/API
+  sender: 'user' | 'agent';
+  content: string;
   timestamp: string;
   status?: 'sending' | 'sent' | 'failed' | 'read';
   hasAttachments?: boolean;
   attachments?: AttachmentFile[];
 }
 
-interface UseChatOptions {
-  pollInterval?: number;
-}
-
-export function useChat(agentId: string, options: UseChatOptions = {}) {
+export function useChat(agentId: string) {
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
-  
-  // Default to 3s polling
-  const { pollInterval = 3000 } = options;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [agentTyping, setAgentTyping] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const waitingForReply = useRef(false);
+  const lastMessageCount = useRef(0);
 
-  // Use usePolling hook to fetch backend messages
-  // The API returns { messages: Message[] } or just Message[]? 
-  // Checking route.ts... it returns NextResponse.json(history), which is array.
-  // But wait, the previous code in useChat had `const data = await res.json(); const backendMessages = data.messages || [];`
-  // The mock API returned an array directly. 
-  // I should check if the new API returns an array or object.
-  // Forge's backend usually returns array. I'll assume array for now but handle both.
-  
-  const { data: backendData, loading, error, refresh } = usePolling<Message[] | { messages: Message[] }>({
-    url: `/api/chat/${agentId}`,
-    interval: pollInterval,
-    enabled: !!agentId
-  });
+  const fetchMessages = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/chat/${agentId}`);
+      if (!res.ok) throw new Error('Failed to fetch messages');
+      const data = await res.json();
+      const raw = Array.isArray(data) ? data : (data.messages || []);
+      const backendMessages: Message[] = (raw as unknown[]).map((m: unknown) => {
+        const r = m as Record<string, unknown>;
+        return {
+          id: String(r.id ?? ""),
+          agentId: String(r.agentId ?? ""),
+          sender: (r.sender === "shannon" ? "user" : (r.sender || "agent")) as "user" | "agent",
+          content: String(r.content ?? r.message ?? ""),
+          timestamp: String(r.timestamp ?? new Date().toISOString()),
+          status: (r.status ?? "sent") as Message["status"],
+          hasAttachments: r.hasAttachments as boolean | undefined,
+          attachments: r.attachments as AttachmentFile[] | undefined,
+        };
+      });
 
-  // Sync backend messages to local state
+      // Check if agent replied (new agent message appeared)
+      if (waitingForReply.current && backendMessages.length > lastMessageCount.current) {
+        const lastMsg = backendMessages[backendMessages.length - 1];
+        if (lastMsg?.sender === "agent") {
+          waitingForReply.current = false;
+          setAgentTyping(false);
+          // Switch back to normal polling
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = setInterval(fetchMessages, 5000);
+        }
+      }
+
+      lastMessageCount.current = backendMessages.length;
+
+      setLocalMessages(current => {
+        const pendingMessages = current.filter(m =>
+          (m.status === 'sending' || m.status === 'failed') &&
+          !backendMessages.some(bm => bm.id === m.id)
+        );
+        return [...backendMessages, ...pendingMessages];
+      });
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [agentId]);
+
   useEffect(() => {
-    if (!backendData) return;
-
-    const raw = Array.isArray(backendData) ? backendData : (backendData.messages || []);
-    const backendMessages: Message[] = (raw as unknown[]).map((m: unknown) => {
-      const r = m as Record<string, unknown>;
-      return {
-        id: String(r.id ?? ""),
-        agentId: String(r.agentId ?? ""),
-        sender: (r.sender === "shannon" ? "user" : (r.sender || "agent")) as "user" | "agent",
-        content: String(r.content ?? r.message ?? ""),
-        timestamp: String(r.timestamp ?? new Date().toISOString()),
-        status: (r.status ?? "sent") as Message["status"],
-        hasAttachments: r.hasAttachments as boolean | undefined,
-        attachments: r.attachments as AttachmentFile[] | undefined,
-      };
-    });
-
-    setLocalMessages(current => {
-      // Find optimistic messages that haven't been confirmed by backend yet
-      const pendingMessages = current.filter(m => 
-        (m.status === 'sending' || m.status === 'failed') && 
-        // Ensure not already in backend list (by ID)
-        !backendMessages.some(bm => bm.id === m.id)
-      );
-
-      return [...backendMessages, ...pendingMessages];
-    });
-  }, [backendData]);
+    if (!agentId) return;
+    setLoading(true);
+    fetchMessages();
+    intervalRef.current = setInterval(fetchMessages, 5000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [agentId, fetchMessages]);
 
   const sendMessage = useCallback(async (content: string, attachments: AttachmentFile[] = []) => {
     const tempId = `temp-${Date.now()}`;
@@ -86,11 +98,10 @@ export function useChat(agentId: string, options: UseChatOptions = {}) {
       attachments,
     };
 
-    // Optimistic update
     setLocalMessages(prev => [...prev, newMessage]);
 
     try {
-      const res = await fetch('/api/chat', { 
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId, content, attachments }),
@@ -98,28 +109,41 @@ export function useChat(agentId: string, options: UseChatOptions = {}) {
 
       if (!res.ok) throw new Error('Failed to send');
 
-      const data = await res.json(); 
-      
-      // Update the specific message with real ID and 'sent' status
-      setLocalMessages(prev => prev.map(m => 
+      const data = await res.json();
+
+      setLocalMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, id: data.messageId || data.id, status: 'sent', timestamp: data.timestamp || m.timestamp } : m
       ));
-      
-      // Trigger immediate fetch to ensure full sync
-      refresh();
+
+      // Show typing indicator and poll faster while waiting for reply
+      setAgentTyping(true);
+      waitingForReply.current = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(fetchMessages, 1000);
+
+      // Safety timeout: stop typing after 15s if no reply
+      setTimeout(() => {
+        if (waitingForReply.current) {
+          waitingForReply.current = false;
+          setAgentTyping(false);
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = setInterval(fetchMessages, 5000);
+        }
+      }, 15000);
 
     } catch (err) {
       console.error("Send error:", err);
-      setLocalMessages(prev => prev.map(m => 
+      setLocalMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, status: 'failed' } : m
       ));
     }
-  }, [agentId, refresh]);
+  }, [agentId, fetchMessages]);
 
   return {
     messages: localMessages,
     loading: loading && localMessages.length === 0,
-    error: error ? error.message : null,
+    error,
     sendMessage,
+    agentTyping,
   };
 }

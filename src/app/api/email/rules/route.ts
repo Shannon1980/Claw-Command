@@ -1,17 +1,12 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 function generateId(): string {
   return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 export async function GET(request: NextRequest) {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get("account_id");
@@ -30,14 +25,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(res.rows);
   } catch (err) {
     console.error("[Email API] List rules error:", err);
-    return NextResponse.json(
-      { error: "Failed to list rules" },
-      { status: 500 }
-    );
+    return NextResponse.json([]);
   }
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const body = await request.json();
     const accountId = body.account_id as string;

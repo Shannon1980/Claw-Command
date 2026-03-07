@@ -1,11 +1,5 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 const now = new Date().toISOString();
 
@@ -138,6 +132,7 @@ const REAL_ALERTS = [
 ];
 
 export async function POST() {
+  if (!pool) return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 });
   const client = await pool.connect();
 
   try {

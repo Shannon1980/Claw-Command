@@ -1,18 +1,29 @@
 import { NextResponse } from "next/server";
 
-const MC_API_KEY = process.env.MC_API_KEY;
+const MC_API_KEY = process.env.MC_API_KEY?.trim() || null;
+
+if (!MC_API_KEY) {
+  const msg = "MC_API_KEY is not set — MC endpoints are unprotected";
+  if (process.env.NODE_ENV === "production") {
+    console.error(`[mc/auth] CRITICAL: ${msg}`);
+  } else {
+    console.warn(`[mc/auth] WARNING: ${msg}`);
+  }
+}
 
 /**
  * Validates API key for Mission Control–compatible endpoints.
- * When MC_API_KEY is set, requests must include it via:
- * - Authorization: Bearer <key>
- * - x-api-key: <key>
- *
- * When MC_API_KEY is not set, all requests are allowed.
+ * Requires MC_API_KEY to be set; rejects all requests in production if unset.
  */
 export function requireMcAuth(request: Request): NextResponse | null {
-  if (!MC_API_KEY || MC_API_KEY === "") {
-    return null; // No auth required
+  if (!MC_API_KEY) {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Service Unavailable", message: "MC authentication is not configured" },
+        { status: 503 }
+      );
+    }
+    return null; // Allow in development when key is not set
   }
 
   const authHeader = request.headers.get("authorization");

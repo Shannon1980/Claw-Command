@@ -3,8 +3,6 @@
  * Called by cron or manual trigger via /api/email/worker/run
  */
 
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import {
   listMessages,
   archiveMessage,
@@ -12,13 +10,9 @@ import {
   moveMessage,
   type GmailMessage,
 } from "./gmail";
+import { pool } from "@/lib/db/client";
 import { classifyEmail } from "./ai";
 import { refreshAndPersistTokens } from "./token-refresh";
-
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
 
 function generateId(): string {
   return `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -32,6 +26,10 @@ export async function runEmailWorker(): Promise<{
   const errors: string[] = [];
   let processed = 0;
   let actions = 0;
+
+  if (!pool) {
+    return { processed: 0, actions: 0, errors: ["Database not configured"] };
+  }
 
   const accountsRes = await pool.query(
     `SELECT id, provider, email, access_token, refresh_token FROM email_accounts WHERE provider = 'gmail'`
@@ -151,7 +149,7 @@ async function executeAction(
       return; // draft_reply / none - skip for now
   }
 
-  await pool.query(
+  await pool?.query(
     `INSERT INTO email_actions (id, account_id, rule_id, message_id, thread_id, action, status, details, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, 'completed', $7, $8)`,
     [
