@@ -5,6 +5,9 @@ import type {
   OpenClawSession,
   OpenClawMessage,
   OpenClawChatRequest,
+  OpenClawSkill,
+  OpenClawSkillCreateRequest,
+  OpenClawSkillUpdateRequest,
 } from "./types";
 
 // Default OpenClaw RPC port
@@ -224,6 +227,71 @@ export async function listSubagents(): Promise<SubagentRun[]> {
   } catch (err) {
     // console.error("[listSubagents] Error:", err);
     return [];
+  }
+}
+
+// ─── Skill Operations ────────────────────────────────────────────────────
+
+export async function listSkills(): Promise<OpenClawSkill[]> {
+  try {
+    const result = await rpc<any>("skills.list");
+    if (Array.isArray(result)) return result;
+    if (result && Array.isArray(result.skills)) return result.skills;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getSkill(skillId: string): Promise<OpenClawSkill | null> {
+  try {
+    return await rpc<OpenClawSkill>("skills.get", { id: skillId });
+  } catch {
+    return null;
+  }
+}
+
+export async function createSkill(
+  data: OpenClawSkillCreateRequest
+): Promise<OpenClawSkill | null> {
+  try {
+    return await rpc<OpenClawSkill>("skills.create", data as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
+
+export async function updateSkill(
+  skillId: string,
+  data: OpenClawSkillUpdateRequest
+): Promise<OpenClawSkill | null> {
+  try {
+    return await rpc<OpenClawSkill>("skills.update", {
+      id: skillId,
+      ...data,
+    } as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteSkill(skillId: string): Promise<boolean> {
+  try {
+    await rpc("skills.delete", { id: skillId });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function toggleSkill(
+  skillId: string,
+  enabled: boolean
+): Promise<OpenClawSkill | null> {
+  try {
+    return await rpc<OpenClawSkill>("skills.update", { id: skillId, enabled });
+  } catch {
+    return null;
   }
 }
 
