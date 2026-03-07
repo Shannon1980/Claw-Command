@@ -1,6 +1,11 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { emitNotification } from "@/lib/events/emitActivity";
+import {
+  fetchTopHeadlines,
+  searchNews,
+  type NewsArticle,
+} from "@/lib/news/client";
 
 let schemaReady = false;
 
@@ -33,6 +38,7 @@ interface NewsItem {
   summary: string;
   category: string;
   publishedAt: string;
+  urlToImage?: string | null;
 }
 
 interface PodcastItem {
@@ -59,7 +65,6 @@ function todayString(): string {
 
 /**
  * Fetch internal brief data by calling sibling API routes.
- * Uses absolute URL construction from the request to avoid needing a base URL.
  */
 async function fetchInternalData(baseUrl: string) {
   const [briefRes, standupRes, skywardRes] = await Promise.allSettled([
@@ -77,18 +82,100 @@ async function fetchInternalData(baseUrl: string) {
   };
 }
 
-/**
- * Curated AI news sources. In production these would be fetched from RSS/APIs.
- * The POST handler stores generated content; GET retrieves the latest stored brief.
- */
+// ── NewsAPI Integration ─────────────────────────────────────────────────
+
+function mapArticleToNewsItem(
+  article: NewsArticle,
+  category: string
+): NewsItem {
+  return {
+    title: article.title,
+    source: article.source.name,
+    url: article.url,
+    summary: article.description || "",
+    category,
+    publishedAt: article.publishedAt,
+    urlToImage: article.urlToImage,
+  };
+}
+
+const AI_SEARCH_TERMS =
+  "artificial intelligence OR machine learning OR ChatGPT OR GPT OR LLM OR generative AI OR Claude OR OpenAI OR deep learning";
+
+async function fetchAINews(): Promise<NewsItem[]> {
+  try {
+    const res = await searchNews(AI_SEARCH_TERMS, {
+      sortBy: "publishedAt",
+      pageSize: 10,
+    });
+    return res.articles
+      .filter((a) => a.title !== "[Removed]")
+      .map((a) => mapArticleToNewsItem(a, "ai"));
+  } catch (e) {
+    console.error("[DailyNewsBrief] AI news fetch failed:", e);
+    return [];
+  }
+}
+
+async function fetchCategoryNews(
+  category: "general" | "business" | "technology" | "science" | "health" | "sports" | "entertainment"
+): Promise<NewsItem[]> {
+  try {
+    const res = await fetchTopHeadlines({ category, pageSize: 10 });
+    return res.articles
+      .filter((a) => a.title !== "[Removed]")
+      .map((a) => mapArticleToNewsItem(a, category));
+  } catch (e) {
+    console.error(`[DailyNewsBrief] ${category} news fetch failed:`, e);
+    return [];
+  }
+}
+
+async function fetchAllLiveNews() {
+  const hasKey = !!process.env.NEWS_API_KEY;
+  if (!hasKey) {
+    return {
+      aiNews: generatePlaceholderAINews(),
+      worldNews: generatePlaceholderWorldNews(),
+      usNews: [] as NewsItem[],
+      technologyNews: [] as NewsItem[],
+      businessNews: [] as NewsItem[],
+      scienceNews: [] as NewsItem[],
+      healthNews: [] as NewsItem[],
+    };
+  }
+
+  const [aiNews, generalNews, technologyNews, businessNews, scienceNews, healthNews] =
+    await Promise.all([
+      fetchAINews(),
+      fetchCategoryNews("general"),
+      fetchCategoryNews("technology"),
+      fetchCategoryNews("business"),
+      fetchCategoryNews("science"),
+      fetchCategoryNews("health"),
+    ]);
+
+  return {
+    aiNews,
+    worldNews: generalNews,
+    usNews: generalNews.slice(0, 5),
+    technologyNews,
+    businessNews,
+    scienceNews,
+    healthNews,
+  };
+}
+
+// ── Placeholder fallbacks (when no NEWS_API_KEY) ────────────────────────
+
 function generatePlaceholderAINews(): NewsItem[] {
   return [
     {
-      title: "Check AI news sources for today's updates",
-      source: "Agent Task",
+      title: "Configure NEWS_API_KEY to see live AI news",
+      source: "Setup Required",
       url: "",
       summary:
-        "Configure RSS feeds or news API keys (e.g. NewsAPI, Bing News) to populate this section automatically. Recommended sources: TechCrunch AI, The Verge AI, MIT Technology Review, Ars Technica AI.",
+        "Add your NEWS_API_KEY to .env.local to fetch live AI news from NewsAPI. Get a key at newsapi.org.",
       category: "ai",
       publishedAt: new Date().toISOString(),
     },
@@ -98,11 +185,11 @@ function generatePlaceholderAINews(): NewsItem[] {
 function generatePlaceholderPodcasts(): PodcastItem[] {
   return [
     {
-      title: "Check AI podcast feeds for new episodes",
-      show: "Agent Task",
+      title: "Podcast feeds coming soon",
+      show: "Setup Required",
       url: "",
       summary:
-        "Configure podcast RSS feeds to auto-populate. Recommended: Lex Fridman, Hard Fork (NYT), Practical AI, The AI Podcast (NVIDIA), Latent Space, Last Week in AI.",
+        "Podcast RSS integration is planned. Recommended: Lex Fridman, Hard Fork (NYT), Practical AI, Latent Space.",
       duration: "",
       publishedAt: new Date().toISOString(),
     },
@@ -112,11 +199,11 @@ function generatePlaceholderPodcasts(): PodcastItem[] {
 function generatePlaceholderYouTube(): YouTubeItem[] {
   return [
     {
-      title: "Check AI YouTube channels for new content",
-      channel: "Agent Task",
+      title: "Configure YOUTUBE_API_KEY for video content",
+      channel: "Setup Required",
       url: "",
       summary:
-        "Configure YouTube Data API to auto-populate. Recommended channels: Two Minute Papers, Yannic Kilcher, AI Explained, Matt Wolfe, The AI Advantage, Fireship.",
+        "Add YOUTUBE_API_KEY to .env.local for YouTube Data API integration. Get a key from Google Cloud Console.",
       duration: "",
       publishedAt: new Date().toISOString(),
     },
@@ -126,11 +213,11 @@ function generatePlaceholderYouTube(): YouTubeItem[] {
 function generatePlaceholderWorldNews(): NewsItem[] {
   return [
     {
-      title: "Check world news sources",
-      source: "Agent Task",
+      title: "Configure NEWS_API_KEY for live news",
+      source: "Setup Required",
       url: "",
       summary:
-        "Configure a news API (NewsAPI.org, GNews, etc.) with a NEWS_API_KEY environment variable to auto-populate world, US, and local news.",
+        "Add NEWS_API_KEY to .env.local to auto-populate world, US, technology, business, science, and health news.",
       category: "world",
       publishedAt: new Date().toISOString(),
     },
@@ -143,20 +230,27 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("date") || todayString();
 
   if (!pool) {
-    // Return a skeleton brief when no DB
+    // No DB — fetch live news directly
+    const liveNews = await fetchAllLiveNews();
     return NextResponse.json({
       id: "no-db",
       date,
-      aiNews: generatePlaceholderAINews(),
+      aiNews: liveNews.aiNews,
       aiPodcasts: generatePlaceholderPodcasts(),
       aiYouTube: generatePlaceholderYouTube(),
-      worldNews: generatePlaceholderWorldNews(),
-      usNews: [],
+      worldNews: liveNews.worldNews,
+      usNews: liveNews.usNews,
       localNews: [],
+      technologyNews: liveNews.technologyNews,
+      businessNews: liveNews.businessNews,
+      scienceNews: liveNews.scienceNews,
+      healthNews: liveNews.healthNews,
       standupSummary: null,
       briefSummary: null,
       skywardSummary: null,
       generatedAt: new Date().toISOString(),
+      live: true,
+      newsApiConfigured: !!process.env.NEWS_API_KEY,
     });
   }
 
@@ -168,24 +262,32 @@ export async function GET(request: NextRequest) {
     );
 
     if (result.rows.length === 0) {
-      // No brief generated yet for this date - return live aggregated data
+      // No stored brief — return live aggregated data with real news
       const origin = new URL(request.url).origin;
-      const internal = await fetchInternalData(origin);
+      const [internal, liveNews] = await Promise.all([
+        fetchInternalData(origin),
+        fetchAllLiveNews(),
+      ]);
 
       return NextResponse.json({
         id: null,
         date,
-        aiNews: generatePlaceholderAINews(),
+        aiNews: liveNews.aiNews,
         aiPodcasts: generatePlaceholderPodcasts(),
         aiYouTube: generatePlaceholderYouTube(),
-        worldNews: generatePlaceholderWorldNews(),
-        usNews: [] as NewsItem[],
+        worldNews: liveNews.worldNews,
+        usNews: liveNews.usNews,
         localNews: [] as NewsItem[],
+        technologyNews: liveNews.technologyNews,
+        businessNews: liveNews.businessNews,
+        scienceNews: liveNews.scienceNews,
+        healthNews: liveNews.healthNews,
         standupSummary: internal.standup,
         briefSummary: internal.brief,
         skywardSummary: internal.skyward,
         generatedAt: new Date().toISOString(),
         live: true,
+        newsApiConfigured: !!process.env.NEWS_API_KEY,
       });
     }
 
@@ -199,11 +301,16 @@ export async function GET(request: NextRequest) {
       worldNews: row.world_news || [],
       usNews: row.us_news || [],
       localNews: row.local_news || [],
+      technologyNews: row.world_news?.filter((n: NewsItem) => n.category === "technology") || [],
+      businessNews: row.world_news?.filter((n: NewsItem) => n.category === "business") || [],
+      scienceNews: row.world_news?.filter((n: NewsItem) => n.category === "science") || [],
+      healthNews: row.world_news?.filter((n: NewsItem) => n.category === "health") || [],
       standupSummary: row.standup_summary,
       briefSummary: row.brief_summary,
       skywardSummary: row.skyward_summary,
       generatedAt: row.generated_at,
       live: false,
+      newsApiConfigured: !!process.env.NEWS_API_KEY,
     });
   } catch (error) {
     console.error("[DailyNewsBrief API] GET error:", error);
@@ -234,16 +341,23 @@ export async function POST(request: NextRequest) {
     // Aggregate internal data
     const internal = await fetchInternalData(origin);
 
-    // News content - use provided data or placeholders
-    // In production, an agent would call external APIs and pass results here
-    const aiNews = (body.aiNews as NewsItem[]) || generatePlaceholderAINews();
+    // Fetch live news from NewsAPI if key is configured, otherwise use provided data or placeholders
+    const liveNews = await fetchAllLiveNews();
+
+    const aiNews = (body.aiNews as NewsItem[]) || liveNews.aiNews;
     const aiPodcasts =
       (body.aiPodcasts as PodcastItem[]) || generatePlaceholderPodcasts();
     const aiYouTube =
       (body.aiYouTube as YouTubeItem[]) || generatePlaceholderYouTube();
     const worldNews =
-      (body.worldNews as NewsItem[]) || generatePlaceholderWorldNews();
-    const usNews = (body.usNews as NewsItem[]) || [];
+      (body.worldNews as NewsItem[]) || [
+        ...liveNews.worldNews,
+        ...liveNews.technologyNews,
+        ...liveNews.businessNews,
+        ...liveNews.scienceNews,
+        ...liveNews.healthNews,
+      ];
+    const usNews = (body.usNews as NewsItem[]) || liveNews.usNews;
     const localNews = (body.localNews as NewsItem[]) || [];
 
     const id = `dnb-${date}-${Date.now()}`;

@@ -8,11 +8,13 @@ import { useTaskStore } from "@/lib/stores/taskStore";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import CommandPalette from "@/components/layout/CommandPalette";
 import ChatFlyout from "@/components/chat/ChatFlyout";
+import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
 
 export default function TopBar() {
   const { unreadCount, toggleBell, bellOpen } = useNotificationStore();
   const { agents } = useAgentStore();
   const { tasks } = useTaskStore();
+  const { weather } = useWeather();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [clock, setClock] = useState("");
 
@@ -110,7 +112,12 @@ export default function TopBar() {
             <span className="hidden sm:inline font-mono">Live</span>
           </div>
 
-          {/* Clock */}
+          {/* Weather + Clock */}
+          {weather && (
+            <span className="text-[11px] font-mono text-gray-400">
+              {getWeatherEmoji(weather.icon)} {weather.temperature}&deg;F
+            </span>
+          )}
           <span className="text-[11px] font-mono text-gray-500">{clock}</span>
 
           {/* Chat */}

@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface AgentOption {
-  id: string;
-  name: string;
-  emoji: string;
-}
+import { useAgentStore } from "@/lib/stores/agentStore";
 
 interface SpawnHistory {
   id: string;
@@ -18,7 +13,7 @@ interface SpawnHistory {
 }
 
 export default function SpawnPage() {
-  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const { agents, fetchAgents } = useAgentStore();
   const [history, setHistory] = useState<SpawnHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [spawning, setSpawning] = useState(false);
@@ -39,11 +34,7 @@ export default function SpawnPage() {
       setFormData((prev) => ({ ...prev, agentId: agentParam }));
     }
 
-    fetch("/api/agents")
-      .then((r) => r.json())
-      .then((data) => setAgents(Array.isArray(data) ? data : []))
-      .catch(() => {});
-
+    fetchAgents();
     fetchHistory();
   }, []);
 

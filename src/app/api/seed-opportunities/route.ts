@@ -43,6 +43,12 @@ const REAL_OPPORTUNITIES = [
 ];
 
 export async function POST(request: Request) {
+  if (!db) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
   try {
     // Basic security check (can be expanded later)
     // For now, allow open access for v1 testing or check for a simple header if needed.
