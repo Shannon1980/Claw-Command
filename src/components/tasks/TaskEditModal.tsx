@@ -57,6 +57,7 @@ export default function TaskEditModal({
   const [ticketRef, setTicketRef] = useState(task?.ticketRef ?? "");
   const [dependsOnShannon, setDependsOnShannon] = useState(task?.dependsOnShannon ?? false);
   const [assignedTo, setAssignedTo] = useState(task?.assignedToAgentId ?? "");
+  const [outcome, setOutcome] = useState(task?.outcome ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -111,6 +112,7 @@ export default function TaskEditModal({
         ticket_ref: ticketRef || null,
         depends_on_shannon: dependsOnShannon,
         assigned_to_agent_id: assignedTo || null,
+        outcome: outcome || null,
       };
 
       const res = isCreate
@@ -220,6 +222,10 @@ export default function TaskEditModal({
 
           <Field label="Ticket Ref">
             <input type="text" value={ticketRef} onChange={(e) => setTicketRef(e.target.value)} placeholder="e.g. GH-123" className="input-field" />
+          </Field>
+
+          <Field label="Output / Deliverable">
+            <textarea value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="Task output, deliverable link, or summary..." rows={2} className="input-field resize-none" />
           </Field>
 
           <div className="flex items-center gap-2">

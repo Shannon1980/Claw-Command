@@ -18,6 +18,7 @@ async function ensureSchema() {
     ALTER TABLE agents ADD COLUMN IF NOT EXISTS api_key TEXT;
     ALTER TABLE agents ADD COLUMN IF NOT EXISTS retired_at TEXT;
     ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium';
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS outcome TEXT;
   `);
   schemaReady = true;
 }

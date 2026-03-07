@@ -31,6 +31,7 @@ const UpdateTaskSchema = z.object({
   ticket_ref: z.string().nullable().optional(),
   parent_opportunity_id: z.string().nullable().optional(),
   parent_application_id: z.string().nullable().optional(),
+  outcome: z.string().nullable().optional(),
 });
 
 export async function GET(
@@ -49,7 +50,7 @@ export async function GET(
   try {
     const result = await pool.query(
       `SELECT t.id, t.title, t.description, t.assigned_to_agent_id, t.depends_on_shannon,
-              t.status, t.priority, t.due_date, t.project, t.ticket_ref,
+              t.status, t.priority, t.due_date, t.outcome, t.project, t.ticket_ref,
               t.parent_opportunity_id, t.parent_application_id,
               t.created_at, t.updated_at,
               a.name as agent_name, a.emoji as agent_emoji, a.domain as agent_domain,
@@ -120,6 +121,7 @@ export async function PATCH(
       ticket_ref: data.ticket_ref,
       parent_opportunity_id: data.parent_opportunity_id,
       parent_application_id: data.parent_application_id,
+      outcome: data.outcome,
     };
 
     for (const [col, val] of Object.entries(fieldMap)) {
@@ -158,7 +160,7 @@ export async function PATCH(
        WHERE id = $${paramIndex}
        RETURNING
          id, title, description, assigned_to_agent_id, depends_on_shannon,
-         status, priority, due_date, project, ticket_ref,
+         status, priority, due_date, outcome, project, ticket_ref,
          parent_opportunity_id, parent_application_id,
          created_at, updated_at`,
       values

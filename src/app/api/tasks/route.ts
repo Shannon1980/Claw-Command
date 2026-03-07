@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   try {
     let query = `
       SELECT t.id, t.title, t.description, t.assigned_to_agent_id, t.depends_on_shannon,
-             t.status, t.priority, t.due_date, t.project, t.ticket_ref,
+             t.status, t.priority, t.due_date, t.outcome, t.project, t.ticket_ref,
              t.parent_opportunity_id, t.parent_application_id,
              t.created_at, t.updated_at,
              a.name as agent_name, a.emoji as agent_emoji, a.domain as agent_domain

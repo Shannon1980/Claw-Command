@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAgentStore } from "@/lib/stores/agentStore";
 import type { Agent } from "@/lib/stores/agentStore";
 
@@ -205,7 +206,7 @@ export default function AgentsPage() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{agent.emoji}</span>
-                      <span className="text-sm font-medium text-gray-100">{agent.name}</span>
+                      <Link href={`/agents/${agent.id}`} className="text-sm font-medium text-gray-100 hover:text-blue-400 transition-colors" onClick={(e) => e.stopPropagation()}>{agent.name}</Link>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${heartbeatColor(agent.updatedAt)}`} title="Heartbeat" />
@@ -296,6 +297,12 @@ export default function AgentsPage() {
                       <p className="text-xs text-gray-300 font-mono">{agent.openTaskCount}</p>
                     </div>
                     <div className="flex gap-2 pt-2">
+                      <Link
+                        href={`/agents/${agent.id}`}
+                        className="px-3 py-1.5 text-xs font-medium bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                      >
+                        View Details
+                      </Link>
                       <a
                         href={`/spawn?agent=${agent.id}`}
                         className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 rounded transition-colors"
