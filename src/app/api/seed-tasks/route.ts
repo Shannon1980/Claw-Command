@@ -137,6 +137,7 @@ const REAL_ALERTS = [
 ];
 
 export async function POST() {
+  if (!pool) return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 });
   const client = await pool.connect();
 
   try {

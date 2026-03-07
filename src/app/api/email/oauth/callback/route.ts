@@ -64,6 +64,10 @@ export async function GET(request: NextRequest) {
       ? new Date(tokens.expiry_date).toISOString()
       : null;
 
+    if (!pool) {
+      return NextResponse.redirect(new URL("/email?error=db_not_configured", request.url));
+    }
+
     const existing = await pool.query(
       `SELECT id FROM email_accounts WHERE provider = 'gmail' AND email = $1`,
       [email]

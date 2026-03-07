@@ -11,6 +11,7 @@ function generateId(): string {
 }
 
 export async function GET(request: NextRequest) {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get("account_id");
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   try {
     const body = await request.json();
     const accountId = body.account_id as string;

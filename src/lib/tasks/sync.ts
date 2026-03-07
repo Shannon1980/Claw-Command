@@ -30,7 +30,7 @@ export async function syncTasksFromSessions(
     agentsUpserted: 0,
   };
 
-  if (!connectionString) {
+  if (!pool) {
     result.error = "Database not configured";
     return result;
   }

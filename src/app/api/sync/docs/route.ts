@@ -18,6 +18,8 @@ interface DocPush {
 }
 
 export async function POST(request: NextRequest) {
+  if (!pool) return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 });
+
   try {
     const body: { docs: DocPush[] } = await request.json();
 
