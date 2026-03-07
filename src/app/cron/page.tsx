@@ -33,6 +33,7 @@ const ACTION_PRESETS = [
   { label: "Run email worker", value: "/api/email/worker/run", method: "POST" },
   { label: "Send agent heartbeats", value: "/api/heartbeat-all", method: "POST" },
   { label: "Generate daily brief", value: "/api/brief", method: "POST" },
+  { label: "Generate daily news brief", value: "/api/daily-news-brief", method: "POST" },
   { label: "Generate standup report", value: "/api/standup", method: "POST" },
   { label: "Refresh overview stats", value: "/api/overview/stats", method: "GET" },
   { label: "Push sync to external", value: "/api/sync/push", method: "POST" },
