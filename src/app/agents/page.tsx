@@ -16,8 +16,20 @@ function statusBadge(status: string) {
     active: "bg-green-500/20 text-green-400 border-green-500/30",
     blocked: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     idle: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    waiting_for_shannon: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   };
   return colors[status] || colors.idle;
+}
+
+function taskStatusBadge(status: string) {
+  const colors: Record<string, string> = {
+    in_progress: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    backlog: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    blocked: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    review: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+    done: "bg-green-500/20 text-green-400 border-green-500/30",
+  };
+  return colors[status] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
 }
 
 export default function AgentsPage() {
@@ -32,6 +44,19 @@ export default function AgentsPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [retiring, setRetiring] = useState<string | null>(null);
+  const [pinging, setPinging] = useState(false);
+
+  const handlePingAll = async () => {
+    setPinging(true);
+    try {
+      await fetch("/api/heartbeat-all", { method: "POST" });
+      await fetchAgents();
+    } catch {
+      // silent
+    } finally {
+      setPinging(false);
+    }
+  };
 
   useEffect(() => {
     fetchAgents();
@@ -82,12 +107,21 @@ export default function AgentsPage() {
             <h1 className="text-lg font-bold text-gray-100">Agents</h1>
             <p className="text-xs text-gray-500 font-mono">Manage and monitor registered agents</p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
-          >
-            {showForm ? "Cancel" : "Register Agent"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePingAll}
+              disabled={pinging}
+              className="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-500 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {pinging ? "Pinging..." : "Ping All"}
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+            >
+              {showForm ? "Cancel" : "Register Agent"}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -184,13 +218,46 @@ export default function AgentsPage() {
                     <span className="px-1.5 py-0.5 text-[11px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">
                       {agent.domain}
                     </span>
+                    {agent.openTaskCount > 0 && (
+                      <span className="px-1.5 py-0.5 text-[11px] font-mono bg-gray-800 text-gray-400 rounded">
+                        {agent.openTaskCount} task{agent.openTaskCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
                   </div>
-                  {agent.currentTaskId && (
-                    <p className="text-xs text-gray-400 font-mono truncate">
+                  {agent.taskTitle ? (
+                    <div className="bg-gray-950/50 border border-gray-800 rounded p-2 mt-1">
+                      <p className="text-xs text-gray-300 leading-tight mb-1.5">{agent.taskTitle}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-1.5 py-0.5 text-[10px] font-mono rounded border ${taskStatusBadge(agent.taskStatus || "")}`}>
+                          {agent.taskStatus?.replace(/_/g, " ")}
+                        </span>
+                        {agent.taskPriority && agent.taskPriority !== "medium" && (
+                          <span className={`px-1.5 py-0.5 text-[10px] font-mono rounded ${
+                            agent.taskPriority === "high" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"
+                          }`}>
+                            {agent.taskPriority}
+                          </span>
+                        )}
+                        {agent.taskDueDate && (
+                          <span className="text-[10px] text-gray-500 font-mono">
+                            Due {new Date(agent.taskDueDate).toLocaleDateString()}
+                          </span>
+                        )}
+                        {agent.taskDependsOnShannon && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            Needs approval
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : agent.currentTaskId ? (
+                    <p className="text-xs text-gray-400 font-mono truncate mt-1">
                       Task: {agent.currentTaskId}
                     </p>
+                  ) : (
+                    <p className="text-xs text-gray-600 italic mt-1">No active task</p>
                   )}
-                  <p className="text-[11px] text-gray-600 font-mono mt-1">
+                  <p className="text-[11px] text-gray-600 font-mono mt-1.5">
                     Last heartbeat: {new Date(agent.updatedAt).toLocaleString()}
                   </p>
                 </div>
@@ -213,9 +280,20 @@ export default function AgentsPage() {
                         <p className="text-xs text-gray-300">{agent.soul}</p>
                       </div>
                     )}
+                    {agent.currentTaskId && (
+                      <div>
+                        <p className="text-xs text-gray-500 font-mono">Current Task</p>
+                        <a href={`/tasks`} className="text-xs text-blue-400 hover:text-blue-300 font-mono">
+                          {agent.currentTaskId}
+                        </a>
+                        {agent.taskTitle && (
+                          <p className="text-xs text-gray-300 mt-0.5">{agent.taskTitle}</p>
+                        )}
+                      </div>
+                    )}
                     <div>
-                      <p className="text-xs text-gray-500 font-mono">Token Usage</p>
-                      <p className="text-xs text-gray-400 italic">Token usage data will appear here</p>
+                      <p className="text-xs text-gray-500 font-mono">Open Tasks</p>
+                      <p className="text-xs text-gray-300 font-mono">{agent.openTaskCount}</p>
                     </div>
                     <div className="flex gap-2 pt-2">
                       <a

@@ -15,6 +15,12 @@ export interface Agent {
   apiKey: string | null;
   retiredAt: string | null;
   updatedAt: string;
+  taskTitle: string | null;
+  taskStatus: string | null;
+  taskPriority: string | null;
+  taskDueDate: string | null;
+  taskDependsOnShannon: boolean;
+  openTaskCount: number;
 }
 
 export interface AgentSoul {
@@ -55,7 +61,27 @@ export const useAgentStore = create<AgentStore>()(
         const res = await fetch("/api/agents");
         if (!res.ok) throw new Error("Failed to fetch agents");
         const data = await res.json();
-        set({ agents: Array.isArray(data) ? data : [], loading: false });
+        const rows = Array.isArray(data) ? data : [];
+        const agents: Agent[] = rows.map((r: Record<string, unknown>) => ({
+          id: r.id as string,
+          name: r.name as string,
+          emoji: (r.emoji as string) || "",
+          domain: (r.domain as string) || "vorentoe",
+          status: (r.status as string) || "idle",
+          currentTaskId: (r.current_task_id ?? r.currentTaskId ?? null) as string | null,
+          soul: (r.soul as string) || null,
+          capabilities: (r.capabilities as string) || null,
+          apiKey: (r.api_key ?? r.apiKey ?? null) as string | null,
+          retiredAt: (r.retired_at ?? r.retiredAt ?? null) as string | null,
+          updatedAt: ((r.updated_at ?? r.updatedAt) as string) || new Date().toISOString(),
+          taskTitle: (r.task_title as string) || null,
+          taskStatus: (r.task_status as string) || null,
+          taskPriority: (r.task_priority as string) || null,
+          taskDueDate: (r.task_due_date as string) || null,
+          taskDependsOnShannon: (r.task_depends_on_shannon as boolean) || false,
+          openTaskCount: Number(r.open_task_count ?? 0),
+        }));
+        set({ agents, loading: false });
       } catch (err) {
         set({ error: (err as Error).message, loading: false });
       }
