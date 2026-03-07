@@ -34,6 +34,12 @@ function getHandlers() {
       usePipelineStore.getState().handleSSEEvent(d);
     EVENT_HANDLERS.system_health = (d) =>
       useOverviewStore.getState().handleSSEEvent(d);
+    EVENT_HANDLERS.alert_fired = (d) =>
+      useNotificationStore.getState().handleSSEEvent({
+        ...d,
+        type: "alert",
+        title: (d.title as string) || "Alert fired",
+      });
   }
   return EVENT_HANDLERS;
 }

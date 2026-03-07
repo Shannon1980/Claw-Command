@@ -416,6 +416,52 @@ export const notifications = pgTable("notifications", {
   createdAt: text("created_at").notNull(),
 });
 
+// ─── CERTIFICATIONS ─────────────────────────────────────────────────────────
+
+export const certifications = pgTable("certifications", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  level: text("level").notNull().default("Federal"),
+  authority: text("authority").notNull().default(""),
+  status: text("status").notNull().default("NOT_STARTED"),
+  dueDate: text("due_date"),
+  appliedDate: text("applied_date"),
+  decisionExpected: text("decision_expected"),
+  expiresDate: text("expires_date"),
+  description: text("description"),
+  notes: text("notes"),
+  documents: text("documents").notNull().default("[]"), // JSON array
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── CALENDAR EVENTS ────────────────────────────────────────────────────────
+
+export const calendarEvents = pgTable("calendar_events", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  domain: text("domain").notNull().default("vorentoe"),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  protected: boolean("protected").notNull().default(false),
+  description: text("description"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// ─── TASK COMMENTS ──────────────────────────────────────────────────────────
+
+export const taskComments = pgTable("task_comments", {
+  id: text("id").primaryKey(),
+  taskId: text("task_id")
+    .notNull()
+    .references(() => tasks.id),
+  author: text("author").notNull(),
+  content: text("content").notNull(),
+  parentCommentId: text("parent_comment_id"),
+  createdAt: text("created_at").notNull(),
+});
+
 // ─── GATEWAYS (Multi-gateway) ───────────────────────────────────────────────
 
 export const gateways = pgTable("gateways", {

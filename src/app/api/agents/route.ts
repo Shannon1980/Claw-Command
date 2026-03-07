@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import { emitAgentStatus } from "@/lib/events/emitActivity";
+import { logAuditEvent } from "@/lib/events/auditLog";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
 
     emitAgentStatus({ agentId: id, status: "idle", name, domain });
 
+    logAuditEvent({ action: "agent_registered", resourceType: "agent", resourceId: id });
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error("[Agents POST] Error:", error);

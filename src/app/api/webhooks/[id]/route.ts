@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { emitNotification } from "@/lib/events/emitActivity";
+import { logAuditEvent } from "@/lib/events/auditLog";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -67,6 +69,7 @@ export async function PATCH(
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
     }
+    emitNotification({ title: "Webhook updated", type: "info" });
     return NextResponse.json(result.rows[0]);
   } catch (error) {
     console.error("[Webhooks API] PATCH error:", error);
@@ -94,6 +97,8 @@ export async function DELETE(
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
     }
+    emitNotification({ title: "Webhook deleted", type: "info" });
+    logAuditEvent({ action: "webhook_deleted", resourceType: "webhook", resourceId: id });
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     console.error("[Webhooks API] DELETE error:", error);

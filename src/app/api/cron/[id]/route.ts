@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { emitNotification } from "@/lib/events/emitActivity";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -69,6 +70,7 @@ export async function PATCH(
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Cron job not found" }, { status: 404 });
     }
+    emitNotification({ title: "Cron job updated", type: "info" });
     return NextResponse.json(result.rows[0]);
   } catch (error) {
     console.error("[Cron API] PATCH error:", error);
@@ -94,6 +96,7 @@ export async function DELETE(
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Cron job not found" }, { status: 404 });
     }
+    emitNotification({ title: "Cron job deleted", type: "info" });
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     console.error("[Cron API] DELETE error:", error);

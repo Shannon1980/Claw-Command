@@ -62,6 +62,7 @@ const navSections: NavSection[] = [
       { href: "/settings", label: "Settings" },
       { href: "/users", label: "Users" },
       { href: "/audit", label: "Audit Log" },
+      { href: "/standup", label: "Standup" },
     ],
   },
 ];

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import crypto from "crypto";
+import { emitNotification } from "@/lib/events/emitActivity";
+import { logAuditEvent } from "@/lib/events/auditLog";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -78,6 +80,8 @@ export async function PATCH(
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    emitNotification({ title: "User updated", type: "info" });
+    logAuditEvent({ action: "user_updated", resourceType: "user", resourceId: id });
     return NextResponse.json(result.rows[0]);
   } catch (error) {
     console.error("[Users API] PATCH error:", error);
@@ -105,6 +109,8 @@ export async function DELETE(
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    emitNotification({ title: "User deleted", type: "info" });
+    logAuditEvent({ action: "user_deleted", resourceType: "user", resourceId: id });
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     console.error("[Users API] DELETE error:", error);
