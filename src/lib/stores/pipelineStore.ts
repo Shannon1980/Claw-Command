@@ -60,10 +60,18 @@ export const usePipelineStore = create<PipelineStore>()((set, get) => ({
       const data = await res.json();
       const items = Array.isArray(data) ? data : [];
       set({
-        pipelines: items.map((p: Pipeline & { steps: string }) => ({
-          ...p,
-          steps: typeof p.steps === "string" ? JSON.parse(p.steps) : p.steps,
-        })),
+        pipelines: items.map((p: Pipeline & { steps?: string | PipelineStep[] }) => {
+          let steps: PipelineStep[] = [];
+          if (Array.isArray(p.steps)) steps = p.steps;
+          else if (typeof p.steps === "string") {
+            try {
+              steps = JSON.parse(p.steps);
+            } catch {
+              steps = [];
+            }
+          }
+          return { ...p, steps };
+        }),
         loading: false,
       });
     } catch (err) {

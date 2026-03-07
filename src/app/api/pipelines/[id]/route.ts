@@ -55,7 +55,7 @@ export async function PATCH(
     for (const key of ["name", "description", "steps", "status"]) {
       if (body[key] !== undefined) {
         fields.push(`${key} = $${idx++}`);
-        values.push(body[key]);
+        values.push(key === "steps" && typeof body[key] !== "string" ? JSON.stringify(body[key]) : body[key]);
       }
     }
 
