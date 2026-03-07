@@ -30,10 +30,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(res.rows);
   } catch (err) {
     console.error("[Email API] List rules error:", err);
-    return NextResponse.json(
-      { error: "Failed to list rules" },
-      { status: 500 }
-    );
+    return NextResponse.json([]);
   }
 }
 

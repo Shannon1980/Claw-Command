@@ -41,7 +41,19 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
       const res = await fetch("/api/sessions");
       if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
-      set({ sessions: Array.isArray(data) ? data : [], loading: false });
+      const rows = Array.isArray(data) ? data : [];
+      const sessions: Session[] = rows.map((r: Record<string, unknown>) => ({
+        id: (r.session_id ?? r.id) as string,
+        agentId: (r.agent_id ?? r.agentId ?? null) as string | null,
+        agentName: (r.agent_name ?? r.agentName) as string | undefined,
+        status: (r.status as Session["status"]) || "ended",
+        messageCount: Number(r.message_count ?? r.messageCount ?? 0),
+        tokenCount: Number(r.total_input ?? 0) + Number(r.total_output ?? 0) + Number(r.tokenCount ?? 0),
+        costCents: Number(r.total_cost ?? r.costCents ?? 0),
+        createdAt: ((r.started_at ?? r.created_at ?? r.createdAt) as string) || new Date().toISOString(),
+        endedAt: (r.ended_at ?? r.endedAt ?? null) as string | null,
+      }));
+      set({ sessions, loading: false });
     } catch (err) {
       set({ error: (err as Error).message, loading: false });
     }

@@ -32,6 +32,19 @@ export default function AgentsPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [retiring, setRetiring] = useState<string | null>(null);
+  const [pinging, setPinging] = useState(false);
+
+  const handlePingAll = async () => {
+    setPinging(true);
+    try {
+      await fetch("/api/heartbeat-all", { method: "POST" });
+      await fetchAgents();
+    } catch {
+      // silent
+    } finally {
+      setPinging(false);
+    }
+  };
 
   useEffect(() => {
     fetchAgents();
@@ -82,12 +95,21 @@ export default function AgentsPage() {
             <h1 className="text-lg font-bold text-gray-100">Agents</h1>
             <p className="text-xs text-gray-500 font-mono">Manage and monitor registered agents</p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
-          >
-            {showForm ? "Cancel" : "Register Agent"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePingAll}
+              disabled={pinging}
+              className="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-500 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {pinging ? "Pinging..." : "Ping All"}
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+            >
+              {showForm ? "Cancel" : "Register Agent"}
+            </button>
+          </div>
         </div>
 
         {error && (

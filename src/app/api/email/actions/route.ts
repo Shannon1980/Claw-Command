@@ -23,9 +23,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(res.rows);
   } catch (err) {
     console.error("[Email API] List actions error:", err);
-    return NextResponse.json(
-      { error: "Failed to list actions" },
-      { status: 500 }
-    );
+    return NextResponse.json([]);
   }
 }
