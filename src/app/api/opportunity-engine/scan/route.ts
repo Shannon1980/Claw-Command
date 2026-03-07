@@ -3,10 +3,6 @@ import { NextResponse } from "next/server";
 import { scanAllSources } from "@/lib/opportunity-engine/scanner";
 import type { QualifiedOpportunity } from "@/lib/opportunity-engine/types";
 
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
-
 let schemaReady = false;
 
 function ensureSchema(): Promise<void> {
