@@ -28,81 +28,8 @@ export interface Certification {
   notes?: string;
 }
 
-export const mockCertifications: Certification[] = [
-  {
-    id: "8a",
-    name: "8(a) Program",
-    level: "Federal",
-    authority: "SBA",
-    status: "NOT_STARTED",
-    description: "Needs eligibility verification",
-    documents: [
-      { name: "Personal Financial Statement", completed: false },
-      { name: "Tax Returns (3 years)", completed: false },
-      { name: "Business Plan", completed: false },
-      { name: "Proof of Disadvantage", completed: false },
-      { name: "SBA Form 413", completed: false },
-    ],
-  },
-  {
-    id: "edwosb",
-    name: "EDWOSB",
-    level: "Federal",
-    authority: "SBA",
-    status: "NOT_STARTED",
-    documents: [
-      { name: "SAM.gov Registration", completed: false },
-      { name: "WOSB Certification", completed: false },
-      { name: "Economic Disadvantage Proof", completed: false },
-      { name: "Business License", completed: false },
-    ],
-  },
-  {
-    id: "wosb",
-    name: "WOSB",
-    level: "Federal",
-    authority: "SBA",
-    status: "IN_PROGRESS",
-    documents: [
-      { name: "SAM.gov Registration", completed: true },
-      { name: "Business Plan", completed: true },
-      { name: "Tax Returns", completed: true },
-      { name: "Financial Statements", completed: false },
-      { name: "Ownership Documents", completed: false },
-    ],
-  },
-  {
-    id: "md-mbe",
-    name: "Maryland MBE",
-    level: "State",
-    authority: "MDOT",
-    status: "SUBMITTED",
-    dueDate: "2026-03-07",
-    appliedDate: "2026-02-15",
-    decisionExpected: "2026-04-15",
-    documents: [
-      { name: "Articles of Organization", completed: true },
-      { name: "Operating Agreement", completed: true },
-      { name: "Tax Returns", completed: true },
-      { name: "Section 4 Form", completed: false },
-      { name: "Navy Fed Signature Card", completed: false },
-    ],
-  },
-  {
-    id: "lsbrp",
-    name: "LSBRP Montgomery County",
-    level: "Local",
-    authority: "MoCo",
-    status: "NOT_STARTED",
-    documents: [
-      { name: "Vendor Registration", completed: false },
-      { name: "Business License", completed: false },
-    ],
-  },
-];
-
 export function getCertificationHealth(
-  certs: Certification[] = mockCertifications
+  certs: Certification[]
 ): {
   total: number;
   onTrack: number;

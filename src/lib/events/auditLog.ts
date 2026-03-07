@@ -1,9 +1,4 @@
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
+import { pool } from "@/lib/db/client";
 
 export async function logAuditEvent(params: {
   userId?: string;

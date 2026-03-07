@@ -1,12 +1,7 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import { scanAllSources } from "@/lib/opportunity-engine/scanner";
 import type { QualifiedOpportunity } from "@/lib/opportunity-engine/types";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 // GET for Vercel cron, POST for manual triggers
 export async function GET() {

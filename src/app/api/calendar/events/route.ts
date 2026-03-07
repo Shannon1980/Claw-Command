@@ -1,14 +1,6 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-import { mockEvents } from "@/lib/mock-calendar";
 
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
 
 function rowToEvent(row: Record<string, unknown>) {
   return {
@@ -28,7 +20,7 @@ export async function GET(request: NextRequest) {
   const endParam = searchParams.get("end");
 
   try {
-    if (pool && connectionString) {
+    if (pool) {
       let query = `SELECT id, title, domain, start_time, end_time, protected, description
                    FROM calendar_events`;
       const params: string[] = [];
@@ -58,20 +50,11 @@ export async function GET(request: NextRequest) {
     console.error("[Calendar Events API] Error:", error);
   }
 
-  // Fallback to mock - filter by week if params provided
-  let events = mockEvents;
-  if (startParam && endParam) {
-    const start = new Date(startParam);
-    const end = new Date(endParam);
-    events = mockEvents.filter(
-      (e) => e.startTime < end && e.endTime > start
-    );
-  }
-  return NextResponse.json(events);
+  return NextResponse.json([]);
 }
 
 export async function POST(request: NextRequest) {
-  if (!pool || !connectionString) {
+  if (!pool) {
     return NextResponse.json(
       { error: "Database not configured" },
       { status: 503 }

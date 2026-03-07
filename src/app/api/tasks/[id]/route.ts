@@ -1,13 +1,8 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
 import { z } from "zod";
-import { connectionString } from "@/lib/db/config";
 import { pushTaskToOpenClaw } from "@/lib/openclaw/client";
 import { emitTaskUpdate } from "@/lib/events/emitActivity";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 const UpdateTaskSchema = z.object({
   title: z.string().min(1).optional(),

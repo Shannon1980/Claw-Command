@@ -4,17 +4,12 @@
  * Polls OpenClaw every 3s, syncs to DB, broadcasts new activities to connected clients.
  */
 
+import { pool } from "@/lib/db/client";
 import { NextRequest } from "next/server";
 import { syncActivities } from "@/lib/activities/sync";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 function sseMessage(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
