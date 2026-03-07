@@ -13,11 +13,19 @@ const EMPTY_QUEUE: DashboardQueue = {
   totalScanned: 0,
 };
 
+export interface ScanResult {
+  success: boolean;
+  totalInserted: number;
+  scannedAt: string;
+  message?: string;
+}
+
 export function useOpportunityEngine() {
   const [queue, setQueue] = useState<DashboardQueue>(EMPTY_QUEUE);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [lastScanResult, setLastScanResult] = useState<ScanResult | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -36,6 +44,7 @@ export function useOpportunityEngine() {
 
   const triggerScan = useCallback(async () => {
     setScanning(true);
+    setLastScanResult(null);
     try {
       const res = await fetch("/api/opportunity-engine/scan", {
         method: "POST",
@@ -44,6 +53,8 @@ export function useOpportunityEngine() {
         const data = await res.json();
         throw new Error(data.error || "Scan failed");
       }
+      const scanData = await res.json();
+      setLastScanResult(scanData);
       await refresh();
     } catch (err) {
       setError(err as Error);
@@ -51,6 +62,10 @@ export function useOpportunityEngine() {
       setScanning(false);
     }
   }, [refresh]);
+
+  const dismissScanResult = useCallback(() => {
+    setLastScanResult(null);
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -60,5 +75,5 @@ export function useOpportunityEngine() {
     };
   }, [refresh]);
 
-  return { queue, loading, scanning, error, refresh, triggerScan };
+  return { queue, loading, scanning, error, lastScanResult, refresh, triggerScan, dismissScanResult };
 }
