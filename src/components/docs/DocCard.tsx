@@ -1,6 +1,6 @@
 "use client";
 
-import { Document, DocumentStatus, DocumentType } from "@/lib/mock-docs";
+import { Document, DocumentStatus, DocumentType, LinkedItem } from "@/lib/mock-docs";
 
 interface DocCardProps {
   document: Document;
@@ -68,6 +68,12 @@ const typeConfig: Record<
   },
 };
 
+const linkTypeColors: Record<string, string> = {
+  deal: "bg-cyan-500/10 text-cyan-400",
+  certification: "bg-amber-500/10 text-amber-400",
+  task: "bg-purple-500/10 text-purple-400",
+};
+
 function getRelativeTime(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
@@ -124,14 +130,29 @@ export default function DocCard({ document, onClick }: DocCardProps) {
         {(document.content || "").length > 120 ? "..." : ""}
       </p>
 
+      {/* Linked items */}
+      {((document as Document & { linkedTo?: LinkedItem[] }).linkedTo || []).length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {((document as Document & { linkedTo?: LinkedItem[] }).linkedTo || []).map((link: LinkedItem, i: number) => (
+            <span
+              key={`${link.type}-${link.id}-${i}`}
+              className={`px-1.5 py-0.5 rounded text-[10px] ${linkTypeColors[link.type] || "bg-gray-500/10 text-gray-400"}`}
+            >
+              {link.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Footer */}
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-2 text-gray-500">
           <span className="text-base">{document.agentEmoji}</span>
           <span>{document.agent}</span>
         </div>
-        <div className="text-gray-500 font-mono">
-          {getRelativeTime(document.updatedAt || document.createdAt || "")}
+        <div className="flex items-center gap-2 text-gray-500 font-mono">
+          <span>{(document.content || "").trim().split(/\s+/).filter(Boolean).length} words</span>
+          <span>{getRelativeTime(document.updatedAt || document.createdAt || "")}</span>
         </div>
       </div>
     </div>

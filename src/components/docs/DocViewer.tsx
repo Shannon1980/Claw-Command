@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Document, DocumentStatus } from "@/lib/mock-docs";
+import { Document, DocumentStatus, LinkedItem } from "@/lib/mock-docs";
 import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
+import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
+import { saveAs } from "file-saver";
 
 interface DocViewerProps {
   document: Document | null;
   onClose: () => void;
   onUpdate?: (doc: Document) => void;
   onDelete?: (id: string) => void;
+  onDuplicate?: (doc: Document) => void;
 }
 
 const statusOptions: { value: DocumentStatus; label: string }[] = [
@@ -18,7 +21,117 @@ const statusOptions: { value: DocumentStatus; label: string }[] = [
   { value: "exported", label: "Exported" },
 ];
 
-export default function DocViewer({ document, onClose, onUpdate, onDelete }: DocViewerProps) {
+const linkTypeColors: Record<string, string> = {
+  deal: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
+  certification: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+  task: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+};
+
+function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function markdownToDocxParagraphs(md: string): Paragraph[] {
+  const lines = md.split("\n");
+  const paragraphs: Paragraph[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      paragraphs.push(new Paragraph({ text: "" }));
+      continue;
+    }
+
+    // Headings
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const headingMap: Record<number, typeof HeadingLevel[keyof typeof HeadingLevel]> = {
+        1: HeadingLevel.HEADING_1,
+        2: HeadingLevel.HEADING_2,
+        3: HeadingLevel.HEADING_3,
+        4: HeadingLevel.HEADING_4,
+        5: HeadingLevel.HEADING_5,
+        6: HeadingLevel.HEADING_6,
+      };
+      paragraphs.push(new Paragraph({
+        heading: headingMap[level] || HeadingLevel.HEADING_1,
+        children: parseInlineFormatting(headingMatch[2]),
+      }));
+      continue;
+    }
+
+    // Bullet lists
+    const bulletMatch = trimmed.match(/^[-*+]\s+(.+)/);
+    if (bulletMatch) {
+      const checkboxMatch = bulletMatch[1].match(/^\[([ x])\]\s*(.*)/);
+      if (checkboxMatch) {
+        const checked = checkboxMatch[1] === "x";
+        paragraphs.push(new Paragraph({
+          bullet: { level: 0 },
+          children: [
+            new TextRun({ text: checked ? "[x] " : "[ ] ", bold: true }),
+            ...parseInlineFormatting(checkboxMatch[2]),
+          ],
+        }));
+      } else {
+        paragraphs.push(new Paragraph({
+          bullet: { level: 0 },
+          children: parseInlineFormatting(bulletMatch[1]),
+        }));
+      }
+      continue;
+    }
+
+    // Numbered lists
+    const numMatch = trimmed.match(/^\d+\.\s+(.+)/);
+    if (numMatch) {
+      paragraphs.push(new Paragraph({
+        bullet: { level: 0 },
+        children: parseInlineFormatting(numMatch[1]),
+      }));
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^[-*_]{3,}$/.test(trimmed)) {
+      paragraphs.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "---" })],
+      }));
+      continue;
+    }
+
+    // Regular paragraph
+    paragraphs.push(new Paragraph({
+      children: parseInlineFormatting(trimmed),
+    }));
+  }
+
+  return paragraphs;
+}
+
+function parseInlineFormatting(text: string): TextRun[] {
+  const runs: TextRun[] = [];
+  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+))/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match[2]) {
+      runs.push(new TextRun({ text: match[2], bold: true, italics: true }));
+    } else if (match[3]) {
+      runs.push(new TextRun({ text: match[3], bold: true }));
+    } else if (match[4]) {
+      runs.push(new TextRun({ text: match[4], italics: true }));
+    } else if (match[5]) {
+      runs.push(new TextRun({ text: match[5], font: "Courier New", size: 20 }));
+    } else if (match[6]) {
+      runs.push(new TextRun({ text: match[6] }));
+    }
+  }
+  return runs.length > 0 ? runs : [new TextRun({ text })];
+}
+
+export default function DocViewer({ document, onClose, onUpdate, onDelete, onDuplicate }: DocViewerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -83,7 +196,7 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete }: Doc
     }
   };
 
-  const handleExport = () => {
+  const handleExportMd = () => {
     const blob = new Blob([document.content], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = window.document.createElement("a");
@@ -92,6 +205,36 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete }: Doc
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const handleExportDocx = async () => {
+    const doc = new DocxDocument({
+      sections: [{
+        properties: {},
+        children: markdownToDocxParagraphs(document.content),
+      }],
+    });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${document.title}.docx`);
+  };
+
+  const handleRemoveLink = async (linkToRemove: LinkedItem) => {
+    const updatedLinks = (document.linkedTo || []).filter(
+      (l) => !(l.type === linkToRemove.type && l.id === linkToRemove.id)
+    );
+    try {
+      const res = await fetch(`/api/docs/${document.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ linkedTo: updatedLinks }),
+      });
+      if (res.ok) {
+        onUpdate?.({ ...document, linkedTo: updatedLinks, updatedAt: new Date().toISOString() });
+      }
+    } catch { /* */ }
+  };
+
+  const words = wordCount(document.content);
+  const linkedItems = document.linkedTo || [];
 
   return (
     <>
@@ -111,6 +254,7 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete }: Doc
               <div className="flex items-center gap-3 text-xs text-gray-500">
                 <span>{document.agent}</span>
                 <span>Updated {new Date(document.updatedAt).toLocaleDateString()}</span>
+                <span>{words.toLocaleString()} words</span>
               </div>
             </div>
             <button
@@ -123,8 +267,29 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete }: Doc
             </button>
           </div>
 
+          {/* Linked items */}
+          {linkedItems.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {linkedItems.map((link, i) => (
+                <span
+                  key={`${link.type}-${link.id}-${i}`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border ${linkTypeColors[link.type] || "bg-gray-500/10 text-gray-400 border-gray-500/30"}`}
+                >
+                  <span className="capitalize">{link.type}:</span> {link.name}
+                  <button
+                    onClick={() => handleRemoveLink(link)}
+                    className="ml-0.5 hover:opacity-70 text-[10px]"
+                    title="Remove link"
+                  >
+                    x
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Controls */}
-          <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-800/50">
+          <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-800/50 flex-wrap">
             {!isEditing ? (
               <>
                 <button
@@ -134,11 +299,25 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete }: Doc
                   Edit
                 </button>
                 <button
-                  onClick={handleExport}
+                  onClick={handleExportMd}
                   className="px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
                 >
                   Export .md
                 </button>
+                <button
+                  onClick={handleExportDocx}
+                  className="px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
+                >
+                  Export .docx
+                </button>
+                {onDuplicate && (
+                  <button
+                    onClick={() => onDuplicate(document)}
+                    className="px-3 py-1.5 bg-gray-800 text-gray-300 border border-gray-700 rounded text-xs font-medium hover:bg-gray-700 transition-colors"
+                  >
+                    Duplicate
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -200,11 +379,14 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete }: Doc
 
           {/* Content */}
           {isEditing ? (
-            <textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              className="w-full h-[70vh] bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm text-gray-300 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
-            />
+            <div>
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full h-[70vh] bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm text-gray-300 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-600 text-right">{wordCount(editedContent).toLocaleString()} words</p>
+            </div>
           ) : (
             <div className="prose prose-invert prose-sm max-w-none">
               {document.content ? (

@@ -7,6 +7,12 @@ export type DocumentType =
 
 export type DocumentStatus = "draft" | "in_review" | "approved" | "exported";
 
+export interface LinkedItem {
+  type: "deal" | "certification" | "task";
+  id: string;
+  name: string;
+}
+
 export interface Document {
   id: string;
   title: string;
@@ -15,6 +21,7 @@ export interface Document {
   agentEmoji: string;
   status: DocumentStatus;
   content: string;
+  linkedTo?: LinkedItem[];
   createdAt: string;
   updatedAt: string;
 }
