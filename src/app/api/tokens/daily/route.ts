@@ -19,23 +19,23 @@ export async function GET(request: NextRequest) {
   let whereClause: string;
   const values: unknown[] = [];
   if (fromDate && toDate) {
-    whereClause = "WHERE created_at::date >= $1 AND created_at::date <= $2";
+    whereClause = "WHERE created_at::timestamp::date >= $1::date AND created_at::timestamp::date <= $2::date";
     values.push(fromDate, toDate);
   } else {
-    whereClause = "WHERE created_at::timestamptz >= NOW() - INTERVAL '1 day' * $1";
+    whereClause = "WHERE created_at::timestamp >= (NOW() - INTERVAL '1 day' * $1)::timestamp";
     values.push(days);
   }
 
   try {
     const result = await pool.query(
-      `SELECT DATE(created_at) as date,
+      `SELECT created_at::timestamp::date as date,
               COALESCE(SUM(input_tokens), 0) as input_tokens,
               COALESCE(SUM(output_tokens), 0) as output_tokens,
               COALESCE(SUM(cost_cents), 0) as cost_cents
        FROM token_usage
        ${whereClause}
-       GROUP BY DATE(created_at::timestamptz)
-       ORDER BY DATE(created_at::timestamptz) ASC`,
+       GROUP BY created_at::timestamp::date
+       ORDER BY created_at::timestamp::date ASC`,
       values
     );
 
