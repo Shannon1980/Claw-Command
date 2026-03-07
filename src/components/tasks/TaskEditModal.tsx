@@ -18,6 +18,17 @@ interface TaskComment {
   created_at: string;
 }
 
+interface LinkedDoc {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  agent: string;
+  agentEmoji: string;
+  reviewStatus: string;
+  updatedAt: string;
+}
+
 interface TaskEditModalProps {
   task: Task | null;
   agents: Agent[];
@@ -63,6 +74,10 @@ export default function TaskEditModal({
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [addingComment, setAddingComment] = useState(false);
+  const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [reviewingDocId, setReviewingDocId] = useState<string | null>(null);
+  const [reviewingDocContent, setReviewingDocContent] = useState<string | null>(null);
 
   useEffect(() => {
     if (task?.id) {
@@ -72,6 +87,17 @@ export default function TaskEditModal({
         .catch(() => setComments([]));
     }
   }, [task?.id]);
+
+  useEffect(() => {
+    if (task?.id && status === "done") {
+      setLoadingDocs(true);
+      fetch(`/api/docs?linkedType=task&linkedId=${task.id}`)
+        .then((res) => res.json())
+        .then((data) => setLinkedDocs(Array.isArray(data) ? data : []))
+        .catch(() => setLinkedDocs([]))
+        .finally(() => setLoadingDocs(false));
+    }
+  }, [task?.id, status]);
 
   const handleAddComment = async () => {
     if (!task?.id || !newComment.trim()) return;
@@ -245,6 +271,71 @@ export default function TaskEditModal({
                 <button onClick={handleApprove} disabled={saving} className="px-3 py-1.5 text-xs font-mono bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 disabled:opacity-50">
                   Approve
                 </button>
+              )}
+            </div>
+          )}
+
+          {/* Deliverable Review */}
+          {!isCreate && status === "done" && (
+            <div className="border-t border-gray-800 pt-4">
+              <label className="block text-xs font-medium text-gray-400 mb-2">
+                Deliverables
+              </label>
+              {loadingDocs ? (
+                <p className="text-xs text-gray-500 py-2">Loading deliverables...</p>
+              ) : linkedDocs.length === 0 ? (
+                <p className="text-xs text-gray-600 py-2">No linked documents. Link a document to this task from the Docs page.</p>
+              ) : (
+                <div className="space-y-2">
+                  {linkedDocs.map((doc) => (
+                    <div key={doc.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-200">{doc.agentEmoji} {doc.title}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                          doc.reviewStatus === "approved" ? "bg-green-500/20 text-green-400" :
+                          doc.reviewStatus === "needs_changes" ? "bg-amber-500/20 text-amber-400" :
+                          doc.reviewStatus === "reviewed" ? "bg-blue-500/20 text-blue-400" :
+                          doc.reviewStatus === "rejected" ? "bg-red-500/20 text-red-400" :
+                          "bg-gray-700 text-gray-400"
+                        }`}>
+                          {doc.reviewStatus?.replace(/_/g, " ") || "pending"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                        <span>{doc.agent}</span>
+                        <span>{doc.type}</span>
+                        <span>Updated {new Date(doc.updatedAt).toLocaleDateString()}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (reviewingDocId === doc.id) {
+                            setReviewingDocId(null);
+                            setReviewingDocContent(null);
+                          } else {
+                            setReviewingDocId(doc.id);
+                            try {
+                              const res = await fetch(`/api/docs?search=${encodeURIComponent(doc.title)}`);
+                              const docs = await res.json();
+                              const found = (Array.isArray(docs) ? docs : []).find((d: { id: string }) => d.id === doc.id);
+                              setReviewingDocContent(found?.content || "No content available.");
+                            } catch {
+                              setReviewingDocContent("Failed to load document content.");
+                            }
+                          }
+                        }}
+                        className="mt-2 px-3 py-1 text-xs font-mono bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded hover:bg-cyan-500/30 transition-colors"
+                      >
+                        {reviewingDocId === doc.id ? "Hide" : "Review Document"}
+                      </button>
+                      {reviewingDocId === doc.id && reviewingDocContent !== null && (
+                        <div className="mt-2 p-3 bg-gray-900 border border-gray-700 rounded-lg max-h-48 overflow-y-auto">
+                          <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono">{reviewingDocContent}</pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}
