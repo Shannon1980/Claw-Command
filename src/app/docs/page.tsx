@@ -11,7 +11,7 @@ import type {
   AssignTarget,
   DocumentPriority,
 } from "@/lib/mock-docs";
-import { CATEGORY_OPTIONS, mockDocuments } from "@/lib/mock-docs";
+import { CATEGORY_OPTIONS, SEED_DOCUMENTS } from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -22,7 +22,7 @@ type ViewMode = "grid" | "list";
 type TabMode = "all" | "queue";
 
 export default function DocsPage() {
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments);
+  const [documents, setDocuments] = useState<Document[]>(SEED_DOCUMENTS);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");

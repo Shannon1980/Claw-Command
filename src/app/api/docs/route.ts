@@ -1,15 +1,10 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-import { mockDocuments } from "@/lib/mock-docs";
+import { SEED_DOCUMENTS } from "@/lib/mock-docs";
+import type { Document } from "@/lib/mock-docs";
 import fs from "fs";
 import path from "path";
 import os from "os";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 let schemaReady = false;
 
@@ -88,7 +83,7 @@ function getWorkspacePath(): string {
   return process.env.OPENCLAW_WORKSPACE || path.join(os.homedir(), ".openclaw", "workspace");
 }
 
-function readWorkspaceDocs(): Array<Record<string, unknown>> {
+function readWorkspaceDocs(): Document[] {
   const workspacePath = getWorkspacePath();
   if (!fs.existsSync(workspacePath)) return [];
 
@@ -113,19 +108,16 @@ function readWorkspaceDocs(): Array<Record<string, unknown>> {
       return {
         id: "ws-" + f.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase(),
         title: titleFromFilename(f),
-        filename: f,
-        type: guessType(f),
+        type: guessType(f) as Document["type"],
         content: content.slice(0, 50000),
-        authorAgentId: agentId,
-        status: guessStatus(content),
-        filePath,
+        status: guessStatus(content) as Document["status"],
         agent: meta.name,
         agentEmoji: meta.emoji,
         linkedTo: [],
         versionHistory: [{ timestamp: stat?.mtime?.toISOString() || now, summary: "Synced from workspace" }],
         priority: "medium",
         reviewStatus: "pending_review",
-        category: guessCategory(f, content),
+        category: guessCategory(f, content) as Document["category"],
         notes: [],
         assignments: [],
         createdAt: stat?.birthtime?.toISOString() || now,
@@ -137,20 +129,11 @@ function readWorkspaceDocs(): Array<Record<string, unknown>> {
   }
 }
 
-function getMockFallback() {
-  return mockDocuments.map((doc) => ({
-    ...doc,
-    authorAgentId: null,
-    filePath: null,
-    filename: null,
-  }));
-}
-
-/** Get documents from best available source: DB → workspace → mock */
-function getFallbackDocs() {
+/** Get documents from best available source: workspace → seed data */
+function getFallbackDocs(): Document[] {
   const workspaceDocs = readWorkspaceDocs();
   if (workspaceDocs.length > 0) return workspaceDocs;
-  return getMockFallback();
+  return SEED_DOCUMENTS;
 }
 
 async function ensureSchema() {
