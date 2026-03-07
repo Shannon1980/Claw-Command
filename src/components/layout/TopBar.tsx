@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import CommandPalette from "@/components/layout/CommandPalette";
+import ChatFlyout from "@/components/chat/ChatFlyout";
 
 export default function TopBar() {
   const { unreadCount, toggleBell, bellOpen } = useNotificationStore();
@@ -73,6 +74,9 @@ export default function TopBar() {
 
           {/* Clock */}
           <span className="text-[11px] font-mono text-gray-500">{clock}</span>
+
+          {/* Chat */}
+          <ChatFlyout compact />
 
           {/* Notification bell */}
           <button

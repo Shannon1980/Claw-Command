@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import ChatFlyout from "@/components/chat/ChatFlyout";
 
 interface NavLink {
   href: string;
   label: string;
+  icon: React.ReactNode;
 }
 
 interface NavSection {
@@ -15,54 +15,60 @@ interface NavSection {
   items: NavLink[];
 }
 
+const icon = (d: string) => (
+  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
+  </svg>
+);
+
 const navSections: NavSection[] = [
   {
     title: "COMMAND",
     items: [
-      { href: "/", label: "Overview" },
-      { href: "/agents", label: "Agents" },
-      { href: "/tasks", label: "Tasks" },
-      { href: "/sessions", label: "Sessions" },
+      { href: "/", label: "Overview", icon: icon("M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z") },
+      { href: "/agents", label: "Agents", icon: icon("M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z") },
+      { href: "/tasks", label: "Tasks", icon: icon("M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01") },
+      { href: "/sessions", label: "Sessions", icon: icon("M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z") },
     ],
   },
   {
     title: "OBSERVE",
     items: [
-      { href: "/activity", label: "Activity" },
-      { href: "/logs", label: "Logs" },
-      { href: "/tokens", label: "Tokens" },
-      { href: "/memory", label: "Memory" },
+      { href: "/activity", label: "Activity", icon: icon("M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z") },
+      { href: "/logs", label: "Logs", icon: icon("M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z") },
+      { href: "/tokens", label: "Tokens", icon: icon("M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z") },
+      { href: "/memory", label: "Memory", icon: icon("M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4") },
     ],
   },
   {
     title: "AUTOMATE",
     items: [
-      { href: "/cron", label: "Cron" },
-      { href: "/spawn", label: "Spawn" },
-      { href: "/orchestration", label: "Pipelines" },
-      { href: "/webhooks", label: "Webhooks" },
-      { href: "/alerts", label: "Alerts" },
+      { href: "/cron", label: "Cron", icon: icon("M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z") },
+      { href: "/spawn", label: "Spawn", icon: icon("M13 10V3L4 14h7v7l9-11h-7z") },
+      { href: "/orchestration", label: "Pipelines", icon: icon("M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z") },
+      { href: "/webhooks", label: "Webhooks", icon: icon("M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1") },
+      { href: "/alerts", label: "Alerts", icon: icon("M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9") },
     ],
   },
   {
     title: "DOMAIN",
     items: [
-      { href: "/brief", label: "Brief" },
-      { href: "/pipeline", label: "Pipeline" },
-      { href: "/certifications", label: "Certifications" },
-      { href: "/calendar", label: "Calendar" },
-      { href: "/email", label: "Email" },
-      { href: "/docs", label: "Docs" },
-      { href: "/skyward", label: "Skyward" },
+      { href: "/brief", label: "Brief", icon: icon("M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16v6M17 16v6m3-13V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h10a2 2 0 002-2z") },
+      { href: "/pipeline", label: "Pipeline", icon: icon("M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0-4l4-4m-4 4l-4-4") },
+      { href: "/certifications", label: "Certifications", icon: icon("M12 14l9-5-9-5-9 5 9 5z") },
+      { href: "/calendar", label: "Calendar", icon: icon("M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z") },
+      { href: "/email", label: "Email", icon: icon("M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z") },
+      { href: "/docs", label: "Docs", icon: icon("M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z") },
+      { href: "/skyward", label: "Skyward", icon: icon("M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z") },
     ],
   },
   {
     title: "ADMIN",
     items: [
-      { href: "/settings", label: "Settings" },
-      { href: "/users", label: "Users" },
-      { href: "/audit", label: "Audit Log" },
-      { href: "/standup", label: "Standup" },
+      { href: "/settings", label: "Settings", icon: icon("M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z") },
+      { href: "/users", label: "Users", icon: icon("M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z") },
+      { href: "/audit", label: "Audit Log", icon: icon("M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4") },
+      { href: "/standup", label: "Standup", icon: icon("M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z") },
     ],
   },
 ];
@@ -93,13 +99,6 @@ export default function Navigation() {
         <span className="ml-2 text-[10px] font-mono text-gray-600 bg-gray-800/60 px-1.5 py-0.5 rounded">
           MC
         </span>
-      </div>
-
-      {/* Chat */}
-      <div className="px-2 pt-2">
-        <div className="[&>button]:w-full [&>button]:justify-start">
-          <ChatFlyout />
-        </div>
       </div>
 
       {/* Nav sections */}
@@ -141,12 +140,13 @@ export default function Navigation() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`block px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors ${
+                      className={`flex items-center gap-2 px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors ${
                         isActive(item.href)
                           ? "text-white bg-gray-800/80"
                           : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
                       }`}
                     >
+                      {item.icon}
                       {item.label}
                     </Link>
                   ))}
