@@ -4,17 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ChatWindow from "@/components/chat/ChatWindow";
 import type { Task, TaskStatus } from "@/lib/stores/taskStore";
-
-interface AgentDetail {
-  id: string;
-  name: string;
-  emoji: string;
-  domain: string;
-  status: string;
-  capabilities: string | null;
-  soul: string | null;
-  updated_at: string;
-}
+import { useAgentStore, type Agent } from "@/lib/stores/agentStore";
 
 function heartbeatColor(updatedAt: string): string {
   const diff = (Date.now() - new Date(updatedAt).getTime()) / 1000;
@@ -56,7 +46,8 @@ export default function AgentDetailPage() {
 
   const initialTab = (searchParams.get("tab") as Tab) || "tasks";
 
-  const [agent, setAgent] = useState<AgentDetail | null>(null);
+  const { agents: storeAgents, fetchAgents } = useAgentStore();
+  const [agent, setAgent] = useState<Agent | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -68,19 +59,13 @@ export default function AgentDetailPage() {
   const [outcomeText, setOutcomeText] = useState("");
 
   const fetchAgent = useCallback(async () => {
-    try {
-      const res = await fetch("/api/agents");
-      if (!res.ok) return;
-      const data = await res.json();
-      const rows = Array.isArray(data) ? data : [];
-      const found = rows.find(
-        (r: Record<string, unknown>) => r.id === agentId
-      );
-      if (found) setAgent(found as AgentDetail);
-    } catch {
-      // silent
-    }
-  }, [agentId]);
+    await fetchAgents();
+  }, [fetchAgents]);
+
+  useEffect(() => {
+    const found = storeAgents.find((a) => a.id === agentId);
+    if (found) setAgent(found);
+  }, [storeAgents, agentId]);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -459,7 +444,7 @@ export default function AgentDetailPage() {
               <h1 className="text-lg font-bold text-gray-100">{agent.name}</h1>
               <span
                 className={`w-2 h-2 rounded-full ${heartbeatColor(
-                  agent.updated_at
+                  agent.updatedAt
                 )}`}
               />
               <span
@@ -480,7 +465,7 @@ export default function AgentDetailPage() {
             )}
           </div>
           <div className="text-[11px] text-gray-600 font-mono">
-            Last heartbeat: {new Date(agent.updated_at).toLocaleString()}
+            Last heartbeat: {new Date(agent.updatedAt).toLocaleString()}
           </div>
         </div>
 
