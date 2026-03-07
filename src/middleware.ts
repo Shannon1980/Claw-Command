@@ -29,11 +29,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check Authorization bearer
+  // Check Authorization bearer (MC_API_KEY or CRON_SECRET)
   const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ") && mcApiKey) {
+  if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7).trim();
-    if (token === mcApiKey) {
+    if (mcApiKey && token === mcApiKey) {
+      return NextResponse.next();
+    }
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && token === cronSecret) {
       return NextResponse.next();
     }
   }
