@@ -26,6 +26,11 @@ const AGENTS = [
 ];
 
 export async function seed() {
+  if (!db) {
+    console.error("Database not configured. Set DATABASE_URL.");
+    return;
+  }
+
   console.log("🌱 Seeding Claw Command database...");
 
   // --- Agents ---

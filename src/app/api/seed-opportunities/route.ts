@@ -43,12 +43,11 @@ const REAL_OPPORTUNITIES = [
 ];
 
 export async function POST(request: Request) {
-  try {
-    // Basic security check (can be expanded later)
-    // For now, allow open access for v1 testing or check for a simple header if needed.
-    // const secret = request.headers.get("x-seed-secret");
-    // if (secret !== process.env.SEED_SECRET) { ... }
+  if (!db) {
+    return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 });
+  }
 
+  try {
     console.log("🌱 Seeding REAL Opportunities via API...");
 
     // 1. Clear existing opportunities
