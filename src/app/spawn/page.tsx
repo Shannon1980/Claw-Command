@@ -41,7 +41,7 @@ export default function SpawnPage() {
 
     fetch("/api/agents")
       .then((r) => r.json())
-      .then((data) => setAgents(data))
+      .then((data) => setAgents(Array.isArray(data) ? data : []))
       .catch(() => {});
 
     fetchHistory();
@@ -52,7 +52,7 @@ export default function SpawnPage() {
       const res = await fetch("/api/activities?event_type=agent_spawned&limit=20");
       if (res.ok) {
         const data = await res.json();
-        setHistory(data);
+        setHistory(Array.isArray(data) ? data : []);
       }
     } catch {
       // silent

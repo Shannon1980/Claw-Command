@@ -71,7 +71,7 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
       const res = await fetch("/api/tokens/by-agent");
       if (!res.ok) return;
       const data = await res.json();
-      set({ byAgent: data });
+      set({ byAgent: Array.isArray(data) ? data : [] });
     } catch { /* silent */ }
   },
 
@@ -80,7 +80,7 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
       const res = await fetch("/api/tokens/by-model");
       if (!res.ok) return;
       const data = await res.json();
-      set({ byModel: data });
+      set({ byModel: Array.isArray(data) ? data : [] });
     } catch { /* silent */ }
   },
 
@@ -89,7 +89,7 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
       const res = await fetch(`/api/tokens/daily?days=${days}`);
       if (!res.ok) return;
       const data = await res.json();
-      set({ daily: data });
+      set({ daily: Array.isArray(data) ? data : [] });
     } catch { /* silent */ }
   },
 

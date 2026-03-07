@@ -38,10 +38,11 @@ export const useNotificationStore = create<NotificationStore>()((set, get) => ({
       const res = await fetch(`/api/notifications?limit=${limit}`);
       if (!res.ok) return;
       const data = await res.json();
-      const unread = data.filter(
+      const items = Array.isArray(data) ? data : [];
+      const unread = items.filter(
         (n: Notification) => n.readAt === null
       ).length;
-      set({ notifications: data, unreadCount: unread, loading: false });
+      set({ notifications: items, unreadCount: unread, loading: false });
     } catch {
       set({ loading: false });
     }

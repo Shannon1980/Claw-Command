@@ -46,12 +46,13 @@ export default function ActivityPage() {
         if (filterType) params.set("type", filterType);
         const res = await fetch(`/api/activities?${params}`);
         const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
         if (cursor) {
-          setActivities((prev) => [...prev, ...data.items]);
+          setActivities((prev) => [...prev, ...items]);
         } else {
-          setActivities(data.items || []);
+          setActivities(items);
         }
-        setNextCursor(data.nextCursor);
+        setNextCursor(data?.nextCursor ?? null);
       } catch {
         /* silent */
       } finally {

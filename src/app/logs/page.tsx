@@ -47,7 +47,7 @@ export default function LogsPage() {
     fetchLogs();
     fetch("/api/agents")
       .then((r) => r.json())
-      .then((data) => setAgents(data))
+      .then((data) => setAgents(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, [fetchLogs]);
 
