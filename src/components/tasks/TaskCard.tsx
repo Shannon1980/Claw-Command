@@ -74,6 +74,11 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
           Needs approval
         </span>
       )}
+      {task.status === "done" && (
+        <span className="inline-block mt-2 text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+          Review deliverable
+        </span>
+      )}
     </div>
   );
 }
