@@ -549,12 +549,98 @@ export default function DailyNewsBriefPage() {
                   ))}
                 </div>
               )}
-              <div className="mt-3 p-3 bg-gray-800/30 rounded border border-gray-700/50">
-                <p className="text-xs text-gray-500">
-                  <span className="text-gray-400 font-medium">Recommended sources:</span>{" "}
-                  TechCrunch AI, The Verge, MIT Technology Review, Ars Technica, Hacker News, ArXiv CS.AI
-                </p>
-              </div>
+            </Section>
+
+            {/* ── Technology News ── */}
+            <Section
+              title="Technology"
+              icon="💻"
+              badge={`${data.technologyNews?.length || 0} items`}
+              priority="high"
+            >
+              {!data.technologyNews?.length ? (
+                <p className="text-xs text-gray-500">No technology news available</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.technologyNews.map((item, i) => (
+                    <NewsCard key={i} item={item} />
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            {/* ── Business News ── */}
+            <Section
+              title="Business"
+              icon="📈"
+              badge={`${data.businessNews?.length || 0} items`}
+              priority="medium"
+            >
+              {!data.businessNews?.length ? (
+                <p className="text-xs text-gray-500">No business news available</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.businessNews.map((item, i) => (
+                    <NewsCard key={i} item={item} />
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            {/* ── Science News ── */}
+            <Section
+              title="Science"
+              icon="🔬"
+              badge={`${data.scienceNews?.length || 0} items`}
+              defaultOpen={false}
+              priority="medium"
+            >
+              {!data.scienceNews?.length ? (
+                <p className="text-xs text-gray-500">No science news available</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.scienceNews.map((item, i) => (
+                    <NewsCard key={i} item={item} />
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            {/* ── Health News ── */}
+            <Section
+              title="Health"
+              icon="🏥"
+              badge={`${data.healthNews?.length || 0} items`}
+              defaultOpen={false}
+              priority="medium"
+            >
+              {!data.healthNews?.length ? (
+                <p className="text-xs text-gray-500">No health news available</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.healthNews.map((item, i) => (
+                    <NewsCard key={i} item={item} />
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            {/* ── Top Headlines ── */}
+            <Section
+              title="Top Headlines"
+              icon="🌍"
+              badge={`${data.worldNews.length} items`}
+              defaultOpen={false}
+            >
+              {data.worldNews.length === 0 ? (
+                <p className="text-xs text-gray-500">No headlines available</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.worldNews.map((item, i) => (
+                    <NewsCard key={i} item={item} />
+                  ))}
+                </div>
+              )}
             </Section>
 
             {/* ── AI Podcasts ── */}
@@ -562,7 +648,7 @@ export default function DailyNewsBriefPage() {
               title="AI Podcasts"
               icon="🎙️"
               badge={`${data.aiPodcasts.length} episodes`}
-              priority="high"
+              defaultOpen={false}
             >
               {data.aiPodcasts.length === 0 ? (
                 <p className="text-xs text-gray-500">No new episodes</p>
@@ -573,12 +659,6 @@ export default function DailyNewsBriefPage() {
                   ))}
                 </div>
               )}
-              <div className="mt-3 p-3 bg-gray-800/30 rounded border border-gray-700/50">
-                <p className="text-xs text-gray-500">
-                  <span className="text-gray-400 font-medium">Recommended shows:</span>{" "}
-                  Lex Fridman, Hard Fork (NYT), Practical AI, The AI Podcast (NVIDIA), Latent Space, Last Week in AI, Cognitive Revolution
-                </p>
-              </div>
             </Section>
 
             {/* ── AI YouTube ── */}
@@ -586,7 +666,7 @@ export default function DailyNewsBriefPage() {
               title="AI YouTube"
               icon="📺"
               badge={`${data.aiYouTube.length} videos`}
-              priority="high"
+              defaultOpen={false}
             >
               {data.aiYouTube.length === 0 ? (
                 <p className="text-xs text-gray-500">No new videos</p>
@@ -597,98 +677,24 @@ export default function DailyNewsBriefPage() {
                   ))}
                 </div>
               )}
-              <div className="mt-3 p-3 bg-gray-800/30 rounded border border-gray-700/50">
+            </Section>
+
+            {/* ── Status indicator ── */}
+            {data.newsApiConfigured === false && (
+              <div className="mt-4 bg-gray-900/30 border border-dashed border-gray-700 rounded-lg p-4">
                 <p className="text-xs text-gray-500">
-                  <span className="text-gray-400 font-medium">Recommended channels:</span>{" "}
-                  Two Minute Papers, Yannic Kilcher, AI Explained, Matt Wolfe, The AI Advantage, Fireship, Andrej Karpathy
+                  <span className="text-amber-400 font-medium">NEWS_API_KEY not detected.</span>{" "}
+                  Add it to <span className="font-mono text-gray-400">.env.local</span> to see live news.
                 </p>
               </div>
-            </Section>
+            )}
 
-            {/* ── World / US / Local News ── */}
-            <Section
-              title="World News"
-              icon="🌍"
-              badge={`${data.worldNews.length} items`}
-              defaultOpen={false}
-              priority="low"
-            >
-              {data.worldNews.length === 0 ? (
-                <p className="text-xs text-gray-500">No world news available</p>
-              ) : (
-                <div className="space-y-2">
-                  {data.worldNews.map((item, i) => (
-                    <NewsCard key={i} item={item} />
-                  ))}
-                </div>
-              )}
-            </Section>
-
-            <Section
-              title="US News"
-              icon="🇺🇸"
-              badge={`${data.usNews.length} items`}
-              defaultOpen={false}
-              priority="low"
-            >
-              {data.usNews.length === 0 ? (
-                <p className="text-xs text-gray-500">No US news available</p>
-              ) : (
-                <div className="space-y-2">
-                  {data.usNews.map((item, i) => (
-                    <NewsCard key={i} item={item} />
-                  ))}
-                </div>
-              )}
-            </Section>
-
-            <Section
-              title="Local News"
-              icon="📍"
-              badge={`${data.localNews.length} items`}
-              defaultOpen={false}
-              priority="low"
-            >
-              {data.localNews.length === 0 ? (
-                <p className="text-xs text-gray-500">No local news available</p>
-              ) : (
-                <div className="space-y-2">
-                  {data.localNews.map((item, i) => (
-                    <NewsCard key={i} item={item} />
-                  ))}
-                </div>
-              )}
-            </Section>
-
-            {/* ── Agent Setup Guide ── */}
-            <div className="mt-6 bg-gray-900/30 border border-dashed border-gray-700 rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-gray-300 mb-2">
-                Agent Auto-Generation
-              </h3>
-              <p className="text-xs text-gray-500 mb-3">
-                This brief can be auto-generated daily by a cron job. The agent
-                aggregates data from the Brief, Standup, and Skyward APIs, plus
-                fetches external news content. To set up:
-              </p>
-              <ol className="text-xs text-gray-500 space-y-1.5 list-decimal list-inside">
-                <li>
-                  Go to <span className="text-gray-400">Cron Jobs</span> and add
-                  &ldquo;Generate daily news brief&rdquo; on a daily schedule (e.g. 6:00 AM)
-                </li>
-                <li>
-                  Set a <span className="text-gray-400 font-mono">NEWS_API_KEY</span>{" "}
-                  env var to enable external news fetching (NewsAPI.org, GNews, etc.)
-                </li>
-                <li>
-                  Set a <span className="text-gray-400 font-mono">YOUTUBE_API_KEY</span>{" "}
-                  env var to enable YouTube content discovery
-                </li>
-                <li>
-                  Or use <span className="text-gray-400">Spawn</span> to trigger
-                  an agent that calls POST /api/daily-news-brief with curated content
-                </li>
-              </ol>
-            </div>
+            {data.newsApiConfigured && (
+              <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                Powered by NewsAPI — news refreshes every 15 minutes
+              </div>
+            )}
           </div>
         )}
       </div>
