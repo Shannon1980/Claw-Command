@@ -8,7 +8,7 @@ import { usePipeline } from "@/lib/hooks/usePipeline";
 
 type Tab = "bd" | "apps";
 
-export default function PipelinePage() {
+export default function DealsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("bd");
   const {
     opportunities,
@@ -25,7 +25,7 @@ export default function PipelinePage() {
       <div className="max-w-[1600px] mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-lg font-bold text-gray-100">Pipeline</h1>
+            <h1 className="text-lg font-bold text-gray-100">Deals</h1>
             <p className="text-xs text-gray-500 font-mono">
               Business development &amp; application portfolio
             </p>
