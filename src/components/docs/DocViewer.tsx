@@ -117,10 +117,10 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
   const handleExportDocx = async () => {
     try {
       const docx = await import("docx");
-      const { Document: DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = docx;
+      const { Document: DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = docx;
 
       const lines = document.content.split("\n");
-      const children: docx.Paragraph[] = [];
+      const children: InstanceType<typeof Paragraph>[] = [];
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -166,7 +166,7 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
         numbering: {
           config: [{
             reference: "default-numbering",
-            levels: [{ level: 0, format: docx.LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT }],
+            levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT }],
           }],
         },
         sections: [{ children }],
@@ -445,8 +445,9 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
 }
 
 // Helper to parse bold/italic in text for docx export
-function parseInlineFormatting(text: string, TextRun: typeof import("docx").TextRun): import("docx").TextRun[] {
-  const runs: import("docx").TextRun[] = [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseInlineFormatting(text: string, TextRun: any): any[] {
+  const runs: any[] = [];
   const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
   let lastIndex = 0;
   let match;
