@@ -9,6 +9,7 @@ import { useTokenStore } from "@/lib/stores/tokenStore";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
 import { usePipelineStore } from "@/lib/stores/pipelineStore";
 import { useOverviewStore } from "@/lib/stores/overviewStore";
+import { useChatStore } from "@/lib/stores/chatStore";
 
 const EVENT_HANDLERS: Record<
   string,
@@ -40,6 +41,8 @@ function getHandlers() {
         type: "alert",
         title: (d.title as string) || "Alert fired",
       });
+    EVENT_HANDLERS.chat_message = (d) =>
+      useChatStore.getState().handleSSEEvent(d);
   }
   return EVENT_HANDLERS;
 }

@@ -89,6 +89,18 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
 
   return (
     <div className="flex flex-col h-full bg-gray-950">
+      {/* Header with live indicator */}
+      <div className="px-4 py-2.5 border-b border-gray-800/50 flex items-center gap-3">
+        <span className="text-2xl">{agentEmoji}</span>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-gray-100 text-sm">{agentName}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] text-emerald-400">Live</span>
+          </div>
+        </div>
+      </div>
+
       {/* Error banner */}
       {error && (
         <div className="px-4 py-2 bg-red-950/40 border-b border-red-900/30 text-red-400 text-xs">
@@ -118,6 +130,9 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
                 {/* Message content */}
                 <div className="prose prose-invert prose-sm max-w-none break-words [&>p]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
                   <MarkdownRenderer content={msg.content} />
+                  {msg.streaming && (
+                    <span className="inline-block w-1.5 h-4 bg-blue-400 animate-pulse ml-0.5 align-middle rounded-sm" />
+                  )}
                 </div>
 
                 {/* Attachments */}
@@ -161,6 +176,7 @@ export default function ChatWindow({ agentId, agentName, agentEmoji }: ChatWindo
           <div className="flex justify-start">
             <div className="bg-gray-900 border border-gray-800/50 rounded-2xl px-4 py-2.5">
               <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-500 mr-1">{agentEmoji}</span>
                 <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                 <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />

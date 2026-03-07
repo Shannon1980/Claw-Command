@@ -15,6 +15,7 @@ export interface Message {
   status?: 'sending' | 'sent' | 'failed' | 'read';
   hasAttachments?: boolean;
   attachments?: AttachmentFile[];
+  streaming?: boolean;
 }
 
 export function useChat(agentId: string) {
@@ -22,10 +23,11 @@ export function useChat(agentId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [agentTyping, setAgentTyping] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const waitingForReply = useRef(false);
-  const lastMessageCount = useRef(0);
+  const esRef = useRef<EventSource | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCount = useRef(0);
 
+  // Fetch initial message history once
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(`/api/chat/${agentId}`);
@@ -45,28 +47,7 @@ export function useChat(agentId: string) {
           attachments: r.attachments as AttachmentFile[] | undefined,
         };
       });
-
-      // Check if agent replied (new agent message appeared)
-      if (waitingForReply.current && backendMessages.length > lastMessageCount.current) {
-        const lastMsg = backendMessages[backendMessages.length - 1];
-        if (lastMsg?.sender === "agent") {
-          waitingForReply.current = false;
-          setAgentTyping(false);
-          // Switch back to normal polling
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          intervalRef.current = setInterval(fetchMessages, 5000);
-        }
-      }
-
-      lastMessageCount.current = backendMessages.length;
-
-      setLocalMessages(current => {
-        const pendingMessages = current.filter(m =>
-          (m.status === 'sending' || m.status === 'failed') &&
-          !backendMessages.some(bm => bm.id === m.id)
-        );
-        return [...backendMessages, ...pendingMessages];
-      });
+      setLocalMessages(backendMessages);
       setError(null);
     } catch (err) {
       setError((err as Error).message);
@@ -75,15 +56,135 @@ export function useChat(agentId: string) {
     }
   }, [agentId]);
 
+  // Connect to SSE stream for real-time updates
+  const connectSSE = useCallback(() => {
+    if (esRef.current) {
+      esRef.current.close();
+    }
+
+    const es = new EventSource(`/api/chat/stream/${agentId}`);
+    esRef.current = es;
+
+    // New message from user or agent (final)
+    es.addEventListener("new_message", (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        const msg = data.message;
+        if (!msg) return;
+
+        const newMessage: Message = {
+          id: msg.id,
+          agentId: msg.agentId,
+          sender: msg.sender,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          status: msg.status || 'sent',
+        };
+
+        setLocalMessages(prev => {
+          // Replace streaming placeholder or temp message, or append
+          const existing = prev.findIndex(m =>
+            m.id === newMessage.id ||
+            (m.streaming && m.sender === 'agent')
+          );
+          if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = newMessage;
+            return updated;
+          }
+          // Don't duplicate if already present
+          if (prev.some(m => m.id === newMessage.id)) return prev;
+          // Replace temp user message if content matches
+          if (newMessage.sender === 'user') {
+            const tempIdx = prev.findIndex(m =>
+              m.status === 'sending' && m.content === newMessage.content
+            );
+            if (tempIdx >= 0) {
+              const updated = [...prev];
+              updated[tempIdx] = newMessage;
+              return updated;
+            }
+          }
+          return [...prev, newMessage];
+        });
+
+        if (newMessage.sender === 'agent') {
+          setAgentTyping(false);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    });
+
+    // Agent is typing
+    es.addEventListener("typing_start", () => {
+      setAgentTyping(true);
+    });
+
+    es.addEventListener("typing_end", () => {
+      setAgentTyping(false);
+    });
+
+    // Streaming tokens from agent response
+    es.addEventListener("chat_stream", (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        const { messageId, content } = data;
+        if (!messageId || !content) return;
+
+        setAgentTyping(false); // Switch from typing dots to streaming text
+
+        setLocalMessages(prev => {
+          const existing = prev.findIndex(m => m.id === messageId);
+          if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = {
+              ...updated[existing],
+              content,
+              streaming: true,
+            };
+            return updated;
+          }
+          // Create a new streaming message
+          return [...prev, {
+            id: messageId,
+            agentId,
+            sender: 'agent' as const,
+            content,
+            timestamp: new Date().toISOString(),
+            status: 'sent' as const,
+            streaming: true,
+          }];
+        });
+      } catch {
+        // ignore
+      }
+    });
+
+    es.addEventListener("connected", () => {
+      retryCount.current = 0;
+    });
+
+    es.onerror = () => {
+      es.close();
+      esRef.current = null;
+      // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
+      const delay = Math.min(1000 * Math.pow(2, retryCount.current), 15000);
+      retryCount.current++;
+      reconnectTimer.current = setTimeout(connectSSE, delay);
+    };
+  }, [agentId]);
+
   useEffect(() => {
     if (!agentId) return;
     setLoading(true);
     fetchMessages();
-    intervalRef.current = setInterval(fetchMessages, 5000);
+    connectSSE();
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (esRef.current) esRef.current.close();
     };
-  }, [agentId, fetchMessages]);
+  }, [agentId, fetchMessages, connectSSE]);
 
   const sendMessage = useCallback(async (content: string, attachments: AttachmentFile[] = []) => {
     const tempId = `temp-${Date.now()}`;
@@ -111,33 +212,18 @@ export function useChat(agentId: string) {
 
       const data = await res.json();
 
+      // Update temp message with real ID - the SSE new_message event
+      // will also arrive, but we handle dedup
       setLocalMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, id: data.messageId || data.id, status: 'sent', timestamp: data.timestamp || m.timestamp } : m
       ));
-
-      // Show typing indicator and poll faster while waiting for reply
-      setAgentTyping(true);
-      waitingForReply.current = true;
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(fetchMessages, 1000);
-
-      // Safety timeout: stop typing after 15s if no reply
-      setTimeout(() => {
-        if (waitingForReply.current) {
-          waitingForReply.current = false;
-          setAgentTyping(false);
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          intervalRef.current = setInterval(fetchMessages, 5000);
-        }
-      }, 15000);
-
     } catch (err) {
       console.error("Send error:", err);
       setLocalMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, status: 'failed' } : m
       ));
     }
-  }, [agentId, fetchMessages]);
+  }, [agentId]);
 
   return {
     messages: localMessages,
