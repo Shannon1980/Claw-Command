@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
+import { useState, useEffect, useCallback } from "react";
+import type {
   Document,
   DocumentType,
   DocumentStatus,
-  mockDocuments,
 } from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
@@ -15,7 +14,6 @@ type ViewMode = "grid" | "list";
 
 export default function DocsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [filteredDocs, setFilteredDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
@@ -24,100 +22,76 @@ export default function DocsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
 
-  const fetchDocuments = () => {
-    setLoading(true);
-    fetch("/api/docs")
-      .then((res) => res.json())
-      .then((data) => {
-        const docs = Array.isArray(data) ? data : data?.docs ?? [];
-        setDocuments(docs.length > 0 ? docs : mockDocuments);
-        setFilteredDocs(docs.length > 0 ? docs : mockDocuments);
-      })
-      .catch((err) => {
-        console.error("Failed to load documents:", err);
-        setDocuments(mockDocuments);
-        setFilteredDocs(mockDocuments);
-      })
-      .finally(() => setLoading(false));
-  };
-
-  // Fetch documents
-  useEffect(() => {
-    fetchDocuments();
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const res = await fetch("/api/docs");
+      const data = await res.json();
+      setDocuments(Array.isArray(data) ? data : []);
+    } catch {
+      setDocuments([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleRefresh = async () => {
-    setSyncing(true);
-    setSyncError(null);
-    try {
-      const res = await fetch("/api/sync/docs/trigger", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setSyncError(data.error || "Sync failed");
-        return;
-      }
-      fetchDocuments();
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Sync failed");
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  // Apply filters
   useEffect(() => {
-    let filtered = documents;
+    fetchDocuments();
+  }, [fetchDocuments]);
 
+  // Auto-refresh every 15s
+  useEffect(() => {
+    const interval = setInterval(fetchDocuments, 15000);
+    return () => clearInterval(interval);
+  }, [fetchDocuments]);
+
+  // Filter logic
+  const filteredDocs = documents.filter((doc) => {
     if (searchQuery) {
-      filtered = filtered.filter(
-        (doc) =>
-          doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doc.content.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const q = searchQuery.toLowerCase();
+      if (!doc.title.toLowerCase().includes(q) && !(doc.content || "").toLowerCase().includes(q)) {
+        return false;
+      }
     }
-
-    if (typeFilter !== "all") {
-      filtered = filtered.filter((doc) => doc.type === typeFilter);
-    }
-
-    if (agentFilter !== "all") {
-      filtered = filtered.filter((doc) => doc.agent === agentFilter);
-    }
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((doc) => doc.status === statusFilter);
-    }
-
-    setFilteredDocs(filtered);
-  }, [searchQuery, typeFilter, agentFilter, statusFilter, documents]);
+    if (typeFilter !== "all" && doc.type !== typeFilter) return false;
+    if (agentFilter !== "all" && doc.agent !== agentFilter) return false;
+    if (statusFilter !== "all" && doc.status !== statusFilter) return false;
+    return true;
+  });
 
   const handleCreateDoc = async (newDoc: {
     title: string;
     type: DocumentType;
+    content: string;
+    authorAgentId: string | null;
     agent: string;
     agentEmoji: string;
-    content: string;
   }) => {
     try {
-      const response = await fetch("/api/docs", {
+      const res = await fetch("/api/docs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newDoc),
       });
-
-      if (response.ok) {
-        const createdDoc = await response.json();
-        setDocuments([...documents, createdDoc]);
+      if (res.ok) {
+        const created = await res.json();
+        setDocuments((prev) => [{ ...newDoc, ...created, updatedAt: created.updatedAt || new Date().toISOString(), createdAt: created.createdAt || new Date().toISOString() }, ...prev]);
       }
     } catch (error) {
       console.error("Failed to create document:", error);
     }
   };
 
-  const agents = ["all", ...new Set(documents.map((d) => d.agent))];
+  const handleUpdateDoc = (updated: Document) => {
+    setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+    setSelectedDoc(updated);
+  };
+
+  const handleDeleteDoc = (id: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const agents = ["all", ...new Set(documents.map((d) => d.agent).filter(Boolean))];
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -127,49 +101,41 @@ export default function DocsPage() {
           <div>
             <h1 className="text-lg font-bold text-gray-100">Documents</h1>
             <p className="text-xs text-gray-500 font-mono">
-              {filteredDocs?.length || 0} document{filteredDocs?.length !== 1 ? "s" : ""}
+              {filteredDocs.length} document{filteredDocs.length !== 1 ? "s" : ""}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={handleRefresh}
-              disabled={syncing}
-              className="px-4 py-2 bg-gray-800 text-gray-300 border border-gray-700 rounded text-sm font-medium hover:bg-gray-700 hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={() => fetchDocuments()}
+              disabled={loading}
+              className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
             >
-              {syncing ? "Syncing..." : "Refresh"}
+              {loading ? "Loading..." : "Refresh"}
             </button>
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded text-sm font-medium hover:bg-cyan-500/30 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors"
             >
               + New Document
             </button>
           </div>
         </div>
 
-        {syncError && (
-          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded text-sm text-amber-400">
-            {syncError}
-          </div>
-        )}
-
         {/* Filters */}
         <div className="flex items-center gap-3 mb-6 flex-wrap">
-          {/* Search */}
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search documents..."
-            className="flex-1 min-w-64 px-3 py-2 bg-gray-900 border border-gray-800 rounded text-sm text-gray-300 focus:outline-none focus:border-gray-700"
+            className="flex-1 min-w-64 px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           />
 
-          {/* Type Filter */}
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as DocumentType | "all")}
-            className="px-3 py-2 bg-gray-900 border border-gray-800 rounded text-sm text-gray-300 focus:outline-none focus:border-gray-700"
+            className="px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           >
             <option value="all">All Types</option>
             <option value="proposal">Proposal</option>
@@ -179,11 +145,10 @@ export default function DocsPage() {
             <option value="template">Template</option>
           </select>
 
-          {/* Agent Filter */}
           <select
             value={agentFilter}
             onChange={(e) => setAgentFilter(e.target.value)}
-            className="px-3 py-2 bg-gray-900 border border-gray-800 rounded text-sm text-gray-300 focus:outline-none focus:border-gray-700"
+            className="px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           >
             {agents.map((agent) => (
               <option key={agent} value={agent}>
@@ -192,11 +157,10 @@ export default function DocsPage() {
             ))}
           </select>
 
-          {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as DocumentStatus | "all")}
-            className="px-3 py-2 bg-gray-900 border border-gray-800 rounded text-sm text-gray-300 focus:outline-none focus:border-gray-700"
+            className="px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           >
             <option value="all">All Status</option>
             <option value="draft">Draft</option>
@@ -205,13 +169,12 @@ export default function DocsPage() {
             <option value="exported">Exported</option>
           </select>
 
-          {/* View Toggle */}
-          <div className="flex bg-gray-900 border border-gray-800 rounded p-0.5">
+          <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("grid")}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                 viewMode === "grid"
-                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  ? "bg-gray-800 text-white"
                   : "text-gray-500 hover:text-gray-300"
               }`}
             >
@@ -219,9 +182,9 @@ export default function DocsPage() {
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                 viewMode === "list"
-                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  ? "bg-gray-800 text-white"
                   : "text-gray-500 hover:text-gray-300"
               }`}
             >
@@ -230,14 +193,27 @@ export default function DocsPage() {
           </div>
         </div>
 
-        {/* Document Grid/List */}
-        {loading ? (
+        {/* Content */}
+        {loading && documents.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-sm">Loading documents...</p>
           </div>
         ) : filteredDocs.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-sm">No documents found</p>
+          <div className="text-center py-16">
+            <div className="text-4xl mb-3 opacity-30">&#128196;</div>
+            <p className="text-gray-500 text-sm mb-4">
+              {documents.length === 0
+                ? "No documents yet"
+                : "No documents match your filters"}
+            </p>
+            {documents.length === 0 && (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="px-4 py-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-sm font-medium hover:bg-blue-600/30 transition-colors"
+              >
+                Create your first document
+              </button>
+            )}
           </div>
         ) : (
           <div
@@ -258,13 +234,13 @@ export default function DocsPage() {
         )}
       </div>
 
-      {/* Document Viewer */}
       <DocViewer
         document={selectedDoc}
         onClose={() => setSelectedDoc(null)}
+        onUpdate={handleUpdateDoc}
+        onDelete={handleDeleteDoc}
       />
 
-      {/* Create Modal */}
       <DocCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
