@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Pool } from "pg";
+import { connectionString } from "@/lib/db/config";
+import { emitChatMessage } from "@/lib/events/emitActivity";
 
-// In-memory message store (replace with DB later)
-const messageStore: Map<string, any[]> = new Map();
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,43 +19,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const timestamp = new Date().toISOString();
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const now = new Date().toISOString();
 
-    const newMessage = {
-      id: messageId,
-      agentId,
-      sender: "shannon",
-      message,
-      attachments: attachments || [],
-      timestamp,
-      status: "sent",
-      hasAttachments: (attachments && attachments.length > 0) || false,
-    };
-
-    // Store message
-    if (!messageStore.has(agentId)) {
-      messageStore.set(agentId, []);
+    // Persist to DB (chat_messages table)
+    if (pool) {
+      await pool.query(
+        `INSERT INTO chat_messages (id, agent_id, sender, content, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+        [messageId, agentId, "user", message, "sent", now]
+      );
     }
-    messageStore.get(agentId)!.push(newMessage);
 
-    // Log activity event
-    // TODO: Connect to actual activities API
-    console.log(`[Activity] message_sent to ${agentId}:`, messageId);
+    // Emit real-time event
+    emitChatMessage({
+      messageId,
+      agentId,
+      sender: "user",
+      content: message,
+      attachments: attachments || [],
+    });
 
     return NextResponse.json({
       id: messageId,
       status: "sent",
-      timestamp,
+      timestamp: now,
     });
   } catch (error) {
-    console.error("Error sending message:", error);
+    console.error("[Chat Send] Error:", error);
     return NextResponse.json(
       { error: "Failed to send message" },
       { status: 500 }
     );
   }
 }
-
-// Export the message store for use by other API routes
-export { messageStore };

@@ -1,155 +1,159 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ChatFlyout from "@/components/chat/ChatFlyout";
 
-type NavItem =
-  | { href: string; label: string }
-  | {
-      label: string;
-      children: { href: string; label: string }[];
-    };
+interface NavLink {
+  href: string;
+  label: string;
+}
 
-const navItems: NavItem[] = [
-  { href: "/", label: "Command" },
+interface NavSection {
+  title: string;
+  items: NavLink[];
+}
+
+const navSections: NavSection[] = [
   {
-    label: "Brief",
-    children: [
-      { href: "/brief", label: "General Brief" },
-      { href: "/skyward", label: "Skyward Brief" },
+    title: "COMMAND",
+    items: [
+      { href: "/", label: "Overview" },
+      { href: "/agents", label: "Agents" },
+      { href: "/tasks", label: "Tasks" },
+      { href: "/sessions", label: "Sessions" },
     ],
   },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/mission-control", label: "Mission Control" },
-  { href: "/pipeline", label: "Pipeline" },
   {
-    label: "Docs",
-    children: [
-      { href: "/docs", label: "Documents" },
+    title: "OBSERVE",
+    items: [
+      { href: "/activity", label: "Activity" },
+      { href: "/logs", label: "Logs" },
+      { href: "/tokens", label: "Tokens" },
+      { href: "/memory", label: "Memory" },
+    ],
+  },
+  {
+    title: "AUTOMATE",
+    items: [
+      { href: "/cron", label: "Cron" },
+      { href: "/spawn", label: "Spawn" },
+      { href: "/orchestration", label: "Pipelines" },
+      { href: "/webhooks", label: "Webhooks" },
+      { href: "/alerts", label: "Alerts" },
+    ],
+  },
+  {
+    title: "DOMAIN",
+    items: [
+      { href: "/brief", label: "Brief" },
+      { href: "/pipeline", label: "Pipeline" },
       { href: "/certifications", label: "Certifications" },
+      { href: "/calendar", label: "Calendar" },
+      { href: "/email", label: "Email" },
+      { href: "/docs", label: "Docs" },
+      { href: "/skyward", label: "Skyward" },
     ],
   },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/email", label: "Email" },
-  { href: "/tokens", label: "Tokens" },
+  {
+    title: "ADMIN",
+    items: [
+      { href: "/settings", label: "Settings" },
+      { href: "/users", label: "Users" },
+      { href: "/audit", label: "Audit Log" },
+    ],
+  },
 ];
-
-function isDropdown(item: NavItem): item is { label: string; children: { href: string; label: string }[] } {
-  return "children" in item && Array.isArray(item.children);
-}
-
-function isActiveInDropdown(
-  pathname: string,
-  children: { href: string; label: string }[]
-): boolean {
-  return children.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
-}
 
 export default function Navigation() {
   const pathname = usePathname();
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const isInsideAnyDropdown = Object.values(dropdownRefs.current).some(
-        (el) => el?.contains(target)
-      );
-      if (!isInsideAnyDropdown) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const toggleSection = (title: string) => {
+    setCollapsed((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(href + "/");
+  };
 
   return (
     <nav className="w-52 shrink-0 z-[100] h-full flex flex-col bg-gray-950/95 border-r border-gray-800/80 backdrop-blur-sm">
+      {/* Brand */}
       <div className="p-4 border-b border-gray-800/60">
         <Link
           href="/"
-          className="text-sm font-semibold text-gray-100 hover:text-white transition-colors"
+          className="text-sm font-semibold text-gray-100 hover:text-white transition-colors tracking-wide"
         >
           Vorentoe
         </Link>
+        <span className="ml-2 text-[10px] font-mono text-gray-600 bg-gray-800/60 px-1.5 py-0.5 rounded">
+          MC
+        </span>
       </div>
-      <div className="flex-1 overflow-y-auto py-2">
-        <div className="px-2">
-          <div className="[&>button]:w-full [&>button]:justify-start">
-            <ChatFlyout />
-          </div>
+
+      {/* Chat */}
+      <div className="px-2 pt-2">
+        <div className="[&>button]:w-full [&>button]:justify-start">
+          <ChatFlyout />
         </div>
-        <div className="flex flex-col gap-0.5 mt-2">
-          {navItems.map((item) => {
-            if (isDropdown(item)) {
-              const isOpen = openDropdown === item.label;
-              const active = isActiveInDropdown(pathname, item.children);
-              return (
-                <div
-                  key={item.label}
-                  ref={(el) => {
-                    dropdownRefs.current[item.label] = el;
-                  }}
-                  className="relative"
-                >
-                  <button
-                    onClick={() => setOpenDropdown(isOpen ? null : item.label)}
-                    className={`w-full px-3 py-2 rounded text-[13px] font-medium transition-colors flex items-center justify-between ${
-                      active
-                        ? "text-white bg-gray-800/80"
-                        : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
-                    }`}
-                  >
-                    {item.label}
-                    <svg
-                      className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {isOpen && (
-                    <div className="absolute left-full top-0 ml-0.5 py-1 min-w-[140px] bg-gray-900 border border-gray-800 rounded-lg shadow-xl z-[110]">
-                      {item.children.map((child) => (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          onClick={() => setOpenDropdown(null)}
-                          className={`block px-4 py-2 text-[13px] transition-colors ${
-                            pathname === child.href
-                              ? "text-white bg-gray-800"
-                              : "text-gray-400 hover:text-gray-100 hover:bg-gray-800/60"
-                          }`}
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block px-3 py-2 rounded text-[13px] font-medium transition-colors ${
-                  isActive
-                    ? "text-white bg-gray-800/80"
-                    : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
+      </div>
+
+      {/* Nav sections */}
+      <div className="flex-1 overflow-y-auto py-2 space-y-1">
+        {navSections.map((section) => {
+          const isCollapsed = collapsed[section.title] ?? false;
+          const hasActive = section.items.some((item) => isActive(item.href));
+
+          return (
+            <div key={section.title}>
+              <button
+                onClick={() => toggleSection(section.title)}
+                className={`w-full px-3 py-1.5 flex items-center justify-between text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
+                  hasActive
+                    ? "text-gray-300"
+                    : "text-gray-600 hover:text-gray-400"
                 }`}
               >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
+                {section.title}
+                <svg
+                  className={`w-3 h-3 transition-transform ${
+                    isCollapsed ? "-rotate-90" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              {!isCollapsed && (
+                <div className="flex flex-col gap-0.5 mt-0.5">
+                  {section.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`block px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors ${
+                        isActive(item.href)
+                          ? "text-white bg-gray-800/80"
+                          : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </nav>
   );

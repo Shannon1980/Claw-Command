@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { LiveIndicator } from "./LiveIndicator";
-import { useAgents } from "@/lib/hooks/useAgents";
+import { useAgentStore } from "@/lib/stores/agentStore";
 import ActivityFlyout from "./ActivityFlyout";
 
 export default function CommandHeader() {
   const [time, setTime] = useState<string>("");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const { agents, error } = useAgents();
+  const agents = useAgentStore((s) => s.agents);
+  const error = useAgentStore((s) => s.error);
 
   useEffect(() => {
     const update = () => {

@@ -2,7 +2,7 @@
 
 import { DOMAIN_COLORS, STATUS_CONFIG } from "@/lib/mock-data";
 import AgentCard from "./AgentCard";
-import { useAgents } from "@/lib/hooks/useAgents";
+import { useAgentStore } from "@/lib/stores/agentStore";
 
 const DOMAIN_ORDER = ["vorentoe", "skyward", "community", "teaching"] as const;
 const DOMAIN_LABELS: Record<string, string> = {
@@ -13,7 +13,8 @@ const DOMAIN_LABELS: Record<string, string> = {
 };
 
 export default function ActiveOperations() {
-  const { agents, loading } = useAgents();
+  const agents = useAgentStore((s) => s.agents);
+  const loading = useAgentStore((s) => s.loading);
 
   const grouped = DOMAIN_ORDER.map((domain) => ({
     domain,
@@ -70,8 +71,8 @@ export default function ActiveOperations() {
                   emoji: agent.emoji,
                   domain: agent.domain as "vorentoe" | "skyward" | "community" | "teaching",
                   status: agent.status as "idle" | "active" | "blocked" | "waiting_for_shannon",
-                  currentTask: agent.current_task_id,
-                  updatedAt: agent.updated_at,
+                  currentTask: agent.currentTaskId,
+                  updatedAt: agent.updatedAt,
                 }}
               />
             ))}
