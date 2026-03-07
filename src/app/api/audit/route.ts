@@ -6,8 +6,34 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS audit_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      action TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      details TEXT NOT NULL DEFAULT '{}',
+      ip_address TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
+  schemaReady = true;
+}
+
 export async function GET(request: NextRequest) {
   if (!pool) return NextResponse.json([]);
+
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.error("[Audit API] Schema error:", err);
+    return NextResponse.json([], { status: 200 });
+  }
 
   const searchParams = request.nextUrl.searchParams;
   const user = searchParams.get("user");
