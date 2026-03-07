@@ -1,14 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
-import { mockCertifications } from "@/lib/mock-certifications";
 
 const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
+
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS certifications (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      level TEXT NOT NULL DEFAULT 'Federal',
+      authority TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'NOT_STARTED',
+      due_date TEXT,
+      applied_date TEXT,
+      decision_expected TEXT,
+      expires_date TEXT,
+      description TEXT,
+      notes TEXT,
+      documents TEXT DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT NOW()::TEXT,
+      updated_at TEXT NOT NULL DEFAULT NOW()::TEXT
+    )
+  `);
+  schemaReady = true;
+}
 
 function rowToCert(row: Record<string, unknown>) {
   const documents = (() => {
@@ -36,39 +57,34 @@ function rowToCert(row: Record<string, unknown>) {
 }
 
 export async function GET() {
+  if (!pool) return NextResponse.json([]);
+
   try {
-    if (pool && connectionString) {
-      const result = await pool.query(
-        `SELECT id, name, level, authority, status, due_date, applied_date,
-                decision_expected, expires_date, description, notes, documents
-         FROM certifications ORDER BY level, name`
-      );
-      if (result.rows.length > 0) {
-        return NextResponse.json(result.rows.map(rowToCert));
-      }
-    }
+    await ensureSchema();
+    const result = await pool.query(
+      `SELECT id, name, level, authority, status, due_date, applied_date,
+              decision_expected, expires_date, description, notes, documents
+       FROM certifications ORDER BY level, name`
+    );
+    return NextResponse.json(result.rows.map(rowToCert));
   } catch (error) {
     console.error("[Certifications API] Error:", error);
+    return NextResponse.json([]);
   }
-  return NextResponse.json(mockCertifications);
 }
 
 export async function POST(request: NextRequest) {
-  if (!pool || !connectionString) {
-    return NextResponse.json(
-      { error: "Database not configured" },
-      { status: 503 }
-    );
+  if (!pool) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
+
   try {
+    await ensureSchema();
     const body = await request.json();
     const id = (body.id as string)?.trim() || `cert-${Date.now()}`;
     const name = (body.name as string)?.trim();
     if (!name) {
-      return NextResponse.json(
-        { error: "Name is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
     const now = new Date().toISOString();
     const documents = JSON.stringify(
@@ -79,8 +95,7 @@ export async function POST(request: NextRequest) {
         decision_expected, expires_date, description, notes, documents, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
       [
-        id,
-        name,
+        id, name,
         body.level || "Federal",
         body.authority || "",
         body.status || "NOT_STARTED",
@@ -94,13 +109,17 @@ export async function POST(request: NextRequest) {
         now,
       ]
     );
-    return NextResponse.json({ id, success: true });
+    return NextResponse.json({
+      id, name, level: body.level || "Federal", authority: body.authority || "",
+      status: body.status || "NOT_STARTED", documents: body.documents || [],
+      description: body.description, notes: body.notes,
+      dueDate: body.dueDate, appliedDate: body.appliedDate,
+      decisionExpected: body.decisionExpected, expiresDate: body.expiresDate,
+    });
   } catch (error) {
     console.error("[Certifications API] Create error:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Create failed",
-      },
+      { error: error instanceof Error ? error.message : "Create failed" },
       { status: 500 }
     );
   }
