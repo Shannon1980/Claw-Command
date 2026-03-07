@@ -45,6 +45,19 @@ export default function DocsPage() {
     updated: { id: string; title: string }[];
     deleted: { id: string; title: string }[];
   } | null>(null);
+  const [copiedCommand, setCopiedCommand] = useState(false);
+
+  const SYNC_SCRIPT_CMD = "~/.openclaw/workspace/Claw-Command/scripts/sync-docs.sh";
+
+  const copySyncCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(SYNC_SCRIPT_CMD);
+      setCopiedCommand(true);
+      setTimeout(() => setCopiedCommand(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -332,10 +345,17 @@ export default function DocsPage() {
               </span>
             )}
             <button
+              onClick={copySyncCommand}
+              className="px-3 py-1.5 text-sm text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors border border-amber-500/30"
+              title="Copy command to run in your local terminal"
+            >
+              {copiedCommand ? "Copied!" : "Run sync locally"}
+            </button>
+            <button
               onClick={handleSyncFromWorkspace}
               disabled={syncStatus.loading || loading}
               className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 border border-gray-700/50 hover:border-gray-600"
-              title="Sync documents from OpenClaw workspace (local) or run ./scripts/sync-docs.sh"
+              title="Try sync from server (works when app runs locally with workspace)"
             >
               {syncStatus.loading ? "Syncing…" : "Sync from Workspace"}
             </button>
