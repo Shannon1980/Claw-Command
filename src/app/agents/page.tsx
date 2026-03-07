@@ -37,7 +37,7 @@ export default function AgentsPage() {
   const handlePingAll = async () => {
     setPinging(true);
     try {
-      await fetch("/api/agents/heartbeat-all", { method: "POST" });
+      await fetch("/api/heartbeat-all", { method: "POST" });
       await fetchAgents();
     } catch {
       // silent

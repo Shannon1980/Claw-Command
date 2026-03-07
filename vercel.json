@@ -5,7 +5,7 @@
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/agents/heartbeat-all",
+      "path": "/api/heartbeat-all",
       "schedule": "*/5 * * * *"
     }
   ]
