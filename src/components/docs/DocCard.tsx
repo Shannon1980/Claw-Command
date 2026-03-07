@@ -2,8 +2,9 @@
 
 import type { Document, DocumentStatus, DocumentType, DocumentPriority, ReviewStatus, LinkedItem } from "@/lib/mock-docs";
 import { linkTypeConfig } from "@/components/docs/LinkPicker";
-import { priorityStyles, reviewStatusStyles, categoryStyles } from "@/components/docs/ReviewQueue";
+import { priorityStyles, reviewStatusStyles, categoryStyles } from "@/lib/ui-config";
 import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/mock-docs";
+import { getRelativeTime, getWordCount } from "@/lib/utils/formatting";
 
 interface DocCardProps {
   document: Document;
@@ -70,25 +71,6 @@ const typeConfig: Record<
     bg: "bg-gray-500/10",
   },
 };
-
-function getWordCount(text: string): number {
-  if (!text || !text.trim()) return 0;
-  return text.trim().split(/\s+/).length;
-}
-
-function getRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (!Number.isFinite(diffInSeconds) || diffInSeconds < 0) return "";
-  if (diffInSeconds < 60) return "just now";
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  if (diffInSeconds < 604800)
-    return `${Math.floor(diffInSeconds / 86400)}d ago`;
-  return date.toLocaleDateString();
-}
 
 export default function DocCard({ document, onClick }: DocCardProps) {
   const statusCfg =

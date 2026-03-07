@@ -8,7 +8,7 @@ export type CertStatus =
 
 export type CertLevel = "Federal" | "State" | "Local";
 
-export interface Document {
+export interface CertDocument {
   name: string;
   completed: boolean;
 }
@@ -23,7 +23,7 @@ export interface Certification {
   appliedDate?: string;
   decisionExpected?: string;
   expiresDate?: string;
-  documents: Document[];
+  documents: CertDocument[];
   description?: string;
   notes?: string;
 }

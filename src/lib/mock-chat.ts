@@ -6,28 +6,6 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-export interface Agent {
-  id: string;
-  name: string;
-  emoji: string;
-  status: "active" | "idle" | "offline";
-  lastActivity?: Date;
-}
-
-export const agents: Agent[] = [
-  { id: "bob", name: "Bob", emoji: "🤖", status: "active", lastActivity: new Date("2026-03-04T18:15:00") },
-  { id: "bertha", name: "Bertha", emoji: "💼", status: "active", lastActivity: new Date("2026-03-04T17:30:00") },
-  { id: "veronica", name: "Veronica", emoji: "🎯", status: "active", lastActivity: new Date("2026-03-04T16:45:00") },
-  { id: "depa", name: "Depa", emoji: "📊", status: "idle", lastActivity: new Date("2026-03-04T14:20:00") },
-  { id: "forge", name: "Forge", emoji: "⚙️", status: "active", lastActivity: new Date("2026-03-04T18:00:00") },
-  { id: "atlas", name: "Atlas", emoji: "🖥️", status: "active", lastActivity: new Date("2026-03-04T18:30:00") },
-  { id: "muse", name: "Muse", emoji: "🎨", status: "idle", lastActivity: new Date("2026-03-04T12:00:00") },
-  { id: "peter", name: "Peter", emoji: "📋", status: "active", lastActivity: new Date("2026-03-04T15:30:00") },
-  { id: "harmony", name: "Harmony", emoji: "👥", status: "idle", lastActivity: new Date("2026-03-03T16:00:00") },
-  { id: "skylar", name: "Skylar", emoji: "🌤️", status: "active", lastActivity: new Date("2026-03-04T17:00:00") },
-  { id: "sentinel", name: "Sentinel", emoji: "🛡️", status: "idle", lastActivity: new Date("2026-03-04T11:00:00") },
-];
-
 export const mockChatHistory: Record<string, ChatMessage[]> = {
   bob: [
     {
@@ -144,19 +122,4 @@ export const mockChatHistory: Record<string, ChatMessage[]> = {
 
 export function getAgentChatHistory(agentId: string): ChatMessage[] {
   return mockChatHistory[agentId] || [];
-}
-
-export function getSortedAgents(): Agent[] {
-  return [...agents].sort((a, b) => {
-    // Active agents first
-    if (a.status === "active" && b.status !== "active") return -1;
-    if (b.status === "active" && a.status !== "active") return 1;
-    
-    // Then by last activity
-    if (a.lastActivity && b.lastActivity) {
-      return b.lastActivity.getTime() - a.lastActivity.getTime();
-    }
-    
-    return 0;
-  });
 }

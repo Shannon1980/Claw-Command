@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useSkyward } from "@/lib/hooks/useSkyward";
 import WorkstreamCard from "@/components/skyward/WorkstreamCard";
+import { getRelativeTime } from "@/lib/utils/formatting";
 
 const statusConfig: Record<
   string,
@@ -28,20 +29,6 @@ const statusConfig: Record<
     label: "Blocked",
   },
 };
-
-function formatTimestamp(ts: string): string {
-  const d = new Date(ts);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 export default function SkywardPage() {
   const { data, loading, error, refresh } = useSkyward();
@@ -176,7 +163,7 @@ export default function SkywardPage() {
                     {update.content}
                   </p>
                   <span className="text-xs text-gray-500 mt-1 block">
-                    {formatTimestamp(update.timestamp)}
+                    {getRelativeTime(update.timestamp)}
                   </span>
                 </div>
               ))}

@@ -68,12 +68,3 @@ export function getActiveAlerts(): Alert[] {
   return mockAlerts.filter(alert => alert.dismissed_at === null);
 }
 
-// Helper function to dismiss an alert
-export function dismissAlert(alertId: string): boolean {
-  const alert = mockAlerts.find(a => a.id === alertId);
-  if (alert) {
-    alert.dismissed_at = new Date().toISOString();
-    return true;
-  }
-  return false;
-}

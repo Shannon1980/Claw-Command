@@ -6,7 +6,8 @@ import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib
 import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
 import LinkPicker, { linkTypeConfig } from "@/components/docs/LinkPicker";
 import DocNotes from "@/components/docs/DocNotes";
-import { priorityStyles, reviewStatusStyles } from "@/components/docs/ReviewQueue";
+import { priorityStyles, reviewStatusStyles } from "@/lib/ui-config";
+import { getWordCount } from "@/lib/utils/formatting";
 
 interface DocViewerProps {
   document: Document | null;
@@ -23,11 +24,6 @@ const statusOptions: { value: DocumentStatus; label: string }[] = [
   { value: "approved", label: "Approved" },
   { value: "exported", label: "Exported" },
 ];
-
-function getWordCount(text: string): number {
-  if (!text || !text.trim()) return 0;
-  return text.trim().split(/\s+/).length;
-}
 
 export default function DocViewer({ document, onClose, onUpdate, onDelete, onDuplicate, onAssign }: DocViewerProps) {
   const [isEditing, setIsEditing] = useState(false);
