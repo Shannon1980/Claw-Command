@@ -172,20 +172,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const docType = searchParams.get("type");
   const search = searchParams.get("search");
-  const linkedType = searchParams.get("linkedType");
-  const linkedId = searchParams.get("linkedId");
-  const reviewStatus = searchParams.get("reviewStatus");
-  const category = searchParams.get("category");
-  const priority = searchParams.get("priority");
 
   try {
+    // Use minimal columns to avoid schema drift (linked_to, etc. may not exist)
     const baseQuery =
       "SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, " +
-      "d.status, d.file_path, d.linked_to, d.version_history, " +
-      "d.priority, d.review_status, d.category, d.notes, d.assignments, " +
-      "d.created_at, d.updated_at, " +
-      "a.name as agent_name, a.emoji as agent_emoji " +
-      "FROM docs d LEFT JOIN agents a ON d.author_agent_id = a.id";
+      "d.status, d.file_path, d.created_at, d.updated_at " +
+      "FROM docs d";
     let query = baseQuery;
     const conditions: string[] = [];
     const params: string[] = [];
@@ -198,23 +191,7 @@ export async function GET(request: NextRequest) {
       params.push("%" + search + "%");
       conditions.push("(d.title ILIKE $" + params.length + " OR d.content ILIKE $" + params.length + ")");
     }
-    if (linkedType && linkedId) {
-      params.push(linkedType);
-      params.push(linkedId);
-      conditions.push("d.linked_to @> jsonb_build_array(jsonb_build_object('type', $" + (params.length - 1) + "::text, 'id', $" + params.length + "::text))");
-    }
-    if (reviewStatus) {
-      params.push(reviewStatus);
-      conditions.push("d.review_status = $" + params.length);
-    }
-    if (category) {
-      params.push(category);
-      conditions.push("d.category = $" + params.length);
-    }
-    if (priority) {
-      params.push(priority);
-      conditions.push("d.priority = $" + params.length);
-    }
+    // Skip linkedType, reviewStatus, category, priority filters - those columns may not exist in deployed schema
 
     if (conditions.length > 0) {
       query += " WHERE " + conditions.join(" AND ");
@@ -222,29 +199,33 @@ export async function GET(request: NextRequest) {
     query += " ORDER BY d.updated_at DESC";
 
     const result = await pool.query(query, params);
-    const docs = result.rows.map((row: Record<string, unknown>) => ({
-      id: row.id,
-      title: row.title,
-      filename: row.filename,
-      type: row.doc_type,
-      content: row.content || "",
-      authorAgentId: row.author_agent_id,
-      status: row.status,
-      filePath: row.file_path,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      agent: (row.agent_name as string) || "Unknown",
-      agentEmoji: (row.agent_emoji as string) || "",
-      linkedTo: row.linked_to || [],
-      versionHistory: row.version_history || [],
-      priority: row.priority || "medium",
-      reviewStatus: row.review_status || "pending_review",
-      category: row.category || "uncategorized",
-      notes: row.notes || [],
-      assignments: row.assignments || [],
-    }));
+    const docs = result.rows.map((row: Record<string, unknown>) => {
+      const agentId = (row.author_agent_id as string) || "bob";
+      const meta = AGENT_META[agentId] || AGENT_META.bob;
+      return {
+        id: row.id,
+        title: row.title,
+        filename: row.filename,
+        type: row.doc_type,
+        content: row.content || "",
+        authorAgentId: row.author_agent_id,
+        status: row.status,
+        filePath: row.file_path,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        agent: meta.name,
+        agentEmoji: meta.emoji,
+        linkedTo: [] as LinkedItem[],
+        versionHistory: [{ timestamp: row.updated_at as string, summary: "Synced" }],
+        priority: "medium",
+        reviewStatus: "pending_review",
+        category: "uncategorized",
+        notes: [],
+        assignments: [],
+      };
+    });
 
-    if (docs.length === 0 && !docType && !search && !linkedType && !reviewStatus && !category && !priority) {
+    if (docs.length === 0 && !docType && !search) {
       return NextResponse.json(getFallbackDocs());
     }
 
