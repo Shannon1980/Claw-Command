@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
 
     const result = await pool.query(
-      `INSERT INTO agents (id, name, emoji, domain, status, capabilities, soul, updated_at, created_at)
-       VALUES ($1, $2, $3, $4, 'idle', $5, $6, $7, $7)
+      `INSERT INTO agents (id, name, emoji, domain, status, capabilities, soul, updated_at)
+       VALUES ($1, $2, $3, $4, 'idle', $5, $6, $7)
        RETURNING *`,
       [id, name, emoji || null, domain, capabilities || null, soul || null, now]
     );

@@ -22,14 +22,14 @@ export async function GET(request: NextRequest) {
       `SELECT s.user_id, s.expires_at, u.username, u.role, u.email
        FROM sessions_auth s
        JOIN users u ON u.id = s.user_id
-       WHERE s.token = $1 AND s.expires_at > NOW()`,
+       WHERE s.token = $1 AND s.expires_at::timestamptz > NOW()`,
       [sessionToken]
     );
 
     if (result.rows.length === 0) {
       // Check if this is the env-based admin session
       const envCheck = await pool.query(
-        `SELECT user_id, expires_at FROM sessions_auth WHERE token = $1 AND expires_at > NOW()`,
+        `SELECT user_id, expires_at FROM sessions_auth WHERE token = $1 AND expires_at::timestamptz > NOW()`,
         [sessionToken]
       );
       if (envCheck.rows.length > 0 && envCheck.rows[0].user_id === "admin-env") {

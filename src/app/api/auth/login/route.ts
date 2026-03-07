@@ -52,15 +52,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session
+    const sessionId = crypto.randomUUID();
     const sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24h
     const now = new Date().toISOString();
 
     if (pool) {
       await pool.query(
-        `INSERT INTO sessions_auth (token, user_id, expires_at, created_at)
-         VALUES ($1, $2, $3, $4)`,
-        [sessionToken, userId, expiresAt, now]
+        `INSERT INTO sessions_auth (id, token, user_id, expires_at, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [sessionId, sessionToken, userId, expiresAt, now]
       );
     }
 

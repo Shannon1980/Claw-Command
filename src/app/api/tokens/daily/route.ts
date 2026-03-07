@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
               COALESCE(SUM(output_tokens), 0) as output_tokens,
               COALESCE(SUM(cost_cents), 0) as cost_cents
        FROM token_usage
-       WHERE created_at >= NOW() - INTERVAL '1 day' * $1
-       GROUP BY DATE(created_at)
-       ORDER BY DATE(created_at) ASC`,
+       WHERE created_at::timestamptz >= NOW() - INTERVAL '1 day' * $1
+       GROUP BY DATE(created_at::timestamptz)
+       ORDER BY DATE(created_at::timestamptz) ASC`,
       [days]
     );
 
