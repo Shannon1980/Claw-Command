@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DocumentType } from "@/lib/mock-docs";
+import { DocumentType, LinkedItem } from "@/lib/mock-docs";
+import LinkPicker from "@/components/docs/LinkPicker";
 
 interface Agent {
   id: string;
@@ -19,6 +20,7 @@ interface DocCreateModalProps {
     authorAgentId: string | null;
     agent: string;
     agentEmoji: string;
+    linkedTo: LinkedItem[];
   }) => void;
 }
 
@@ -35,6 +37,7 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
   const [type, setType] = useState<DocumentType>("report");
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [content, setContent] = useState("");
+  const [linkedTo, setLinkedTo] = useState<LinkedItem[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
 
   useEffect(() => {
@@ -66,11 +69,13 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
       authorAgentId: selectedAgentId || null,
       agent: selectedAgent?.name || "Unknown",
       agentEmoji: selectedAgent?.emoji || "",
+      linkedTo,
     });
 
     setTitle("");
     setType("report");
     setContent("");
+    setLinkedTo([]);
     onClose();
   };
 
@@ -130,6 +135,11 @@ export default function DocCreateModal({ isOpen, onClose, onSave }: DocCreateMod
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1 font-medium">Link to</label>
+            <LinkPicker linkedItems={linkedTo} onChange={setLinkedTo} />
           </div>
 
           <div>

@@ -7,6 +7,17 @@ export type DocumentType =
 
 export type DocumentStatus = "draft" | "in_review" | "approved" | "exported";
 
+export interface LinkedItem {
+  type: "deal" | "certification" | "task";
+  id: string;
+  name: string;
+}
+
+export interface VersionEntry {
+  timestamp: string;
+  summary: string;
+}
+
 export interface Document {
   id: string;
   title: string;
@@ -17,6 +28,8 @@ export interface Document {
   content: string;
   createdAt: string;
   updatedAt: string;
+  linkedTo?: LinkedItem[];
+  versionHistory?: VersionEntry[];
 }
 
 export const mockDocuments: Document[] = [

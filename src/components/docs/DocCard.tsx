@@ -1,6 +1,7 @@
 "use client";
 
-import { Document, DocumentStatus, DocumentType } from "@/lib/mock-docs";
+import { Document, DocumentStatus, DocumentType, LinkedItem } from "@/lib/mock-docs";
+import { linkTypeConfig } from "@/components/docs/LinkPicker";
 
 interface DocCardProps {
   document: Document;
@@ -68,6 +69,11 @@ const typeConfig: Record<
   },
 };
 
+function getWordCount(text: string): number {
+  if (!text || !text.trim()) return 0;
+  return text.trim().split(/\s+/).length;
+}
+
 function getRelativeTime(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
@@ -118,6 +124,26 @@ export default function DocCard({ document, onClick }: DocCardProps) {
         )}
       </div>
 
+      {/* Linked Items */}
+      {document.linkedTo && document.linkedTo.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {document.linkedTo.slice(0, 3).map((item: LinkedItem) => {
+            const cfg = linkTypeConfig[item.type];
+            return (
+              <span
+                key={`${item.type}-${item.id}`}
+                className={`${cfg.bg} ${cfg.color} px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[140px]`}
+              >
+                {item.name}
+              </span>
+            );
+          })}
+          {document.linkedTo.length > 3 && (
+            <span className="text-[10px] text-gray-500">+{document.linkedTo.length - 3}</span>
+          )}
+        </div>
+      )}
+
       {/* Content Preview */}
       <p className="text-xs text-gray-400 mb-3 line-clamp-2">
         {(document.content || "").slice(0, 120)}
@@ -130,8 +156,9 @@ export default function DocCard({ document, onClick }: DocCardProps) {
           <span className="text-base">{document.agentEmoji}</span>
           <span>{document.agent}</span>
         </div>
-        <div className="text-gray-500 font-mono">
-          {getRelativeTime(document.updatedAt || document.createdAt || "")}
+        <div className="flex items-center gap-3 text-gray-500 font-mono">
+          <span>{getWordCount(document.content || "")} words</span>
+          <span>{getRelativeTime(document.updatedAt || document.createdAt || "")}</span>
         </div>
       </div>
     </div>
