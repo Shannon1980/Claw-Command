@@ -20,6 +20,8 @@ async function ensureSchema() {
       created_at TEXT NOT NULL DEFAULT (now()::text),
       updated_at TEXT NOT NULL DEFAULT (now()::text)
     );
+    ALTER TABLE cron_jobs ADD COLUMN IF NOT EXISTS action TEXT;
+    ALTER TABLE cron_jobs ADD COLUMN IF NOT EXISTS next_run_at TEXT;
     CREATE TABLE IF NOT EXISTS cron_runs (
       id TEXT PRIMARY KEY,
       job_id TEXT NOT NULL,

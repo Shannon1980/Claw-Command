@@ -130,7 +130,7 @@ function readWorkspaceDocs(): Array<Record<string, unknown>> {
   }
 }
 
-function getMockFallback() {
+function getMockFallback(): Array<Record<string, unknown>> {
   return [];
 }
 
