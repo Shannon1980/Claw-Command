@@ -20,6 +20,8 @@ export {
 
 export { computeDedupeHash } from "./dedup";
 export { scanSamGov, scanAllSources } from "./scanner";
+export { scanMontgomeryCounty } from "./scanner-moco";
+export { scanEmma } from "./scanner-emma";
 export { SKYWARD_PROFILE } from "./skyward-profile";
 
 // Phase 2: Intelligence Engine

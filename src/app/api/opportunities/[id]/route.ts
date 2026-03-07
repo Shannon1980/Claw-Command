@@ -58,7 +58,7 @@ export async function PATCH(
 
     const result = await pool.query(
       `UPDATE opportunities SET ${updates.join(", ")} WHERE id = $${paramIndex}
-       RETURNING id, title, stage, value_usd, probability, shannon_approval, owner_agent_id`,
+       RETURNING id, title, stage, value_usd, probability, shannon_approval, owner_agent_id, source, source_url, source_id, agency, deadline`,
       values
     );
 
@@ -82,6 +82,11 @@ export async function PATCH(
       ownerAgent: agent?.name || "Unknown",
       ownerEmoji: agent?.emoji || "💼",
       shannonApproval: row.shannon_approval,
+      source: row.source || "manual",
+      sourceUrl: row.source_url || "",
+      sourceId: row.source_id || "",
+      agency: row.agency || "",
+      deadline: row.deadline || "",
     });
   } catch (error) {
     console.error("[Opportunities API] Update error:", error);

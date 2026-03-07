@@ -15,9 +15,25 @@ async function ensureSchema() {
       probability NUMERIC DEFAULT 0,
       owner_agent_id TEXT,
       shannon_approval TEXT,
+      source TEXT NOT NULL DEFAULT 'manual',
+      source_url TEXT NOT NULL DEFAULT '',
+      source_id TEXT NOT NULL DEFAULT '',
+      agency TEXT NOT NULL DEFAULT '',
+      deadline TEXT,
       created_at TEXT NOT NULL DEFAULT (now()::text),
       updated_at TEXT NOT NULL DEFAULT (now()::text)
     );
+  `);
+  // Add columns if table already existed without them
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source_url TEXT NOT NULL DEFAULT '';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source_id TEXT NOT NULL DEFAULT '';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS agency TEXT NOT NULL DEFAULT '';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS deadline TEXT;
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
   `);
   schemaReady = true;
 }
@@ -32,6 +48,7 @@ export async function GET() {
 
     const res = await pool.query(
       `SELECT o.id, o.title, o.stage, o.value_usd, o.probability, o.shannon_approval,
+              o.source, o.source_url, o.source_id, o.agency, o.deadline,
               a.name as owner_name, a.emoji as owner_emoji
        FROM opportunities o
        LEFT JOIN agents a ON o.owner_agent_id = a.id
@@ -47,6 +64,11 @@ export async function GET() {
       ownerAgent: r.owner_name || "Unknown",
       ownerEmoji: r.owner_emoji || "",
       shannonApproval: r.shannon_approval,
+      source: r.source || "manual",
+      sourceUrl: r.source_url || "",
+      sourceId: r.source_id || "",
+      agency: r.agency || "",
+      deadline: r.deadline || "",
     }));
 
     return NextResponse.json(opportunities);
