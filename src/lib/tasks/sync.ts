@@ -12,10 +12,9 @@ import {
   mapSessionsToTasks,
 } from "@/lib/openclaw/mappers";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 export type SyncTasksResult = {
   tasksSynced: number;

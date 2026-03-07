@@ -70,7 +70,7 @@ export async function POST(
     if (existing.rows.length > 0) {
       result = await pool.query(
         `UPDATE agent_souls
-         SET personality = $1, capabilities = $2, system_prompt = $3, constraints = $4, updated_at = NOW()
+         SET personality = $1, capabilities = $2, system_prompt = $3, constraints = $4, updated_at = NOW()::text
          WHERE agent_id = $5
          RETURNING *`,
         [personality || "", capabilities || "[]", systemPrompt || "", constraints || "", agentId]
@@ -79,7 +79,7 @@ export async function POST(
       const soulId = `soul-${Date.now()}`;
       result = await pool.query(
         `INSERT INTO agent_souls (id, agent_id, personality, capabilities, system_prompt, constraints, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, NOW()::text, NOW()::text)
          RETURNING *`,
         [soulId, agentId, personality || "", capabilities || "[]", systemPrompt || "", constraints || ""]
       );

@@ -51,10 +51,10 @@ export async function GET(_request: NextRequest) {
         `SELECT status, COUNT(*)::int AS count FROM tasks GROUP BY status`
       ),
       pool.query(
-        `SELECT COUNT(*)::int AS count FROM activities WHERE created_at > NOW() - INTERVAL '24 hours'`
+        `SELECT COUNT(*)::int AS count FROM activities WHERE created_at::timestamptz > NOW() - INTERVAL '24 hours'`
       ),
       pool.query(
-        `SELECT COUNT(*)::int AS count FROM activities WHERE created_at > NOW() - INTERVAL '7 days'`
+        `SELECT COUNT(*)::int AS count FROM activities WHERE created_at::timestamptz > NOW() - INTERVAL '7 days'`
       ),
       pool.query(`SELECT COUNT(*)::int AS count FROM webhooks`).catch(() => ({
         rows: [{ count: 0 }],

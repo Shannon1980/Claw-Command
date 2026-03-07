@@ -5,10 +5,9 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 const EXCLUDED_FILES = [
   "MEMORY.md",

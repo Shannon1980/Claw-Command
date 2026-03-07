@@ -16,7 +16,7 @@ export async function POST(_request: NextRequest) {
 
   try {
     const result = await pool.query(
-      `UPDATE notifications SET read_at = NOW() WHERE read_at IS NULL`
+      `UPDATE notifications SET read_at = NOW()::text WHERE read_at IS NULL`
     );
 
     return NextResponse.json({

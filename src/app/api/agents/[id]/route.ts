@@ -81,7 +81,7 @@ export async function PATCH(
       );
     }
 
-    setClauses.push(`updated_at = NOW()`);
+    setClauses.push(`updated_at = NOW()::text`);
     values.push(id);
 
     const result = await pool.query(
@@ -121,7 +121,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     const result = await pool.query(
-      `UPDATE agents SET retired_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`,
+      `UPDATE agents SET retired_at = NOW()::text, updated_at = NOW()::text WHERE id = $1 RETURNING *`,
       [id]
     );
 

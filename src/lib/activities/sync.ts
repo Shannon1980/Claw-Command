@@ -15,10 +15,9 @@ import {
 } from "@/lib/openclaw/mappers";
 import type { ActivityEvent } from "@/lib/openclaw/types";
 
-const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 const ARCHIVE_DAYS = 7;
 

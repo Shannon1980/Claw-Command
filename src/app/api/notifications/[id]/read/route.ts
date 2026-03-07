@@ -20,7 +20,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const result = await pool.query(
-      `UPDATE notifications SET read_at = NOW() WHERE id = $1 RETURNING *`,
+      `UPDATE notifications SET read_at = NOW()::text WHERE id = $1 RETURNING *`,
       [id]
     );
 
