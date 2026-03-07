@@ -76,6 +76,13 @@ const DAYS_OF_MONTH = Array.from({ length: 28 }, (_, i) => ({
   value: String(i + 1),
 }));
 
+const CRON_REGEX = /^\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$/;
+
+function isValidCronExpr(expr: string): boolean {
+  const parts = expr.trim().split(/\s+/);
+  return parts.length >= 5 && CRON_REGEX.test(expr.trim());
+}
+
 function buildCronFromSchedule(s: { cadence: string; minuteInterval: string; hour: string; dayOfWeek: string; dayOfMonth: string }): string {
   switch (s.cadence) {
     case "minutes":
@@ -149,6 +156,8 @@ export default function CronPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
+    useRawCron: false,
+    rawCron: "",
     cadence: "",
     minuteInterval: "5",
     hour: "9",
@@ -156,6 +165,8 @@ export default function CronPage() {
     dayOfMonth: "1",
     actionPreset: "",
     customEndpoint: "",
+    customMethod: "POST",
+    payload: "",
     enabled: true,
   });
 
@@ -273,23 +284,46 @@ export default function CronPage() {
   const handleAdd = async () => {
     setError(null);
     if (!formData.name.trim()) { setError("Please enter a job name"); return; }
-    if (!formData.cadence) { setError("Please select how often it should run"); return; }
+
+    let schedule: string;
+    if (formData.useRawCron) {
+      const raw = formData.rawCron.trim();
+      if (!raw) { setError("Please enter a cron expression (e.g. 0 */6 * * *)"); return; }
+      if (!isValidCronExpr(raw)) { setError("Invalid cron expression. Use 5 fields: minute hour day-of-month month day-of-week"); return; }
+      schedule = raw;
+    } else {
+      if (!formData.cadence) { setError("Please select how often it should run"); return; }
+      schedule = buildCronFromSchedule(formData);
+      if (!schedule) { setError("Invalid schedule"); return; }
+    }
+
     if (!formData.actionPreset) { setError("Please select what the job should do"); return; }
     if (formData.actionPreset === "__custom" && !formData.customEndpoint.trim()) {
       setError("Please enter a custom endpoint"); return;
     }
 
-    const schedule = buildCronFromSchedule(formData);
-    if (!schedule) { setError("Invalid schedule"); return; }
+    let payload: Record<string, unknown> = {};
+    if (formData.payload.trim()) {
+      try {
+        payload = JSON.parse(formData.payload.trim());
+        if (typeof payload !== "object" || payload === null) payload = {};
+      } catch {
+        setError("Payload must be valid JSON"); return;
+      }
+    }
 
-    let action: { endpoint: string; method: string; payload: Record<string, never> };
+    let action: { endpoint: string; method: string; payload: Record<string, unknown> };
     if (formData.actionPreset === "__custom") {
       const ep = formData.customEndpoint.trim();
-      action = { endpoint: ep.startsWith("/") ? ep : `/api/${ep}`, method: "POST", payload: {} };
+      action = {
+        endpoint: ep.startsWith("http") ? ep : ep.startsWith("/") ? ep : `/api/${ep}`,
+        method: formData.customMethod,
+        payload,
+      };
     } else {
       const preset = ACTION_PRESETS.find((p) => p.value === formData.actionPreset);
       if (!preset) { setError("Please select a valid action"); return; }
-      action = { endpoint: preset.value, method: preset.method, payload: {} };
+      action = { endpoint: preset.value, method: preset.method, payload };
     }
 
     try {
@@ -300,7 +334,11 @@ export default function CronPage() {
       });
       if (!res.ok) throw new Error("Failed to create cron job");
       setShowForm(false);
-      setFormData({ name: "", cadence: "", minuteInterval: "5", hour: "9", dayOfWeek: "1", dayOfMonth: "1", actionPreset: "", customEndpoint: "", enabled: true });
+      setFormData({
+        name: "", useRawCron: false, rawCron: "", cadence: "", minuteInterval: "5", hour: "9",
+        dayOfWeek: "1", dayOfMonth: "1", actionPreset: "", customEndpoint: "", customMethod: "POST",
+        payload: "", enabled: true,
+      });
       fetchJobs();
     } catch (err) {
       setError((err as Error).message);
@@ -358,9 +396,34 @@ export default function CronPage() {
               />
             </div>
 
-            {/* Schedule — cadence + time/day pickers */}
+            {/* Schedule — cadence + time/day pickers or raw cron */}
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">How often should it run?</label>
+              <div className="flex items-center gap-2 mb-1.5">
+                <label className="block text-xs text-gray-400">How often should it run?</label>
+                <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.useRawCron}
+                    onChange={(e) => setFormData({ ...formData, useRawCron: e.target.checked })}
+                    className="rounded bg-gray-900 border-gray-700"
+                  />
+                  Use raw cron expression
+                </label>
+              </div>
+              {formData.useRawCron ? (
+                <div>
+                  <input
+                    type="text"
+                    value={formData.rawCron}
+                    onChange={(e) => setFormData({ ...formData, rawCron: e.target.value })}
+                    placeholder="e.g. 0 */6 * * * (every 6 hours)"
+                    className="w-full px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 font-mono focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  />
+                  <p className="mt-1 text-[11px] text-gray-600">
+                    Format: minute hour day-of-month month day-of-week (e.g. 0 9 * * 1-5 = weekdays 9am)
+                  </p>
+                </div>
+              ) : (
               <div className="flex flex-wrap gap-2">
                 <select
                   value={formData.cadence}
@@ -427,6 +490,8 @@ export default function CronPage() {
                   {describeCron(buildCronFromSchedule(formData))}
                 </p>
               )}
+              </div>
+              )}
             </div>
 
             {/* Action — friendly dropdown + custom option */}
@@ -446,13 +511,39 @@ export default function CronPage() {
                 <option value="__custom">Custom task...</option>
               </select>
               {formData.actionPreset === "__custom" && (
-                <input
-                  type="text"
-                  value={formData.customEndpoint}
-                  onChange={(e) => setFormData({ ...formData, customEndpoint: e.target.value })}
-                  placeholder="Enter API path, e.g. /api/my-task"
-                  className="w-full mt-2 px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono"
-                />
+                <div className="mt-2 space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.customEndpoint}
+                      onChange={(e) => setFormData({ ...formData, customEndpoint: e.target.value })}
+                      placeholder="API path: /api/my-task or api/my-task"
+                      className="flex-1 px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono"
+                    />
+                    <select
+                      value={formData.customMethod}
+                      onChange={(e) => setFormData({ ...formData, customMethod: e.target.value })}
+                      className="px-3 py-2 text-sm bg-gray-950 border border-gray-700 rounded-lg text-gray-100 focus:ring-1 focus:ring-blue-500/50"
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                      <option value="PATCH">PATCH</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              {(formData.actionPreset === "__custom" || (formData.actionPreset && formData.actionPreset !== "")) && (
+                <div className="mt-2">
+                  <label className="block text-[11px] text-gray-500 mb-1">Optional payload (JSON)</label>
+                  <textarea
+                    value={formData.payload}
+                    onChange={(e) => setFormData({ ...formData, payload: e.target.value })}
+                    placeholder='{"key": "value"}'
+                    rows={2}
+                    className="w-full px-3 py-2 text-xs bg-gray-950 border border-gray-700 rounded-lg text-gray-100 font-mono focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  />
+                </div>
               )}
             </div>
 
@@ -469,7 +560,11 @@ export default function CronPage() {
               <button
                 onClick={handleAdd}
                 className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-40"
-                disabled={!formData.name.trim() || !formData.cadence || !formData.actionPreset}
+                disabled={
+                  !formData.name.trim() ||
+                  !formData.actionPreset ||
+                  (formData.useRawCron ? !formData.rawCron.trim() : !formData.cadence)
+                }
               >
                 Create Job
               </button>
