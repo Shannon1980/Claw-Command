@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { emitNotification } from "@/lib/events/emitActivity";
+import { computeNextRun } from "@/lib/cron/next-run";
 
 let schemaReady = false;
 
@@ -76,11 +77,13 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
 
     const actionVal = typeof action === "object" ? JSON.stringify(action ?? {}) : (action ?? "{}");
+    const nextRun = (enabled ?? true) ? computeNextRun(schedule, new Date()) : null;
+    const nextRunIso = nextRun ? nextRun.toISOString() : null;
 
     const result = await pool.query(
-      `INSERT INTO cron_jobs (id, name, schedule, action, enabled, run_count, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 0, $6, $7) RETURNING *`,
-      [id, name, schedule, actionVal, enabled ?? true, now, now]
+      `INSERT INTO cron_jobs (id, name, schedule, action, enabled, run_count, next_run_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8) RETURNING *`,
+      [id, name, schedule, actionVal, enabled ?? true, nextRunIso, now, now]
     );
 
     emitNotification({ title: `Cron job "${name}" created`, type: "info" });

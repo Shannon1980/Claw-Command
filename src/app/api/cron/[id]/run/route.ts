@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { emitNotification } from "@/lib/events/emitActivity";
+import { computeNextRun } from "@/lib/cron/next-run";
 
 let schemaReady = false;
 
@@ -119,10 +120,12 @@ export async function POST(
     const durationMs = Date.now() - startMs;
     const now = new Date().toISOString();
 
-    // Update job
+    // Update job with next_run_at
+    const nextRun = computeNextRun(job.schedule, new Date(now));
+    const nextRunIso = nextRun ? nextRun.toISOString() : null;
     await pool.query(
-      `UPDATE cron_jobs SET last_run_at = $1, run_count = run_count + 1, updated_at = $2 WHERE id = $3`,
-      [now, now, id]
+      `UPDATE cron_jobs SET last_run_at = $1, next_run_at = $2, run_count = run_count + 1, updated_at = $3 WHERE id = $4`,
+      [now, nextRunIso, now, id]
     );
 
     // Record run result
