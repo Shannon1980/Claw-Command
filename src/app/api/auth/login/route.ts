@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import crypto from "crypto";
+import { logAuditEvent } from "@/lib/events/auditLog";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
       expires: new Date(expiresAt),
     });
 
+    logAuditEvent({ action: "user_login", resourceType: "session", resourceId: matchedUsername });
     return response;
   } catch (error) {
     console.error("[Auth Login] error:", error);

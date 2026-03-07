@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import crypto from "crypto";
+import { emitNotification } from "@/lib/events/emitActivity";
+import { logAuditEvent } from "@/lib/events/auditLog";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -45,6 +47,8 @@ export async function POST(request: NextRequest) {
       [id, username, passwordHash, role || "user", email || null, now, now]
     );
 
+    emitNotification({ title: "User created", type: "info" });
+    logAuditEvent({ action: "user_created", resourceType: "user", resourceId: id });
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error("[Users API] POST error:", error);

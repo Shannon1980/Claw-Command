@@ -24,24 +24,32 @@ export function middleware(request: NextRequest) {
 
   // Check for API key auth (agents/automation)
   const apiKey = request.headers.get("x-api-key");
-  if (apiKey) {
-    // For now, any non-empty API key passes (will validate against DB in Sprint 10)
+  const mcApiKey = process.env.MC_API_KEY;
+  if (apiKey && mcApiKey && apiKey === mcApiKey) {
     return NextResponse.next();
   }
 
-  // Check session cookie
+  // Check Authorization bearer
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ") && mcApiKey) {
+    const token = authHeader.slice(7).trim();
+    if (token === mcApiKey) {
+      return NextResponse.next();
+    }
+  }
+
+  // Check session cookie (actual DB validation is in requireAuth helper)
   const sessionToken = request.cookies.get("session_token")?.value;
   if (sessionToken) {
-    // Session validation happens at the API level for now
     return NextResponse.next();
   }
 
-  // For API routes without auth, allow through (auth enforcement is opt-in until Sprint 10)
-  // When RBAC is fully implemented, uncomment the block below
-  // if (pathname.startsWith("/api/")) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // }
+  // If auth is configured (MC_API_KEY set), reject unauthenticated API requests
+  if (mcApiKey && pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
+  // For page requests without auth, allow through (login page handles redirect)
   return NextResponse.next();
 }
 

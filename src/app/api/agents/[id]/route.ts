@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import { emitAgentStatus } from "@/lib/events/emitActivity";
+import { logAuditEvent } from "@/lib/events/auditLog";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -98,6 +99,7 @@ export async function PATCH(
       ...body,
     });
 
+    logAuditEvent({ action: "agent_updated", resourceType: "agent", resourceId: id });
     return NextResponse.json(result.rows[0]);
   } catch (error) {
     console.error("[Agent PATCH] Error:", error);
@@ -129,6 +131,7 @@ export async function DELETE(
 
     emitAgentStatus({ agentId: id, status: "retired" });
 
+    logAuditEvent({ action: "agent_retired", resourceType: "agent", resourceId: id });
     return NextResponse.json(result.rows[0]);
   } catch (error) {
     console.error("[Agent DELETE] Error:", error);

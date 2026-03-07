@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
 import crypto from "crypto";
+import { emitNotification } from "@/lib/events/emitActivity";
+import { logAuditEvent } from "@/lib/events/auditLog";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -37,6 +39,8 @@ export async function POST(request: NextRequest) {
       [id, name, url, events, finalSecret, enabled ?? true, now, now]
     );
 
+    emitNotification({ title: "Webhook created", type: "info" });
+    logAuditEvent({ action: "webhook_created", resourceType: "webhook", resourceId: id });
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error("[Webhooks API] POST error:", error);

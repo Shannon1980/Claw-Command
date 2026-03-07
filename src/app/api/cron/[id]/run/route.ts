@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { emitNotification } from "@/lib/events/emitActivity";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
@@ -46,6 +47,7 @@ export async function POST(
       [now, now, id]
     );
 
+    emitNotification({ title: "Cron job executed", type: "info" });
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     console.error("[Cron Run API] error:", error);
