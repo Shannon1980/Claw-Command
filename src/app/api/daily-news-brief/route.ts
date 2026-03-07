@@ -132,7 +132,7 @@ async function fetchCategoryNews(
 }
 
 async function fetchAllLiveNews() {
-  const hasKey = !!process.env.NEWS_API_KEY;
+  const hasKey = !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY);
   if (!hasKey) {
     return {
       aiNews: generatePlaceholderAINews(),
@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
       skywardSummary: null,
       generatedAt: new Date().toISOString(),
       live: true,
-      newsApiConfigured: !!process.env.NEWS_API_KEY,
+      newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
     });
   }
 
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
         skywardSummary: internal.skyward,
         generatedAt: new Date().toISOString(),
         live: true,
-        newsApiConfigured: !!process.env.NEWS_API_KEY,
+        newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
       });
     }
 
@@ -310,7 +310,7 @@ export async function GET(request: NextRequest) {
       skywardSummary: row.skyward_summary,
       generatedAt: row.generated_at,
       live: false,
-      newsApiConfigured: !!process.env.NEWS_API_KEY,
+      newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
     });
   } catch (error) {
     console.error("[DailyNewsBrief API] GET error:", error);
