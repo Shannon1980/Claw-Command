@@ -7,8 +7,56 @@ const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
+let schemaReady = false;
+
+async function ensureSchema() {
+  if (schemaReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mc_memories (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      source TEXT,
+      tags TEXT,
+      created_at TEXT NOT NULL
+    );
+    ALTER TABLE mc_memories ADD COLUMN IF NOT EXISTS category TEXT;
+    ALTER TABLE mc_memories ADD COLUMN IF NOT EXISTS updated_at TEXT;
+  `);
+  schemaReady = true;
+}
+
+function parseTags(raw: unknown): string[] {
+  if (!raw) return [];
+  const str = String(raw);
+  try {
+    const parsed = JSON.parse(str);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // not JSON — treat as comma-separated
+  }
+  return str.split(",").map((t) => t.trim()).filter(Boolean);
+}
+
+function mapRow(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    content: row.content,
+    source: row.source || null,
+    category: row.category || null,
+    tags: parseTags(row.tags),
+    createdAt: row.created_at || row.updated_at || new Date().toISOString(),
+  };
+}
+
 export async function GET(request: NextRequest) {
   if (!pool) return NextResponse.json([]);
+
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.error("[Memory API] Schema error:", err);
+    return NextResponse.json([]);
+  }
 
   const searchParams = request.nextUrl.searchParams;
   const tags = searchParams.get("tags") || searchParams.get("tag");
@@ -52,10 +100,10 @@ export async function GET(request: NextRequest) {
       `SELECT * FROM mc_memories ${where} ORDER BY created_at DESC LIMIT $${i}`,
       vals
     );
-    return NextResponse.json(result.rows);
+    return NextResponse.json(result.rows.map(mapRow));
   } catch (error) {
     console.error("[Memory API] GET error:", error);
-    return NextResponse.json({ error: "Failed to list memories" }, { status: 500 });
+    return NextResponse.json([], { status: 500 });
   }
 }
 
@@ -65,19 +113,23 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureSchema();
+
     const body = await request.json();
     const { content, source, tags, category } = body;
     const id = `mem-${Date.now()}`;
     const now = new Date().toISOString();
 
+    const tagsValue = Array.isArray(tags) ? JSON.stringify(tags) : tags || null;
+
     const result = await pool.query(
       `INSERT INTO mc_memories (id, content, source, tags, category, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [id, content, source || null, tags || null, category || null, now, now]
+      [id, content, source || null, tagsValue, category || null, now, now]
     );
 
     emitNotification({ title: "Memory stored", type: "info" });
-    return NextResponse.json(result.rows[0], { status: 201 });
+    return NextResponse.json(mapRow(result.rows[0]), { status: 201 });
   } catch (error) {
     console.error("[Memory API] POST error:", error);
     return NextResponse.json({ error: "Failed to create memory" }, { status: 500 });
