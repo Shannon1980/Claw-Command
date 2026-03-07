@@ -74,7 +74,29 @@ export const useTaskStore = create<TaskStore>()(
         const res = await fetch("/api/tasks?all=true");
         if (!res.ok) throw new Error("Failed to fetch tasks");
         const data = await res.json();
-        set({ tasks: Array.isArray(data) ? data : [], loading: false });
+        const rows = Array.isArray(data) ? data : [];
+        const tasks: Task[] = rows.map((r: Record<string, unknown>) => ({
+          id: r.id as string,
+          title: r.title as string,
+          description: (r.description as string) || "",
+          assignedToAgentId: (r.assigned_to_agent_id ?? r.assignedToAgentId ?? null) as string | null,
+          dependsOnShannon: (r.depends_on_shannon ?? r.dependsOnShannon ?? false) as boolean,
+          status: (r.status as TaskStatus) || "backlog",
+          priority: (r.priority as TaskPriority) || "medium",
+          dueDate: (r.due_date ?? r.dueDate ?? null) as string | null,
+          outcome: (r.outcome as string) || null,
+          project: (r.project as string) || null,
+          ticketRef: (r.ticket_ref ?? r.ticketRef ?? null) as string | null,
+          parentOpportunityId: (r.parent_opportunity_id ?? r.parentOpportunityId ?? null) as string | null,
+          parentApplicationId: (r.parent_application_id ?? r.parentApplicationId ?? null) as string | null,
+          createdAt: ((r.created_at ?? r.createdAt) as string) || new Date().toISOString(),
+          updatedAt: ((r.updated_at ?? r.updatedAt) as string) || new Date().toISOString(),
+          agent_name: (r.agent_name as string) || "Shannon",
+          agent_emoji: (r.agent_emoji as string) || "👤",
+          agent_domain: (r.agent_domain as string) || undefined,
+          comment_count: (r.comment_count as number) || undefined,
+        }));
+        set({ tasks, loading: false });
       } catch (err) {
         set({ error: (err as Error).message, loading: false });
       }
