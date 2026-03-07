@@ -1,15 +1,6 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-import { mockCertifications } from "@/lib/mock-certifications";
-import { getActiveAlerts, mockAlerts } from "@/lib/mock-alerts";
 
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
 
 type Scope = "certifications" | "all";
 
@@ -53,7 +44,7 @@ export async function GET(request: NextRequest) {
     let tasks: Array<Record<string, unknown>> = [];
     let memories: Array<Record<string, unknown>> = [];
 
-    if (pool && connectionString) {
+    if (pool) {
       if (scope === "certifications" || scope === "all") {
         const certRes = await pool.query(
           `SELECT id, name, level, authority, status, due_date, applied_date,
@@ -135,22 +126,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (certifications.length === 0) {
-      certifications = mockCertifications as unknown as Array<Record<string, unknown>>;
-    }
-    if (alerts.length === 0 && scope === "all") {
-      alerts = getActiveAlerts().map((a) => ({
-        id: a.id,
-        title: a.title,
-        severity: a.severity,
-        trigger_type: a.trigger_type,
-        due_date: a.due_date,
-        resource_id: a.id,
-      }));
-    }
-    if (certifications.length === 0) {
-      certifications = mockCertifications as unknown as Array<Record<string, unknown>>;
-    }
 
     if (format === "json") {
       return NextResponse.json({
@@ -209,30 +184,16 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Agent Context] Error:", error);
-    // Fallback to mock data when DB fails
-    const certs = mockCertifications;
-    const alertList = getActiveAlerts();
     if (format === "json") {
       return NextResponse.json({
-        certifications: certs,
-        alerts: scope === "all" ? alertList : undefined,
-        tasks: scope === "all" ? [] : undefined,
+        certifications: [],
+        ...(scope === "all" && { alerts: [], tasks: [], memories: [] }),
         agentId: agentId ?? null,
         timestamp: new Date().toISOString(),
+        error: "Failed to fetch context",
       });
     }
-    const sections: string[] = ["## Certifications (Vorentoe LLC)\n"];
-    certs.forEach((c) => {
-      sections.push(formatCertForPrompt(c));
-      sections.push("");
-    });
-    if (scope === "all" && alertList.length > 0) {
-      sections.push("## Active Alerts\n");
-      alertList.forEach((a) => {
-        sections.push(`- [${a.severity}] ${a.title}${a.due_date ? ` (due ${a.due_date})` : ""}`);
-      });
-    }
-    return new NextResponse(sections.join("\n").trim(), {
+    return new NextResponse("No context available.", {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }

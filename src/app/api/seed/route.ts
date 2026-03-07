@@ -1,10 +1,5 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 const now = new Date().toISOString();
 
@@ -93,6 +88,84 @@ const CALENDAR_EVENTS = [
   { id: "evt-7", title: "Teaching — SAFe SSM (ITBiz 301)", domain: "teaching", start_time: getWeekDate(4, 18, 0), end_time: getWeekDate(4, 21, 0), protected: true, description: "Recurring SAFe Scrum Master instruction through April 2026" },
   { id: "evt-8", title: "Client Proposal Review Call", domain: "vorentoe", start_time: getWeekDate(4, 19, 0), end_time: getWeekDate(4, 20, 0), protected: false, description: null },
   { id: "evt-9", title: "PTA Planning Call", domain: "community", start_time: getWeekDate(5, 11, 0), end_time: getWeekDate(5, 12, 0), protected: false, description: null },
+];
+
+const DOCS = [
+  {
+    id: "doc-1",
+    title: "Vorentoe Capability Statement v2",
+    doc_type: "capability_statement",
+    content: `# Vorentoe LLC - Capability Statement\n\n## Company Overview\nVorentoe LLC is an EDWOSB-certified technology consulting firm specializing in AI/ML solutions, IT program management, and government contracting services.\n\n## Core Capabilities\n- AI/ML Integration & Implementation\n- IT Program Management\n- Procurement Automation\n- Low-Code Platform Development\n- Cybersecurity Solutions\n\n## Past Performance\n- CMS SEAS IT Program Support (2023-Present)\n- Navy Cybersecurity Infrastructure Upgrade (2024)\n- DHS Border Technology Assessment (2025)\n\n## Certifications\n- EDWOSB (In Progress)\n- WOSB (In Progress)\n- Maryland MBE (Submitted)\n\n## Contact\nShannon Gueringer, CEO\nshannon@govorentoe.com\nwww.govorentoe.com`,
+    author_agent_id: "muse",
+    status: "approved",
+    priority: "high",
+    review_status: "approved",
+    category: "govcon",
+    linked_to: JSON.stringify([]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-15T10:00:00Z", summary: "Document created" }]),
+    created_at: "2026-02-15T10:00:00Z",
+    updated_at: "2026-02-20T14:30:00Z",
+  },
+  {
+    id: "doc-2",
+    title: "DHS Border Tech Capture Plan",
+    doc_type: "proposal",
+    content: `# DHS Border Tech Capture Plan\n\n## Opportunity Overview\n**Agency:** Department of Homeland Security\n**Solicitation:** DHS-2026-BT-001\n**Set-Aside:** WOSB\n**Value:** $2.5M - $5M\n\n## Capture Strategy\n1. Partner with established prime contractor\n2. Leverage Navy cybersecurity past performance\n3. Highlight AI/ML capabilities for threat detection\n4. Emphasize WOSB certification\n\n## Key Discriminators\n- AI-driven analytics platform\n- Real-time threat monitoring\n- Low-code rapid prototyping\n- Veterans on team\n\n## Next Steps\n- Schedule teaming call with potential prime (March 15)\n- Draft technical approach (March 20)\n- Complete capability briefing (March 25)`,
+    author_agent_id: "bertha",
+    status: "draft",
+    priority: "critical",
+    review_status: "pending_review",
+    category: "govcon",
+    linked_to: JSON.stringify([{ type: "deal", id: "opp-dhs-border", name: "DHS Border Technology Modernization" }]),
+    version_history: JSON.stringify([{ timestamp: "2026-03-01T09:00:00Z", summary: "Document created" }]),
+    created_at: "2026-03-01T09:00:00Z",
+    updated_at: "2026-03-03T16:45:00Z",
+  },
+  {
+    id: "doc-3",
+    title: "CPARS Self-Assessment FY2025",
+    doc_type: "report",
+    content: `# CPARS Self-Assessment FY2025\n\n## Contract Performance Assessment\n\n**Contract:** SEAS IT Support\n**Prime:** Skyward IT Solutions\n**Period:** FY2025\n\n## Performance Ratings\n\n### Quality of Work: Exceptional\n- Zero critical defects\n- 98% first-time acceptance rate\n- Proactive issue identification\n\n### Timeliness: Very Good\n- All milestones met or exceeded\n- Average delivery 3 days ahead of schedule\n\n### Cost Control: Satisfactory\n- Within budget constraints\n- Some overruns on scope changes\n\n### Customer Satisfaction: Exceptional\n- Positive feedback from CMS stakeholders\n- Responsive communication\n- Strong partnership approach\n\n## Recommendations\nContinue current performance trajectory. Address cost control processes for scope changes.`,
+    author_agent_id: "skylar",
+    status: "in_review",
+    priority: "medium",
+    review_status: "pending_review",
+    category: "compliance",
+    linked_to: JSON.stringify([]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-10T08:00:00Z", summary: "Document created" }]),
+    created_at: "2026-02-10T08:00:00Z",
+    updated_at: "2026-03-02T11:20:00Z",
+  },
+  {
+    id: "doc-4",
+    title: "Maryland MBE Application Notes",
+    doc_type: "certification_doc",
+    content: `# Maryland MBE Application Notes\n\n## Submission Checklist\n- [x] Articles of Organization\n- [x] Operating Agreement\n- [x] Tax Returns (3 years)\n- [ ] Section 4 Form (Economic Disadvantage Certification)\n- [ ] Navy Fed Signature Card\n\n## Outstanding Items\n1. **Section 4 Form** - Needs personal financial statement from Shannon\n2. **Bank Signature Card** - Request from Navy Federal (est. 5 business days)\n\n## Submission Deadline\n**March 7, 2026** (CRITICAL)\n\n## Follow-Up Actions\n- Call MDOT certification office to confirm received docs (March 8)\n- Schedule interview if required\n- Track decision timeline (typically 60-90 days)\n\n## Notes\nApplication submitted via MDOT portal. Confirmation email received Feb 15, 2026.`,
+    author_agent_id: "veronica",
+    status: "draft",
+    priority: "critical",
+    review_status: "pending_review",
+    category: "compliance",
+    linked_to: JSON.stringify([{ type: "certification", id: "md-mbe", name: "Maryland MBE" }]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-15T14:00:00Z", summary: "Document created" }]),
+    created_at: "2026-02-15T14:00:00Z",
+    updated_at: "2026-03-04T09:00:00Z",
+  },
+  {
+    id: "doc-5",
+    title: "Navy Cybersecurity Past Performance",
+    doc_type: "proposal",
+    content: `# Navy Cybersecurity Infrastructure Upgrade - Past Performance\n\n## Contract Details\n**Client:** U.S. Navy\n**Contract:** N00178-24-C-1234\n**Period:** Jan 2024 - Dec 2024\n**Value:** $1.2M\n**Type:** Subcontractor (Prime: Northrop Grumman)\n\n## Scope of Work\nCybersecurity infrastructure upgrade for naval base network systems:\n- Network segmentation and isolation\n- Intrusion detection system deployment\n- Security operations center (SOC) setup\n- Personnel training and knowledge transfer\n\n## Performance Highlights\n- **On-Time Delivery:** 100% of milestones met\n- **Quality:** Zero security incidents post-deployment\n- **Innovation:** Implemented AI-driven threat detection (not in original SOW)\n- **Cost Savings:** Delivered 8% under budget\n\n## Client Feedback\n"Vorentoe's team demonstrated exceptional technical expertise and professionalism. Their proactive approach to threat detection exceeded our expectations."\n-- LCDR James Mitchell, Navy Cyber Command\n\n## Relevance to Current Opportunity\nDirectly applicable to DHS border technology requirements for:\n- Real-time threat monitoring\n- AI/ML-driven analytics\n- Secure infrastructure design\n- Government facility clearance experience`,
+    author_agent_id: "bertha",
+    status: "in_review",
+    priority: "high",
+    review_status: "pending_review",
+    category: "govcon",
+    linked_to: JSON.stringify([{ type: "deal", id: "opp-navy-cyber", name: "Navy Cybersecurity Operations" }]),
+    version_history: JSON.stringify([{ timestamp: "2026-02-28T10:30:00Z", summary: "Document created" }]),
+    created_at: "2026-02-28T10:30:00Z",
+    updated_at: "2026-03-04T13:15:00Z",
+  },
 ];
 
 const TOKEN_USAGE = [
@@ -265,6 +338,14 @@ export async function POST() {
         action TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
         details TEXT, created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS docs (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, filename TEXT, doc_type TEXT NOT NULL DEFAULT 'report',
+        content TEXT DEFAULT '', author_agent_id TEXT, status TEXT NOT NULL DEFAULT 'draft', file_path TEXT,
+        linked_to JSONB DEFAULT '[]'::jsonb, version_history JSONB DEFAULT '[]'::jsonb,
+        priority TEXT DEFAULT 'medium', review_status TEXT DEFAULT 'pending_review', category TEXT DEFAULT 'uncategorized',
+        notes JSONB DEFAULT '[]'::jsonb, assignments JSONB DEFAULT '[]'::jsonb,
+        created_at TEXT NOT NULL DEFAULT (now()::text), updated_at TEXT NOT NULL DEFAULT (now()::text)
+      );
     `);
 
     // Clear existing data (reverse FK order)
@@ -277,6 +358,7 @@ export async function POST() {
     await client.query("DELETE FROM agents");
     await client.query("DELETE FROM calendar_events");
     await client.query("DELETE FROM certifications");
+    await client.query("DELETE FROM docs");
 
     // Seed agents
     for (const a of AGENTS) {
@@ -349,6 +431,15 @@ export async function POST() {
       );
     }
 
+    // Seed docs
+    for (const d of DOCS) {
+      await client.query(
+        `INSERT INTO docs (id, title, doc_type, content, author_agent_id, status, priority, review_status, category, linked_to, version_history, notes, assignments, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,'[]'::jsonb,'[]'::jsonb,$12,$13)`,
+        [d.id, d.title, d.doc_type, d.content, d.author_agent_id, d.status, d.priority, d.review_status, d.category, d.linked_to, d.version_history, d.created_at, d.updated_at]
+      );
+    }
+
     // Seed token usage (for sessions page)
     await client.query("DELETE FROM token_usage");
     for (const tu of TOKEN_USAGE) {
@@ -380,6 +471,7 @@ export async function POST() {
         alerts: ALERTS.length,
         activities: ACTIVITIES.length,
         certifications: CERTIFICATIONS.length,
+        docs: DOCS.length,
         calendar_events: CALENDAR_EVENTS.length,
         token_usage: TOKEN_USAGE.length,
       },

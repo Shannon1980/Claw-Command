@@ -1,10 +1,5 @@
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 export interface AuthUser {
   id: string;

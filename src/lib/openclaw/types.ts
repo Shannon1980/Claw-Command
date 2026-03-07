@@ -89,3 +89,37 @@ export type SyncResult = {
   timestamp: string;
   error?: string;
 };
+
+// ─── OpenClaw Skills ──────────────────────────────────────────────────────
+
+export type OpenClawSkill = {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  category?: string;
+  version?: string;
+  author?: string;
+  node_ids?: string[];
+  config?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type OpenClawSkillCreateRequest = {
+  name: string;
+  description?: string;
+  enabled?: boolean;
+  category?: string;
+  node_ids?: string[];
+  config?: Record<string, unknown>;
+};
+
+export type OpenClawSkillUpdateRequest = {
+  name?: string;
+  description?: string;
+  enabled?: boolean;
+  category?: string;
+  node_ids?: string[];
+  config?: Record<string, unknown>;
+};

@@ -1,13 +1,8 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import fs from "fs";
 import path from "path";
 import os from "os";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 const EXCLUDED_FILES = [
   "MEMORY.md",

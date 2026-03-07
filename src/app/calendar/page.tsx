@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import WeekView from "@/components/calendar/WeekView";
 import ConflictPanel from "@/components/calendar/ConflictPanel";
 import {
-  mockEvents,
   detectConflicts,
   type CalendarEvent,
   type EventDomain,
@@ -21,7 +20,7 @@ export default function CalendarPage() {
   };
 
   const [weekStart, setWeekStart] = useState(getCurrentWeekStart());
-  const [events, setEvents] = useState<CalendarEvent[]>(mockEvents);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   const weekEnd = new Date(weekStart);
@@ -45,11 +44,11 @@ export default function CalendarPage() {
           protected: Boolean(e.protected),
           description: e.description as string | undefined,
         }));
-        setEvents(parsed.length > 0 ? parsed : mockEvents);
+        setEvents(parsed);
       })
       .catch((err) => {
         console.error("Failed to load calendar events:", err);
-        setEvents(mockEvents);
+        setEvents([]);
       })
       .finally(() => setLoading(false));
   }, [weekStart.toISOString().slice(0, 10)]);

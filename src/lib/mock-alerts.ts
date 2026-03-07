@@ -1,4 +1,3 @@
-// Mock alert data for Claw-Command
 export interface Alert {
   id: string;
   severity: 'critical' | 'warning' | 'info';

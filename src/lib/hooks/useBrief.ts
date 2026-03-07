@@ -6,16 +6,17 @@ import type {
   DomainStatus,
   Priority,
 } from "@/lib/mock-brief";
-import {
-  getOvernightSummary,
-  getDomainStatuses,
-  getPriorities,
-} from "@/lib/mock-brief";
 
 export type BriefData = {
   summary: OvernightSummary;
   domains: DomainStatus[];
   priorities: Priority[];
+};
+
+const EMPTY_BRIEF: BriefData = {
+  summary: { tasksCompleted: 0, newAlerts: 0, pendingApprovals: 0 },
+  domains: [],
+  priorities: [],
 };
 
 export function useBrief(domainFilter?: string) {
@@ -39,47 +40,11 @@ export function useBrief(domainFilter?: string) {
           priorities: json.priorities,
         });
       } else {
-        const domains = getDomainStatuses();
-        const priorities = getPriorities();
-        setData({
-          summary: getOvernightSummary(),
-          domains: domainFilter
-            ? domains.filter(
-                (d) =>
-                  d.name.toLowerCase() === domainFilter.toLowerCase() ||
-                  d.name.toLowerCase().includes(domainFilter.toLowerCase())
-              )
-            : domains,
-          priorities: domainFilter
-            ? priorities.filter(
-                (p) =>
-                  p.domain.toLowerCase() === domainFilter.toLowerCase() ||
-                  p.domain.toLowerCase().includes(domainFilter.toLowerCase())
-              )
-            : priorities,
-        });
+        setData(EMPTY_BRIEF);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load brief");
-      const domains = getDomainStatuses();
-      const priorities = getPriorities();
-      setData({
-        summary: getOvernightSummary(),
-        domains: domainFilter
-          ? domains.filter(
-              (d) =>
-                d.name.toLowerCase() === domainFilter.toLowerCase() ||
-                d.name.toLowerCase().includes(domainFilter.toLowerCase())
-            )
-          : domains,
-        priorities: domainFilter
-          ? priorities.filter(
-              (p) =>
-                p.domain.toLowerCase() === domainFilter.toLowerCase() ||
-                p.domain.toLowerCase().includes(domainFilter.toLowerCase())
-            )
-          : priorities,
-      });
+      setData(EMPTY_BRIEF);
     } finally {
       setLoading(false);
     }
