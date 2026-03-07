@@ -102,32 +102,41 @@ function mapArticleToNewsItem(
 const AI_SEARCH_TERMS =
   "artificial intelligence OR machine learning OR ChatGPT OR GPT OR LLM OR generative AI OR Claude OR OpenAI OR deep learning";
 
-async function fetchAINews(): Promise<NewsItem[]> {
+interface FetchResult {
+  items: NewsItem[];
+  error?: string;
+}
+
+async function fetchAINews(): Promise<FetchResult> {
   try {
     const res = await searchNews(AI_SEARCH_TERMS, {
       sortBy: "publishedAt",
       pageSize: 10,
     });
-    return res.articles
+    const items = res.articles
       .filter((a) => a.title !== "[Removed]")
       .map((a) => mapArticleToNewsItem(a, "ai"));
+    return { items };
   } catch (e) {
-    console.error("[DailyNewsBrief] AI news fetch failed:", e);
-    return [];
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[DailyNewsBrief] AI news fetch failed:", msg);
+    return { items: [], error: msg };
   }
 }
 
 async function fetchCategoryNews(
   category: "general" | "business" | "technology" | "science" | "health" | "sports" | "entertainment"
-): Promise<NewsItem[]> {
+): Promise<FetchResult> {
   try {
     const res = await fetchTopHeadlines({ category, pageSize: 10 });
-    return res.articles
+    const items = res.articles
       .filter((a) => a.title !== "[Removed]")
       .map((a) => mapArticleToNewsItem(a, category));
+    return { items };
   } catch (e) {
-    console.error(`[DailyNewsBrief] ${category} news fetch failed:`, e);
-    return [];
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[DailyNewsBrief] ${category} news fetch failed:`, msg);
+    return { items: [], error: msg };
   }
 }
 
@@ -142,10 +151,11 @@ async function fetchAllLiveNews() {
       businessNews: [] as NewsItem[],
       scienceNews: [] as NewsItem[],
       healthNews: [] as NewsItem[],
+      newsErrors: [] as string[],
     };
   }
 
-  const [aiNews, generalNews, technologyNews, businessNews, scienceNews, healthNews] =
+  const [aiResult, generalResult, technologyResult, businessResult, scienceResult, healthResult] =
     await Promise.all([
       fetchAINews(),
       fetchCategoryNews("general"),
@@ -155,14 +165,23 @@ async function fetchAllLiveNews() {
       fetchCategoryNews("health"),
     ]);
 
+  const newsErrors: string[] = [];
+  if (aiResult.error) newsErrors.push(`AI news: ${aiResult.error}`);
+  if (generalResult.error) newsErrors.push(`Headlines: ${generalResult.error}`);
+  if (technologyResult.error) newsErrors.push(`Technology: ${technologyResult.error}`);
+  if (businessResult.error) newsErrors.push(`Business: ${businessResult.error}`);
+  if (scienceResult.error) newsErrors.push(`Science: ${scienceResult.error}`);
+  if (healthResult.error) newsErrors.push(`Health: ${healthResult.error}`);
+
   return {
-    aiNews,
-    worldNews: generalNews,
-    usNews: generalNews.slice(0, 5),
-    technologyNews,
-    businessNews,
-    scienceNews,
-    healthNews,
+    aiNews: aiResult.items,
+    worldNews: generalResult.items,
+    usNews: generalResult.items.slice(0, 5),
+    technologyNews: technologyResult.items,
+    businessNews: businessResult.items,
+    scienceNews: scienceResult.items,
+    healthNews: healthResult.items,
+    newsErrors,
   };
 }
 
@@ -251,6 +270,7 @@ export async function GET(request: NextRequest) {
       generatedAt: new Date().toISOString(),
       live: true,
       newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
+      newsErrors: liveNews.newsErrors,
     });
   }
 
@@ -288,6 +308,7 @@ export async function GET(request: NextRequest) {
         generatedAt: new Date().toISOString(),
         live: true,
         newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
+        newsErrors: liveNews.newsErrors,
       });
     }
 
@@ -386,7 +407,7 @@ export async function POST(request: NextRequest) {
         JSON.stringify(worldNews),
         JSON.stringify(usNews),
         JSON.stringify(localNews),
-        JSON.stringify(internal.brief),
+        JSON.stringify(internal.standup),
         JSON.stringify(internal.brief),
         JSON.stringify(internal.skyward),
         now,

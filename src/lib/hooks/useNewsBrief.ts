@@ -62,6 +62,7 @@ export interface DailyNewsBriefData {
   generatedAt: string;
   live?: boolean;
   newsApiConfigured?: boolean;
+  newsErrors?: string[];
 }
 
 const EMPTY_DATA: DailyNewsBriefData = {
