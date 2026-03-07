@@ -95,6 +95,19 @@ const CALENDAR_EVENTS = [
   { id: "evt-9", title: "PTA Planning Call", domain: "community", start_time: getWeekDate(5, 11, 0), end_time: getWeekDate(5, 12, 0), protected: false, description: null },
 ];
 
+const TOKEN_USAGE = [
+  { id: "tu-1", agent_id: "bob", session_id: "sess-001", model: "claude-sonnet-4-20250514", input_tokens: 2400, output_tokens: 800, cost_cents: 1.2 },
+  { id: "tu-2", agent_id: "bob", session_id: "sess-001", model: "claude-sonnet-4-20250514", input_tokens: 3100, output_tokens: 1200, cost_cents: 1.8 },
+  { id: "tu-3", agent_id: "bertha", session_id: "sess-002", model: "claude-sonnet-4-20250514", input_tokens: 5200, output_tokens: 2100, cost_cents: 3.4 },
+  { id: "tu-4", agent_id: "bertha", session_id: "sess-002", model: "claude-sonnet-4-20250514", input_tokens: 4800, output_tokens: 1900, cost_cents: 3.1 },
+  { id: "tu-5", agent_id: "veronica", session_id: "sess-003", model: "claude-sonnet-4-20250514", input_tokens: 1800, output_tokens: 600, cost_cents: 0.9 },
+  { id: "tu-6", agent_id: "forge", session_id: "sess-004", model: "claude-sonnet-4-20250514", input_tokens: 8200, output_tokens: 3400, cost_cents: 5.6 },
+  { id: "tu-7", agent_id: "forge", session_id: "sess-004", model: "claude-sonnet-4-20250514", input_tokens: 6100, output_tokens: 2800, cost_cents: 4.2 },
+  { id: "tu-8", agent_id: "forge", session_id: "sess-004", model: "claude-sonnet-4-20250514", input_tokens: 4500, output_tokens: 1600, cost_cents: 2.8 },
+  { id: "tu-9", agent_id: "depa", session_id: "sess-005", model: "claude-sonnet-4-20250514", input_tokens: 3200, output_tokens: 1100, cost_cents: 1.7 },
+  { id: "tu-10", agent_id: "skylar", session_id: "sess-006", model: "claude-sonnet-4-20250514", input_tokens: 2900, output_tokens: 950, cost_cents: 1.5 },
+];
+
 export async function POST() {
   if (!pool) {
     return NextResponse.json(
@@ -336,6 +349,16 @@ export async function POST() {
       );
     }
 
+    // Seed token usage (for sessions page)
+    await client.query("DELETE FROM token_usage");
+    for (const tu of TOKEN_USAGE) {
+      await client.query(
+        `INSERT INTO token_usage (id, agent_id, session_id, model, input_tokens, output_tokens, cost_cents, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [tu.id, tu.agent_id, tu.session_id, tu.model, tu.input_tokens, tu.output_tokens, tu.cost_cents, now]
+      );
+    }
+
     // Seed calendar events
     for (const e of CALENDAR_EVENTS) {
       await client.query(
@@ -358,6 +381,7 @@ export async function POST() {
         activities: ACTIVITIES.length,
         certifications: CERTIFICATIONS.length,
         calendar_events: CALENDAR_EVENTS.length,
+        token_usage: TOKEN_USAGE.length,
       },
     });
   } catch (error) {
