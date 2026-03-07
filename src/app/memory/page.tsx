@@ -39,7 +39,7 @@ export default function MemoryPage() {
       const res = await fetch(`/api/memory?${params}`);
       if (!res.ok) throw new Error("Failed to fetch memories");
       const data = await res.json();
-      setMemories(data);
+      setMemories(Array.isArray(data) ? data : []);
     } catch (err) {
       setError((err as Error).message);
     } finally {

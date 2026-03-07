@@ -55,7 +55,7 @@ export const useAgentStore = create<AgentStore>()(
         const res = await fetch("/api/agents");
         if (!res.ok) throw new Error("Failed to fetch agents");
         const data = await res.json();
-        set({ agents: data, loading: false });
+        set({ agents: Array.isArray(data) ? data : [], loading: false });
       } catch (err) {
         set({ error: (err as Error).message, loading: false });
       }

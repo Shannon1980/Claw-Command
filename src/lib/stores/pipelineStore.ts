@@ -58,8 +58,9 @@ export const usePipelineStore = create<PipelineStore>()((set, get) => ({
       const res = await fetch("/api/pipelines");
       if (!res.ok) throw new Error("Failed to fetch pipelines");
       const data = await res.json();
+      const items = Array.isArray(data) ? data : [];
       set({
-        pipelines: data.map((p: Pipeline & { steps: string }) => ({
+        pipelines: items.map((p: Pipeline & { steps: string }) => ({
           ...p,
           steps: typeof p.steps === "string" ? JSON.parse(p.steps) : p.steps,
         })),
@@ -75,7 +76,7 @@ export const usePipelineStore = create<PipelineStore>()((set, get) => ({
       const res = await fetch(`/api/pipelines/${pipelineId}/runs`);
       if (!res.ok) return;
       const data = await res.json();
-      set({ runs: data });
+      set({ runs: Array.isArray(data) ? data : [] });
     } catch { /* silent */ }
   },
 

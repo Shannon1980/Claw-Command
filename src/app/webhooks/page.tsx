@@ -63,7 +63,7 @@ export default function WebhooksPage() {
       const res = await fetch("/api/webhooks");
       if (!res.ok) throw new Error("Failed to fetch webhooks");
       const data = await res.json();
-      setWebhooks(data);
+      setWebhooks(Array.isArray(data) ? data : []);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -76,7 +76,7 @@ export default function WebhooksPage() {
       const res = await fetch(`/api/webhooks/${id}/deliveries`);
       if (res.ok) {
         const data = await res.json();
-        setDeliveries((prev) => ({ ...prev, [id]: data }));
+        setDeliveries((prev) => ({ ...prev, [id]: Array.isArray(data) ? data : [] }));
       }
     } catch {
       // silent

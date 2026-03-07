@@ -74,7 +74,7 @@ export const useTaskStore = create<TaskStore>()(
         const res = await fetch("/api/tasks?all=true");
         if (!res.ok) throw new Error("Failed to fetch tasks");
         const data = await res.json();
-        set({ tasks: data, loading: false });
+        set({ tasks: Array.isArray(data) ? data : [], loading: false });
       } catch (err) {
         set({ error: (err as Error).message, loading: false });
       }

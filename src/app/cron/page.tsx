@@ -33,7 +33,7 @@ export default function CronPage() {
       const res = await fetch("/api/cron");
       if (!res.ok) throw new Error("Failed to fetch cron jobs");
       const data = await res.json();
-      setJobs(data);
+      setJobs(Array.isArray(data) ? data : []);
     } catch (err) {
       setError((err as Error).message);
     } finally {

@@ -55,7 +55,7 @@ export const useLogStore = create<LogStore>()((set, get) => ({
       const res = await fetch(`/api/logs?${params}`);
       if (!res.ok) throw new Error("Failed to fetch logs");
       const data = await res.json();
-      set({ entries: data, loading: false });
+      set({ entries: Array.isArray(data) ? data : [], loading: false });
     } catch {
       set({ loading: false });
     }

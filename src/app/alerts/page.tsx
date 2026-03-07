@@ -56,7 +56,7 @@ export default function AlertsPage() {
       const res = await fetch("/api/alerts");
       if (res.ok) {
         const data = await res.json();
-        setAlerts(data);
+        setAlerts(Array.isArray(data) ? data : []);
       }
     } catch {
       // silent
@@ -68,7 +68,7 @@ export default function AlertsPage() {
       const res = await fetch("/api/alert-rules");
       if (res.ok) {
         const data = await res.json();
-        setRules(data);
+        setRules(Array.isArray(data) ? data : []);
       }
     } catch {
       // silent
