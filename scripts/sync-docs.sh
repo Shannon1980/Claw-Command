@@ -1,21 +1,54 @@
 #!/bin/bash
-# Claw Command — Sync local workspace docs to dashboard
-# Reads .md/.txt files from ~/.openclaw/workspace and pushes to Vercel
+# Claw Command — Sync local OpenClaw workspace docs to dashboard
+# Reads .md/.txt files from ~/.openclaw/workspace (recursive) and pushes to Claw Command DB
+#
+# Usage:
+#   ./scripts/sync-docs.sh              # sync (apply directly)
+#   ./scripts/sync-docs.sh --preview    # show changes only, don't apply
+#   ./scripts/sync-docs.sh -i           # interactive: preview, then prompt to accept/decline
+#   CLAW_COMMAND_URL=http://localhost:3000 ./scripts/sync-docs.sh   # sync to local dev
 
 WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 DASHBOARD_URL="${CLAW_COMMAND_URL:-https://claw-command-pi.vercel.app}"
+MAX_DOCS="${SYNC_DOCS_MAX:-500}"
+export SYNC_DOCS_MAX="$MAX_DOCS"
 
-echo "[$(date)] Syncing workspace docs → Claw Command..."
+PREVIEW=0
+INTERACTIVE=0
+for arg in "$@"; do
+  case "$arg" in
+    --preview|-p) PREVIEW=1 ;;
+    -i|--interactive) INTERACTIVE=1 ;;
+  esac
+done
 
-# Build JSON payload with node
+echo "[$(date)] Syncing OpenClaw workspace docs → Claw Command ($DASHBOARD_URL)..."
+
+# Build JSON payload with node (recursive scan)
 PAYLOAD=$(node -e "
 const fs = require('fs');
 const path = require('path');
 
 const workspace = process.argv[1];
-const files = fs.readdirSync(workspace)
-  .filter(f => f.endsWith('.md') || f.endsWith('.txt'))
-  .filter(f => !['MEMORY.md','SOUL.md','USER.md','IDENTITY.md','TOOLS.md','HEARTBEAT.md'].includes(f));
+const EXCLUDED = ['MEMORY.md','SOUL.md','USER.md','IDENTITY.md','TOOLS.md','HEARTBEAT.md'];
+
+function walkDir(dir, files = []) {
+  if (!fs.existsSync(dir)) return files;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory() && !e.name.startsWith('.')) {
+      walkDir(full, files);
+    } else if (e.isFile() && (e.name.endsWith('.md') || e.name.endsWith('.txt')) && !EXCLUDED.includes(e.name)) {
+      files.push(path.relative(workspace, full));
+    }
+  }
+  return files;
+}
+
+const maxDocs = parseInt(process.env.SYNC_DOCS_MAX || '500', 10);
+const allFiles = walkDir(workspace).sort();
+const files = allFiles.slice(0, maxDocs);
 
 // Agent mapping by content/name patterns
 function guessAgent(filename, content) {
@@ -38,10 +71,11 @@ function guessType(filename) {
   if (fn.includes('capability') || fn.includes('proposal') || fn.includes('rfi') || fn.includes('capture')) return 'proposal';
   if (fn.includes('cert') || fn.includes('mbe') || fn.includes('wosb') || fn.includes('lsbrp')) return 'certification_doc';
   if (fn.includes('cpars') || fn.includes('report') || fn.includes('seas')) return 'report';
+  if (fn.includes('template')) return 'template';
   if (fn.includes('spec') || fn.includes('api-') || fn.includes('design') || fn.includes('checklist')) return 'reference';
   if (fn.includes('safe') || fn.includes('lesson') || fn.includes('teaching')) return 'teaching';
   if (fn.includes('agent') || fn.includes('task') || fn.includes('dashboard')) return 'internal';
-  return 'document';
+  return 'report';
 }
 
 function guessStatus(content) {
@@ -62,20 +96,21 @@ function titleFromFilename(filename) {
     .join(' ');
 }
 
-const docs = files.map(f => {
-  const filePath = path.join(workspace, f);
+const docs = files.map(relPath => {
+  const filePath = path.join(workspace, relPath);
+  const basename = path.basename(relPath);
   let content = '';
   try { 
     content = fs.readFileSync(filePath, 'utf8').replace(/\0/g, ''); 
   } catch(e) {}
   
   return {
-    id: 'ws-' + f.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase(),
-    title: titleFromFilename(f),
-    filename: f,
-    docType: guessType(f),
+    id: 'ws-' + relPath.replace(/[^a-zA-Z0-9]/g, '-').replace(/\//g, '-').toLowerCase(),
+    title: titleFromFilename(basename),
+    filename: basename,
+    docType: guessType(basename),
     content: content.slice(0, 50000), // Cap at 50KB per doc
-    authorAgentId: guessAgent(f, content),
+    authorAgentId: guessAgent(basename, content),
     status: guessStatus(content),
     filePath: filePath,
   };
@@ -90,7 +125,41 @@ if [ -z "$PAYLOAD" ]; then
 fi
 
 DOC_COUNT=$(echo "$PAYLOAD" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.docs.length)")
-echo "[$(date)] Found $DOC_COUNT documents to sync"
+echo "[$(date)] $DOC_COUNT documents (max $MAX_DOCS; set SYNC_DOCS_MAX for more)"
+
+if [ "$PREVIEW" = 1 ] || [ "$INTERACTIVE" = 1 ]; then
+  PREVIEW_PAYLOAD=$(echo "$PAYLOAD" | node -e "
+    const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+    d.preview=true;
+    console.log(JSON.stringify(d));
+  ")
+  RESPONSE=$(curl -s --max-time 30 -X POST \
+    -H "Content-Type: application/json" \
+    -d "$PREVIEW_PAYLOAD" \
+    "${DASHBOARD_URL}/api/sync/docs")
+  echo "$RESPONSE" | node -e "
+    const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+    if (d.preview) {
+      const c=(d.created||[]).length, u=(d.updated||[]).length, del=(d.deleted||[]).length;
+      console.log('[Sync preview] Created:', c, 'Updated:', u, 'No longer in workspace:', del);
+      if (c>0) (d.created||[]).slice(0,5).forEach(x=>console.log('  +', x.title));
+      if (u>0) (d.updated||[]).slice(0,5).forEach(x=>console.log('  ~', x.title));
+      if (del>0) (d.deleted||[]).slice(0,5).forEach(x=>console.log('  -', x.title));
+    } else {
+      console.log('Preview failed:', d.error || JSON.stringify(d));
+    }
+  " 2>/dev/null || echo "[$(date)] Preview: $RESPONSE"
+  if [ "$PREVIEW" = 1 ]; then
+    echo "[$(date)] Preview only. Run without --preview to apply, or use -i for interactive."
+    exit 0
+  fi
+  echo -n "[$(date)] Apply these changes? [y/N] "
+  read -r ans
+  if [ "$ans" != "y" ] && [ "$ans" != "Y" ]; then
+    echo "[$(date)] Declined."
+    exit 0
+  fi
+fi
 
 # Push to dashboard
 RESPONSE=$(curl -s --max-time 30 -X POST \

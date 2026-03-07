@@ -36,6 +36,15 @@ export default function DocsPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignDoc, setAssignDoc] = useState<Document | null>(null);
   const [linkedFilter, setLinkedFilter] = useState<string>("all");
+  const [syncStatus, setSyncStatus] = useState<{ loading: boolean; message: string | null; error?: string }>({
+    loading: false,
+    message: null,
+  });
+  const [syncPreview, setSyncPreview] = useState<{
+    created: { id: string; title: string }[];
+    updated: { id: string; title: string }[];
+    deleted: { id: string; title: string }[];
+  } | null>(null);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -138,6 +147,88 @@ export default function DocsPage() {
     setDocuments((prev) => [doc, ...prev]);
   };
 
+  const handleSyncFromWorkspace = async () => {
+    setSyncStatus({ loading: true, message: null, error: undefined });
+    setSyncPreview(null);
+    try {
+      const res = await fetch("/api/sync/docs/trigger?preview=1", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.preview) {
+        const hasChanges =
+          (data.created?.length ?? 0) > 0 ||
+          (data.updated?.length ?? 0) > 0 ||
+          (data.deleted?.length ?? 0) > 0;
+        setSyncStatus({ loading: false, message: null });
+        if (hasChanges) {
+          setSyncPreview({
+            created: data.created ?? [],
+            updated: data.updated ?? [],
+            deleted: data.deleted ?? [],
+          });
+        } else {
+          setSyncStatus({ loading: false, message: "Documents already up to date.", error: undefined });
+        }
+      } else if (res.ok && data.success) {
+        setSyncStatus({
+          loading: false,
+          message: `Synced ${data.docsUpserted ?? 0} document(s) from workspace.`,
+        });
+        setSyncPreview(null);
+        fetchDocuments();
+      } else if (res.status === 404) {
+        setSyncStatus({
+          loading: false,
+          message: null,
+          error: "Run from your local machine: ./scripts/sync-docs.sh",
+        });
+      } else {
+        setSyncStatus({
+          loading: false,
+          message: null,
+          error: data.error || "Sync failed",
+        });
+      }
+    } catch {
+      setSyncStatus({
+        loading: false,
+        message: null,
+        error: "Run from local: ./scripts/sync-docs.sh",
+      });
+    }
+  };
+
+  const handleAcceptSync = async () => {
+    if (!syncPreview) return;
+    setSyncStatus({ loading: true, message: null });
+    try {
+      const res = await fetch("/api/sync/docs/trigger", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setSyncStatus({
+          loading: false,
+          message: `Synced ${data.docsUpserted ?? 0} document(s).`,
+        });
+        setSyncPreview(null);
+        fetchDocuments();
+      } else {
+        setSyncStatus({
+          loading: false,
+          message: null,
+          error: data.error || "Apply failed",
+        });
+        setSyncPreview(null);
+      }
+    } catch {
+      setSyncStatus({ loading: false, message: null, error: "Apply failed" });
+      setSyncPreview(null);
+    }
+  };
+
+  const handleDeclineSync = () => {
+    setSyncPreview(null);
+    setSyncStatus({ loading: false, message: null, error: undefined });
+  };
+
   const handleReviewAction = async (docId: string, action: ReviewStatus) => {
     try {
       const res = await fetch(`/api/docs/${docId}`, {
@@ -220,7 +311,23 @@ export default function DocsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {syncStatus.message && (
+              <span className="text-xs text-emerald-400">{syncStatus.message}</span>
+            )}
+            {syncStatus.error && (
+              <span className="text-xs text-amber-400 max-w-xs" title={syncStatus.error}>
+                {syncStatus.error}
+              </span>
+            )}
+            <button
+              onClick={handleSyncFromWorkspace}
+              disabled={syncStatus.loading || loading}
+              className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 border border-gray-700/50 hover:border-gray-600"
+              title="Sync documents from OpenClaw workspace (local) or run ./scripts/sync-docs.sh"
+            >
+              {syncStatus.loading ? "Syncing…" : "Sync from Workspace"}
+            </button>
             <button
               onClick={() => fetchDocuments()}
               disabled={loading}
@@ -434,6 +541,82 @@ export default function DocsPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onSave={handleCreateDoc}
       />
+
+      {syncPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-800">
+              <h2 className="text-lg font-semibold text-gray-100">Sync workspace changes</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Review changes before applying. Accept to sync or decline to cancel.
+              </p>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto flex-1 space-y-4">
+              {syncPreview.created.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-emerald-400 uppercase tracking-wide mb-1.5">
+                    New ({syncPreview.created.length})
+                  </p>
+                  <ul className="text-sm text-gray-300 space-y-1 max-h-32 overflow-y-auto">
+                    {syncPreview.created.slice(0, 10).map((d) => (
+                      <li key={d.id} className="truncate">+ {d.title}</li>
+                    ))}
+                    {syncPreview.created.length > 10 && (
+                      <li className="text-gray-500">+ {syncPreview.created.length - 10} more</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+              {syncPreview.updated.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-amber-400 uppercase tracking-wide mb-1.5">
+                    Updated ({syncPreview.updated.length})
+                  </p>
+                  <ul className="text-sm text-gray-300 space-y-1 max-h-32 overflow-y-auto">
+                    {syncPreview.updated.slice(0, 10).map((d) => (
+                      <li key={d.id} className="truncate">~ {d.title}</li>
+                    ))}
+                    {syncPreview.updated.length > 10 && (
+                      <li className="text-gray-500">~ {syncPreview.updated.length - 10} more</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+              {syncPreview.deleted.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-red-400 uppercase tracking-wide mb-1.5">
+                    No longer in workspace ({syncPreview.deleted.length})
+                  </p>
+                  <ul className="text-sm text-gray-400 space-y-1 max-h-32 overflow-y-auto">
+                    {syncPreview.deleted.slice(0, 10).map((d) => (
+                      <li key={d.id} className="truncate">− {d.title}</li>
+                    ))}
+                    {syncPreview.deleted.length > 10 && (
+                      <li className="text-gray-500">− {syncPreview.deleted.length - 10} more</li>
+                    )}
+                  </ul>
+                  <p className="text-xs text-gray-500 mt-1">These will stay in the database; they are only removed from the workspace.</p>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-800 flex justify-end gap-3">
+              <button
+                onClick={handleDeclineSync}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                Decline
+              </button>
+              <button
+                onClick={handleAcceptSync}
+                disabled={syncStatus.loading}
+                className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50"
+              >
+                {syncStatus.loading ? "Applying…" : "Accept"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <DocAssignModal
         isOpen={isAssignModalOpen}

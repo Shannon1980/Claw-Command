@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -131,7 +131,10 @@ function titleFromFilename(filename: string): string {
     .join(" ");
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const preview = searchParams.get("preview") === "1";
+
   const workspacePath =
     process.env.OPENCLAW_WORKSPACE ||
     path.join(os.homedir(), ".openclaw", "workspace");
@@ -181,6 +184,49 @@ export async function POST() {
         filePath,
       };
     });
+
+    if (preview) {
+      const incomingIds = new Set(docs.map((d) => d.id));
+      const incomingMap = new Map(docs.map((d) => [d.id, d]));
+      const created: { id: string; title: string }[] = [];
+      const updated: { id: string; title: string }[] = [];
+      const deleted: { id: string; title: string }[] = [];
+      const res = await pool.query(
+        "SELECT id, title, content, status FROM docs WHERE id LIKE 'ws-%'"
+      );
+      const existingMap = new Map(
+        res.rows.map(
+          (r: { id: string; title: string; content: string; status: string }) => [
+            r.id,
+            { title: r.title, content: r.content, status: r.status },
+          ]
+        )
+      );
+      const existingIds = new Set(existingMap.keys());
+      for (const doc of docs) {
+        const ex = existingMap.get(doc.id);
+        if (!ex) created.push({ id: doc.id, title: doc.title });
+        else if (
+          ex.title !== doc.title ||
+          ex.content !== doc.content ||
+          ex.status !== doc.status
+        )
+          updated.push({ id: doc.id, title: doc.title });
+      }
+      for (const id of existingIds) {
+        if (!incomingIds.has(id)) {
+          const row = res.rows.find((r: { id: string }) => r.id === id);
+          deleted.push({ id, title: (row?.title as string) || id });
+        }
+      }
+      return NextResponse.json({
+        preview: true,
+        created,
+        updated,
+        deleted,
+        workspacePath,
+      });
+    }
 
     const client = await pool.connect();
     const now = new Date().toISOString();
