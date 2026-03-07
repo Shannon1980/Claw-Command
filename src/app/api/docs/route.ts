@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { connectionString } from "@/lib/db/config";
+import { mockDocuments } from "@/lib/mock-docs";
 
 const pool = connectionString
   ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
   : null;
 
 let schemaReady = false;
+
+function getMockFallback() {
+  return mockDocuments.map((doc) => ({
+    ...doc,
+    authorAgentId: null,
+    filePath: null,
+    filename: null,
+  }));
+}
 
 async function ensureSchema() {
   if (schemaReady || !pool) return;
@@ -33,12 +43,12 @@ async function ensureSchema() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json(getMockFallback());
 
   try {
     await ensureSchema();
   } catch {
-    return NextResponse.json([]);
+    return NextResponse.json(getMockFallback());
   }
 
   const { searchParams } = new URL(request.url);
@@ -116,10 +126,14 @@ export async function GET(request: NextRequest) {
       assignments: row.assignments || [],
     }));
 
+    if (docs.length === 0 && !docType && !search && !linkedType && !reviewStatus && !category && !priority) {
+      return NextResponse.json(getMockFallback());
+    }
+
     return NextResponse.json(docs);
   } catch (error) {
     console.error("[Docs API] Error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json(getMockFallback());
   }
 }
 
