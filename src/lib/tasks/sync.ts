@@ -5,6 +5,7 @@
  */
 
 import { pool } from "@/lib/db/client";
+import { upsertAgents } from "@/lib/db/upsertAgents";
 import type { OpenClawSession } from "@/lib/openclaw/types";
 import {
   mapSessionsToAgentStatus,
@@ -35,25 +36,7 @@ export async function syncTasksFromSessions(
     const taskRecords = mapSessionsToTasks(sessions);
 
     // Upsert agents (tasks reference them)
-    for (const agent of agentUpdates) {
-      await pool.query(
-        `INSERT INTO agents (id, name, emoji, domain, status, current_task_id, updated_at)
-         VALUES ($1, $2, '🤖', 'vorentoe', $3, $4, $5)
-         ON CONFLICT (id) DO UPDATE SET
-           name = EXCLUDED.name,
-           status = EXCLUDED.status,
-           current_task_id = EXCLUDED.current_task_id,
-           updated_at = EXCLUDED.updated_at`,
-        [
-          agent.id,
-          agent.name,
-          agent.status,
-          agent.currentTask,
-          agent.updatedAt,
-        ]
-      );
-      result.agentsUpserted++;
-    }
+    result.agentsUpserted = await upsertAgents(agentUpdates);
 
     // Upsert tasks (only OpenClaw-sourced, id starts with "oc-")
     // On conflict: overwrite title and status with OpenClaw's latest state
