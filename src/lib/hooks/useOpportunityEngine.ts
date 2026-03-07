@@ -5,7 +5,8 @@ import type { DashboardQueue } from "@/lib/opportunity-engine/types";
 
 const EMPTY_QUEUE: DashboardQueue = {
   captureNowDirect: [],
-  captureNowTeaming: [],
+  captureNowTeamSkyward: [],
+  captureNowTeamVorentoe: [],
   watch: [],
   pass: [],
   lastScanAt: new Date().toISOString(),

@@ -137,11 +137,14 @@ export async function scanSamGov(
       const { probability: winProbability, breakdown: winBreakdown } =
         calculateWinProbability(fitScore, isFederal, isMongoCounty, 10);
 
+      const setAside = opp.setAsideDescription || opp.setAside || "";
       const { action, channel } = routeAction(
         fitScore,
         winProbability,
         daysUntilClose,
-        isFederal
+        isFederal,
+        setAside,
+        amount
       );
 
       // Generate win themes
@@ -188,7 +191,7 @@ export async function scanSamGov(
     totalFound,
     qualifiedCount: opportunities.filter(
       (o) =>
-        o.action === "CAPTURE_NOW" || o.action === "CAPTURE_NOW_TEAM_SKYWARD"
+        o.action === "CAPTURE_NOW" || o.action === "CAPTURE_NOW_TEAM_SKYWARD" || o.action === "CAPTURE_NOW_TEAM_VORENTOE"
     ).length,
     duplicatesSkipped,
   };
@@ -199,7 +202,7 @@ export async function scanSamGov(
 function generateWinThemes(
   title: string,
   description: string,
-  channel: "direct" | "teaming",
+  channel: "direct" | "teaming_skyward_prime" | "teaming_vorentoe_prime",
   isMongoCounty: boolean
 ): string[] {
   const themes: string[] = [];
@@ -210,9 +213,14 @@ function generateWinThemes(
     themes.push("LSBRP certification advantage");
   }
 
-  if (channel === "teaming") {
+  if (channel === "teaming_skyward_prime") {
     themes.push("Skyward 8(a) federal authority");
     themes.push("GSA schedule contract access");
+  }
+
+  if (channel === "teaming_vorentoe_prime") {
+    themes.push("EDWOSB certification advantage");
+    themes.push("Vorentoe as prime with Skyward support");
   }
 
   if (text.includes("cloud") || text.includes("migration")) {

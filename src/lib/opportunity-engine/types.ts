@@ -8,11 +8,12 @@ export type OpportunitySource =
   | "dc_ocp"
   | "naspo";
 
-export type OpportunityChannel = "direct" | "teaming";
+export type OpportunityChannel = "direct" | "teaming_skyward_prime" | "teaming_vorentoe_prime";
 
 export type ActionRouting =
   | "CAPTURE_NOW"
   | "CAPTURE_NOW_TEAM_SKYWARD"
+  | "CAPTURE_NOW_TEAM_VORENTOE"
   | "WATCH"
   | "PASS";
 
@@ -74,7 +75,8 @@ export interface ScanResult {
 
 export interface DashboardQueue {
   captureNowDirect: QualifiedOpportunity[];
-  captureNowTeaming: QualifiedOpportunity[];
+  captureNowTeamSkyward: QualifiedOpportunity[];  // Skyward as prime, Vorentoe as partner
+  captureNowTeamVorentoe: QualifiedOpportunity[]; // Vorentoe as prime, Skyward as partner
   watch: QualifiedOpportunity[];
   pass: QualifiedOpportunity[];
   lastScanAt: string;
