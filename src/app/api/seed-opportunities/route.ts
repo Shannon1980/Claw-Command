@@ -50,11 +50,6 @@ export async function POST(request: Request) {
     );
   }
   try {
-    // Basic security check (can be expanded later)
-    // For now, allow open access for v1 testing or check for a simple header if needed.
-    // const secret = request.headers.get("x-seed-secret");
-    // if (secret !== process.env.SEED_SECRET) { ... }
-
     console.log("🌱 Seeding REAL Opportunities via API...");
 
     // 1. Clear existing opportunities

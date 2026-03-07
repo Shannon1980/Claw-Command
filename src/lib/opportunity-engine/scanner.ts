@@ -11,6 +11,15 @@ import {
 } from "./scoring";
 import { computeDedupeHash } from "./dedup";
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function formatDateMMDDYYYY(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
+}
+
 // ─── SAM.gov Scanner ────────────────────────────────────────────────────────
 
 interface SamGovOpportunity {
@@ -64,16 +73,8 @@ export async function scanSamGov(
     // Fetch active solicitations posted in the last 30 days
     const postedFrom = new Date();
     postedFrom.setDate(postedFrom.getDate() - 30);
-    const postedFromStr = postedFrom.toLocaleDateString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-    });
-    const postedToStr = new Date().toLocaleDateString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-    });
+    const postedFromStr = formatDateMMDDYYYY(postedFrom);
+    const postedToStr = formatDateMMDDYYYY(new Date());
 
     const params = new URLSearchParams({
       api_key: apiKey,

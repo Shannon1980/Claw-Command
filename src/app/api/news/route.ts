@@ -15,11 +15,11 @@ export async function GET(request: NextRequest) {
     50
   );
 
-  if (!process.env.NEWS_API_KEY) {
+  if (!process.env.NEWS_API_KEY && !process.env.NEW_API_KEY) {
     return NextResponse.json(
       {
         error: "NEWS_API_KEY not configured",
-        hint: "Add NEWS_API_KEY to your .env.local file. Get one at newsapi.org",
+        hint: "Add NEWS_API_KEY (or NEW_API_KEY) to your .env.local file. Get one at newsapi.org",
       },
       { status: 503 }
     );
