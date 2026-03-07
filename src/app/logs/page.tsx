@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function LogsRedirect() {
-  redirect("/monitoring?tab=logs");
 import { useEffect, useRef, useState } from "react";
 import { useLogStore } from "@/lib/stores/logStore";
 import type { LogLevel } from "@/lib/stores/logStore";

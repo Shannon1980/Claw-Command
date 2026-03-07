@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useLogStore } from "@/lib/stores/logStore";
 import type { LogLevel } from "@/lib/stores/logStore";
@@ -510,7 +510,7 @@ function SessionsTab() {
 // Main Monitoring Page
 // =============================================================================
 
-export default function MonitoringPage() {
+function MonitoringContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
@@ -586,5 +586,17 @@ export default function MonitoringPage() {
         {activeTab === "sessions" && <SessionsTab />}
       </div>
     </div>
+  );
+}
+
+export default function MonitoringPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center">
+        <p className="text-sm text-gray-500">Loading...</p>
+      </div>
+    }>
+      <MonitoringContent />
+    </Suspense>
   );
 }
