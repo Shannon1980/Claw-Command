@@ -237,6 +237,21 @@ export async function POST() {
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL, author TEXT NOT NULL,
         content TEXT NOT NULL, parent_comment_id TEXT, created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS email_accounts (
+        id TEXT PRIMARY KEY, provider TEXT NOT NULL DEFAULT 'gmail', email TEXT NOT NULL,
+        access_token TEXT, refresh_token TEXT, token_expires_at TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS email_rules (
+        id TEXT PRIMARY KEY, account_id TEXT NOT NULL, name TEXT NOT NULL,
+        enabled BOOLEAN NOT NULL DEFAULT true, actions TEXT NOT NULL DEFAULT '[]',
+        ai_prompt TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS email_actions (
+        id TEXT PRIMARY KEY, account_id TEXT, rule_id TEXT, message_id TEXT,
+        action TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+        details TEXT, created_at TEXT NOT NULL
+      );
     `);
 
     // Clear existing data (reverse FK order)

@@ -19,10 +19,7 @@ export async function GET() {
     return NextResponse.json(res.rows);
   } catch (err) {
     console.error("[Email API] List accounts error:", err);
-    return NextResponse.json(
-      { error: "Failed to list accounts" },
-      { status: 500 }
-    );
+    return NextResponse.json([]);
   }
 }
 
