@@ -1,18 +1,11 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import type {
   OvernightSummary,
   DomainStatus,
   Priority,
 } from "@/lib/mock-brief";
 
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
 
 const DOMAIN_CONFIG: Record<string, { name: string; icon: string }> = {
   vorentoe: { name: "Vorentoe", icon: "💼" },
@@ -30,7 +23,7 @@ function getOvernightCutoff(): string {
 }
 
 export async function GET(request: Request) {
-  if (!pool || !connectionString) {
+  if (!pool) {
     return NextResponse.json(
       { error: "Database not configured" },
       { status: 503 }

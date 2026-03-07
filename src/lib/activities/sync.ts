@@ -3,8 +3,6 @@
  * Inserts new activities, upserts agents, archives entries older than 7 days.
  */
 
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import {
   listSessions,
   isGatewayOnline,
@@ -13,11 +11,8 @@ import {
   mapSessionsToAgentStatus,
   mapSessionsToActivities,
 } from "@/lib/openclaw/mappers";
+import { pool } from "@/lib/db/client";
 import type { ActivityEvent } from "@/lib/openclaw/types";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 const ARCHIVE_DAYS = 7;
 

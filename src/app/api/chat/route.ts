@@ -1,12 +1,7 @@
+import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import { addMessage } from "@/lib/chat/store";
 import { isGatewayOnline, chatCompletion } from "@/lib/openclaw/client";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 let schemaReady = false;
 

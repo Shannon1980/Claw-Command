@@ -1,14 +1,7 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
 import { requireMcAuth } from "@/lib/mc/auth";
 
-const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
 
 type QueueReason =
   | "continue_current"
@@ -43,7 +36,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!pool || !connectionString) {
+  if (!pool) {
     return NextResponse.json(
       { task: null, reason: "no_tasks_available", agent, timestamp: Date.now() },
       { status: 200 }

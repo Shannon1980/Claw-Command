@@ -1,12 +1,6 @@
+import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-import { connectionString } from "@/lib/db/config";
-import { getAgentChatHistory } from "@/lib/mock-chat";
 import { getMessages } from "@/lib/chat/store";
-
-const pool = connectionString
-  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-  : null;
 
 let schemaReady = false;
 
@@ -85,19 +79,5 @@ export async function GET(
     return NextResponse.json(inMemory.map(toApiMessage));
   }
 
-  // Fall back to mock chat history
-  const history = getAgentChatHistory(agentId);
-  const messages = history.map((msg) =>
-    toApiMessage({
-      id: msg.id,
-      agentId: msg.agentId,
-      sender: msg.sender,
-      content: msg.content,
-      timestamp:
-        msg.timestamp instanceof Date
-          ? msg.timestamp.toISOString()
-          : String(msg.timestamp),
-    })
-  );
-  return NextResponse.json(messages);
+  return NextResponse.json([]);
 }
