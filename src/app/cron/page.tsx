@@ -37,6 +37,7 @@ const ACTION_PRESETS = [
   { label: "Refresh overview stats", value: "/api/overview/stats", method: "GET" },
   { label: "Push sync to external", value: "/api/sync/push", method: "POST" },
   { label: "Seed sample opportunities", value: "/api/seed-opportunities", method: "POST" },
+  { label: "Scan opportunities", value: "/api/opportunity-engine/scan", method: "POST" },
 ];
 
 const CADENCE_OPTIONS = [
