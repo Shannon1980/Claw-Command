@@ -1,4 +1,7 @@
-const NEWS_API_KEY = process.env.NEWS_API_KEY;
+function getNewsApiKey(): string | undefined {
+  return process.env.NEWS_API_KEY || process.env.NEW_API_KEY;
+}
+
 const BASE_URL = "https://newsapi.org/v2";
 
 export interface NewsArticle {
@@ -28,7 +31,8 @@ export interface NewsFetchOptions {
 export async function fetchTopHeadlines(
   options: NewsFetchOptions = {}
 ): Promise<NewsResponse> {
-  if (!NEWS_API_KEY) {
+  const apiKey = getNewsApiKey();
+  if (!apiKey) {
     throw new Error("NEWS_API_KEY is not configured");
   }
 
@@ -40,7 +44,7 @@ export async function fetchTopHeadlines(
   } = options;
 
   const params = new URLSearchParams({
-    apiKey: NEWS_API_KEY,
+    apiKey: apiKey,
     country,
     pageSize: String(pageSize),
   });
@@ -64,14 +68,15 @@ export async function searchNews(
   query: string,
   options: { sortBy?: "relevancy" | "popularity" | "publishedAt"; pageSize?: number } = {}
 ): Promise<NewsResponse> {
-  if (!NEWS_API_KEY) {
+  const apiKey = getNewsApiKey();
+  if (!apiKey) {
     throw new Error("NEWS_API_KEY is not configured");
   }
 
   const { sortBy = "publishedAt", pageSize = 20 } = options;
 
   const params = new URLSearchParams({
-    apiKey: NEWS_API_KEY,
+    apiKey: apiKey,
     q: query,
     sortBy,
     pageSize: String(pageSize),
