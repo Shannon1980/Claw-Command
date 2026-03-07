@@ -121,8 +121,8 @@ export default function DocViewer({ document, onClose, onUpdate, onDelete, onDup
 
   const handleExportDocx = async () => {
     try {
-      const docx = await import("docx");
-      const { Document: DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = docx;
+      const docxMod = await import("docx");
+      const { Document: DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = docxMod;
 
       const lines = document.content.split("\n");
       const children: InstanceType<typeof Paragraph>[] = [];
