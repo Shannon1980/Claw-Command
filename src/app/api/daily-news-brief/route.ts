@@ -6,7 +6,11 @@ import {
   searchNews,
   isNewsConfigured,
   getConfiguredProvider,
+  fetchRedditNews,
+  fetchHackerNews,
   type NewsArticle,
+  type RedditNewsItem,
+  type HackerNewsItem,
 } from "@/lib/news/client";
 
 let schemaReady = false;
@@ -142,7 +146,39 @@ async function fetchCategoryNews(
   }
 }
 
+async function fetchRedditFeed(): Promise<{ items: RedditNewsItem[]; error?: string }> {
+  try {
+    const items = await fetchRedditNews();
+    return { items };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[DailyNewsBrief] Reddit fetch failed:", msg);
+    return { items: [], error: msg };
+  }
+}
+
+async function fetchHackerNewsFeed(): Promise<{ items: HackerNewsItem[]; error?: string }> {
+  try {
+    const items = await fetchHackerNews();
+    return { items };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[DailyNewsBrief] Hacker News fetch failed:", msg);
+    return { items: [], error: msg };
+  }
+}
+
 async function fetchAllLiveNews() {
+  // Reddit and HN are always fetched (no API key required)
+  const [redditResult, hackerNewsResult] = await Promise.all([
+    fetchRedditFeed(),
+    fetchHackerNewsFeed(),
+  ]);
+
+  const newsErrors: string[] = [];
+  if (redditResult.error) newsErrors.push(`Reddit: ${redditResult.error}`);
+  if (hackerNewsResult.error) newsErrors.push(`Hacker News: ${hackerNewsResult.error}`);
+
   if (!isNewsConfigured()) {
     return {
       aiNews: generatePlaceholderAINews(),
@@ -152,7 +188,9 @@ async function fetchAllLiveNews() {
       businessNews: [] as NewsItem[],
       scienceNews: [] as NewsItem[],
       healthNews: [] as NewsItem[],
-      newsErrors: [] as string[],
+      redditNews: redditResult.items,
+      hackerNews: hackerNewsResult.items,
+      newsErrors,
     };
   }
 
@@ -166,7 +204,6 @@ async function fetchAllLiveNews() {
       fetchCategoryNews("health"),
     ]);
 
-  const newsErrors: string[] = [];
   if (aiResult.error) newsErrors.push(`AI news: ${aiResult.error}`);
   if (generalResult.error) newsErrors.push(`Headlines: ${generalResult.error}`);
   if (technologyResult.error) newsErrors.push(`Technology: ${technologyResult.error}`);
@@ -182,6 +219,8 @@ async function fetchAllLiveNews() {
     businessNews: businessResult.items,
     scienceNews: scienceResult.items,
     healthNews: healthResult.items,
+    redditNews: redditResult.items,
+    hackerNews: hackerNewsResult.items,
     newsErrors,
   };
 }
@@ -265,6 +304,8 @@ export async function GET(request: NextRequest) {
       businessNews: liveNews.businessNews,
       scienceNews: liveNews.scienceNews,
       healthNews: liveNews.healthNews,
+      redditNews: liveNews.redditNews,
+      hackerNews: liveNews.hackerNews,
       standupSummary: null,
       briefSummary: null,
       skywardSummary: null,
@@ -304,18 +345,27 @@ export async function GET(request: NextRequest) {
         businessNews: liveNews.businessNews,
         scienceNews: liveNews.scienceNews,
         healthNews: liveNews.healthNews,
+        redditNews: liveNews.redditNews,
+        hackerNews: liveNews.hackerNews,
         standupSummary: internal.standup,
         briefSummary: internal.brief,
         skywardSummary: internal.skyward,
         generatedAt: new Date().toISOString(),
         live: true,
         newsApiConfigured: isNewsConfigured(),
-      newsProvider: getConfiguredProvider(),
+        newsProvider: getConfiguredProvider(),
         newsErrors: liveNews.newsErrors,
       });
     }
 
     const row = result.rows[0];
+
+    // Always fetch fresh Reddit/HN (free, no key needed)
+    const [redditResult, hnResult] = await Promise.allSettled([
+      fetchRedditNews(),
+      fetchHackerNews(),
+    ]);
+
     return NextResponse.json({
       id: row.id,
       date: row.date,
@@ -329,6 +379,8 @@ export async function GET(request: NextRequest) {
       businessNews: row.world_news?.filter((n: NewsItem) => n.category === "business") || [],
       scienceNews: row.world_news?.filter((n: NewsItem) => n.category === "science") || [],
       healthNews: row.world_news?.filter((n: NewsItem) => n.category === "health") || [],
+      redditNews: redditResult.status === "fulfilled" ? redditResult.value : [],
+      hackerNews: hnResult.status === "fulfilled" ? hnResult.value : [],
       standupSummary: row.standup_summary,
       briefSummary: row.brief_summary,
       skywardSummary: row.skyward_summary,
@@ -352,6 +404,8 @@ export async function GET(request: NextRequest) {
       businessNews: [] as NewsItem[],
       scienceNews: [] as NewsItem[],
       healthNews: [] as NewsItem[],
+      redditNews: [] as RedditNewsItem[],
+      hackerNews: [] as HackerNewsItem[],
       standupSummary: null,
       briefSummary: null,
       skywardSummary: null,

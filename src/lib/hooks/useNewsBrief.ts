@@ -30,6 +30,31 @@ export interface YouTubeItem {
   publishedAt: string;
 }
 
+export interface RedditNewsItem {
+  title: string;
+  url: string;
+  commentsUrl: string;
+  source: string;
+  author: string;
+  score: number;
+  commentCount: number;
+  flair: string | null;
+  publishedAt: string;
+  summary: string;
+  thumbnail: string | null;
+}
+
+export interface HackerNewsItem {
+  title: string;
+  url: string;
+  commentsUrl: string;
+  source: string;
+  author: string;
+  score: number;
+  commentCount: number;
+  publishedAt: string;
+}
+
 export interface DailyNewsBriefData {
   id: string | null;
   date: string;
@@ -43,6 +68,8 @@ export interface DailyNewsBriefData {
   businessNews: NewsItem[];
   scienceNews: NewsItem[];
   healthNews: NewsItem[];
+  redditNews: RedditNewsItem[];
+  hackerNews: HackerNewsItem[];
   standupSummary: {
     date: string;
     completed: Array<{ id: string; title: string }>;
@@ -80,6 +107,8 @@ const EMPTY_DATA: DailyNewsBriefData = {
   businessNews: [],
   scienceNews: [],
   healthNews: [],
+  redditNews: [],
+  hackerNews: [],
   standupSummary: null,
   briefSummary: null,
   skywardSummary: null,
