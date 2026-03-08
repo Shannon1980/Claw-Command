@@ -4,6 +4,8 @@ import { emitNotification } from "@/lib/events/emitActivity";
 import {
   fetchTopHeadlines,
   searchNews,
+  isNewsConfigured,
+  getConfiguredProvider,
   type NewsArticle,
 } from "@/lib/news/client";
 
@@ -141,8 +143,7 @@ async function fetchCategoryNews(
 }
 
 async function fetchAllLiveNews() {
-  const hasKey = !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY);
-  if (!hasKey) {
+  if (!isNewsConfigured()) {
     return {
       aiNews: generatePlaceholderAINews(),
       worldNews: generatePlaceholderWorldNews(),
@@ -190,11 +191,11 @@ async function fetchAllLiveNews() {
 function generatePlaceholderAINews(): NewsItem[] {
   return [
     {
-      title: "Configure NEWS_API_KEY to see live AI news",
+      title: "Configure a news API key to see live AI news",
       source: "Setup Required",
       url: "",
       summary:
-        "Add your NEWS_API_KEY to .env.local to fetch live AI news from NewsAPI. Get a key at newsapi.org.",
+        "Add GNEWS_API_KEY (gnews.io), GUARDIAN_API_KEY (theguardian.com), or NEWS_API_KEY (newsapi.org) to .env.local.",
       category: "ai",
       publishedAt: new Date().toISOString(),
     },
@@ -232,11 +233,11 @@ function generatePlaceholderYouTube(): YouTubeItem[] {
 function generatePlaceholderWorldNews(): NewsItem[] {
   return [
     {
-      title: "Configure NEWS_API_KEY for live news",
+      title: "Configure a news API key for live news",
       source: "Setup Required",
       url: "",
       summary:
-        "Add NEWS_API_KEY to .env.local to auto-populate world, US, technology, business, science, and health news.",
+        "Add GNEWS_API_KEY, GUARDIAN_API_KEY, or NEWS_API_KEY to .env.local for live news feeds.",
       category: "world",
       publishedAt: new Date().toISOString(),
     },
@@ -269,7 +270,8 @@ export async function GET(request: NextRequest) {
       skywardSummary: null,
       generatedAt: new Date().toISOString(),
       live: true,
-      newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
+      newsApiConfigured: isNewsConfigured(),
+      newsProvider: getConfiguredProvider(),
       newsErrors: liveNews.newsErrors,
     });
   }
@@ -307,7 +309,8 @@ export async function GET(request: NextRequest) {
         skywardSummary: internal.skyward,
         generatedAt: new Date().toISOString(),
         live: true,
-        newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
+        newsApiConfigured: isNewsConfigured(),
+      newsProvider: getConfiguredProvider(),
         newsErrors: liveNews.newsErrors,
       });
     }
@@ -331,7 +334,8 @@ export async function GET(request: NextRequest) {
       skywardSummary: row.skyward_summary,
       generatedAt: row.generated_at,
       live: false,
-      newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
+      newsApiConfigured: isNewsConfigured(),
+      newsProvider: getConfiguredProvider(),
     });
   } catch (error) {
     console.error("[DailyNewsBrief API] GET error:", error);
@@ -353,7 +357,8 @@ export async function GET(request: NextRequest) {
       skywardSummary: null,
       generatedAt: new Date().toISOString(),
       live: true,
-      newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
+      newsApiConfigured: isNewsConfigured(),
+      newsProvider: getConfiguredProvider(),
       newsErrors: [error instanceof Error ? error.message : "Failed to fetch brief"],
     });
   }

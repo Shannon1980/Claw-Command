@@ -729,8 +729,11 @@ export default function DailyNewsBriefPage() {
             {data.newsApiConfigured === false && (
               <div className="mt-4 bg-gray-900/30 border border-dashed border-gray-700 rounded-lg p-4">
                 <p className="text-xs text-gray-500">
-                  <span className="text-amber-400 font-medium">NEWS_API_KEY not detected.</span>{" "}
-                  Add it to <span className="font-mono text-gray-400">.env.local</span> to see live news.
+                  <span className="text-amber-400 font-medium">No news API key detected.</span>{" "}
+                  Add <span className="font-mono text-gray-400">GNEWS_API_KEY</span>,{" "}
+                  <span className="font-mono text-gray-400">GUARDIAN_API_KEY</span>, or{" "}
+                  <span className="font-mono text-gray-400">NEWS_API_KEY</span> to{" "}
+                  <span className="font-mono text-gray-400">.env.local</span> to see live news.
                 </p>
               </div>
             )}
@@ -738,7 +741,7 @@ export default function DailyNewsBriefPage() {
             {data.newsApiConfigured && (
               <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Powered by NewsAPI — news refreshes every 15 minutes
+                Powered by {data.newsProvider === "gnews" ? "GNews" : data.newsProvider === "guardian" ? "The Guardian" : "NewsAPI"} — news refreshes every 15 minutes
               </div>
             )}
           </div>
