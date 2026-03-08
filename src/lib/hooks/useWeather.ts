@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-interface WeatherData {
+export interface WeatherData {
   temperature: number;
   feelsLike: number;
   humidity: number;
@@ -14,9 +14,24 @@ interface WeatherData {
   icon: string;
 }
 
+export interface ForecastDay {
+  date: string;
+  high: number;
+  low: number;
+  weatherCode: number;
+  description: string;
+  icon: string;
+  precipitationProbability: number;
+  windSpeedMax: number;
+  uvIndexMax: number;
+  sunrise: string;
+  sunset: string;
+}
+
 const BURTONSVILLE_LAT = 39.11;
 const BURTONSVILLE_LON = -76.93;
 const CACHE_KEY = "weather_cache";
+const FORECAST_CACHE_KEY = "weather_forecast_cache";
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 function weatherCodeToInfo(code: number): { description: string; icon: string } {
@@ -65,6 +80,7 @@ export function getWeatherEmoji(icon: string): string {
 
 export function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [forecast, setForecast] = useState<ForecastDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,10 +89,13 @@ export function useWeather() {
       // Check cache
       try {
         const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
+        const cachedForecast = localStorage.getItem(FORECAST_CACHE_KEY);
+        if (cached && cachedForecast) {
           const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < CACHE_TTL) {
+          const { data: forecastData, timestamp: fTimestamp } = JSON.parse(cachedForecast);
+          if (Date.now() - timestamp < CACHE_TTL && Date.now() - fTimestamp < CACHE_TTL) {
             setWeather(data);
+            setForecast(forecastData);
             setLoading(false);
             return;
           }
@@ -86,7 +105,7 @@ export function useWeather() {
       }
 
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${BURTONSVILLE_LAT}&longitude=${BURTONSVILLE_LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=1`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${BURTONSVILLE_LAT}&longitude=${BURTONSVILLE_LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=10`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("Weather API error");
         const json = await res.json();
@@ -107,8 +126,27 @@ export function useWeather() {
           icon: info.icon,
         };
 
+        const forecastData: ForecastDay[] = daily.time.map((date: string, i: number) => {
+          const dayInfo = weatherCodeToInfo(daily.weather_code[i]);
+          return {
+            date,
+            high: Math.round(daily.temperature_2m_max[i]),
+            low: Math.round(daily.temperature_2m_min[i]),
+            weatherCode: daily.weather_code[i],
+            description: dayInfo.description,
+            icon: dayInfo.icon,
+            precipitationProbability: daily.precipitation_probability_max?.[i] ?? 0,
+            windSpeedMax: Math.round(daily.wind_speed_10m_max?.[i] ?? 0),
+            uvIndexMax: Math.round(daily.uv_index_max?.[i] ?? 0),
+            sunrise: daily.sunrise?.[i] ?? "",
+            sunset: daily.sunset?.[i] ?? "",
+          };
+        });
+
         setWeather(data);
+        setForecast(forecastData);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+        localStorage.setItem(FORECAST_CACHE_KEY, JSON.stringify({ data: forecastData, timestamp: Date.now() }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch weather");
       } finally {
@@ -121,5 +159,5 @@ export function useWeather() {
     return () => clearInterval(interval);
   }, []);
 
-  return { weather, loading, error };
+  return { weather, forecast, loading, error };
 }
