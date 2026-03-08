@@ -336,15 +336,16 @@ export async function POST(request: Request) {
       },
     });
 
-    // Generate agent reply (async, non-blocking for the response)
-    generateAndSaveReply(agentId, content).catch((err) =>
-      console.error("[Chat] Reply generation failed:", err)
-    );
+    // Generate agent reply and return it in the response so it is
+    // guaranteed to reach the client even when the in-memory eventBus
+    // cannot bridge separate serverless function instances.
+    const agentReply = await generateAndSaveReply(agentId, content);
 
     return NextResponse.json({
       success: true,
       messageId: userMessageId,
       timestamp: now,
+      agentReply,
     });
   } catch (error) {
     console.error("Error sending message:", error);
@@ -355,7 +356,14 @@ export async function POST(request: Request) {
   }
 }
 
-async function generateAndSaveReply(agentId: string, userMessage: string) {
+async function generateAndSaveReply(agentId: string, userMessage: string): Promise<{
+  id: string;
+  agentId: string;
+  sender: string;
+  content: string;
+  timestamp: string;
+  status: string;
+}> {
   const replyId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
   // Emit typing indicator
@@ -413,4 +421,13 @@ async function generateAndSaveReply(agentId: string, userMessage: string) {
     event: "typing_end",
     agentId,
   });
+
+  return {
+    id: replyId,
+    agentId,
+    sender: "agent",
+    content: reply,
+    timestamp: now,
+    status: "sent",
+  };
 }

@@ -230,11 +230,43 @@ export function useChat(agentId: string) {
 
       const data = await res.json();
 
-      // Update temp message with real ID - the SSE new_message event
-      // will also arrive, but we handle dedup
+      // Update temp message with real ID
       setLocalMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, id: data.messageId || data.id, status: 'sent', timestamp: data.timestamp || m.timestamp } : m
       ));
+
+      // Add the agent reply from the response directly so the chat
+      // works even when SSE events cannot cross serverless boundaries.
+      if (data.agentReply) {
+        const reply = data.agentReply;
+        setLocalMessages(prev => {
+          // Don't duplicate if SSE already delivered it
+          if (prev.some(m => m.id === reply.id)) return prev;
+          // Replace any streaming placeholder
+          const streamIdx = prev.findIndex(m => m.streaming && m.sender === 'agent');
+          if (streamIdx >= 0) {
+            const updated = [...prev];
+            updated[streamIdx] = {
+              id: reply.id,
+              agentId: reply.agentId,
+              sender: 'agent',
+              content: reply.content,
+              timestamp: reply.timestamp,
+              status: reply.status || 'sent',
+            };
+            return updated;
+          }
+          return [...prev, {
+            id: reply.id,
+            agentId: reply.agentId,
+            sender: 'agent',
+            content: reply.content,
+            timestamp: reply.timestamp,
+            status: reply.status || 'sent',
+          }];
+        });
+        setAgentTyping(false);
+      }
     } catch (err) {
       console.error("Send error:", err);
       setLocalMessages(prev => prev.map(m =>
