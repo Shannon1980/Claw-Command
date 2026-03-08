@@ -83,7 +83,7 @@ export default function OverviewPage() {
           <h1 className="text-lg font-semibold text-gray-100">
             Command Overview
           </h1>
-          <p className="text-xs text-gray-500 font-mono mt-0.5">
+          <p className="text-xs text-gray-500 font-mono mt-0.5" suppressHydrationWarning>
             {agents.length} agents &middot; {tasks.length} tasks &middot; {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
           </p>
         </div>

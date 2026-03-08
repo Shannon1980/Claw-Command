@@ -41,10 +41,7 @@ export async function GET() {
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error("[Agents GET] Error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch agents" },
-      { status: 500 }
-    );
+    return NextResponse.json([]);
   }
 }
 

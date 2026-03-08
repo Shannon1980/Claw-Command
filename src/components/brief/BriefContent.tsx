@@ -30,7 +30,7 @@ export default function BriefContent({
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2">{title}</h1>
-            <p className="text-gray-400 text-lg">{currentDate}</p>
+            <p className="text-gray-400 text-lg" suppressHydrationWarning>{currentDate}</p>
           </div>
           <div className="flex items-center gap-3 text-gray-400">
             <div className="w-5 h-5 border-2 border-gray-500 border-t-gray-200 rounded-full animate-spin" />
@@ -60,7 +60,7 @@ export default function BriefContent({
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-4xl font-bold mb-2">{title}</h1>
-            <p className="text-gray-400 text-lg">{currentDate}</p>
+            <p className="text-gray-400 text-lg" suppressHydrationWarning>{currentDate}</p>
           </div>
           <button
             onClick={refresh}

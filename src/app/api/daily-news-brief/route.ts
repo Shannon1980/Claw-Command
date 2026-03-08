@@ -335,10 +335,27 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[DailyNewsBrief API] GET error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch brief" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      id: "error-fallback",
+      date,
+      aiNews: generatePlaceholderAINews(),
+      aiPodcasts: generatePlaceholderPodcasts(),
+      aiYouTube: generatePlaceholderYouTube(),
+      worldNews: generatePlaceholderWorldNews(),
+      usNews: [] as NewsItem[],
+      localNews: [],
+      technologyNews: [] as NewsItem[],
+      businessNews: [] as NewsItem[],
+      scienceNews: [] as NewsItem[],
+      healthNews: [] as NewsItem[],
+      standupSummary: null,
+      briefSummary: null,
+      skywardSummary: null,
+      generatedAt: new Date().toISOString(),
+      live: true,
+      newsApiConfigured: !!(process.env.NEWS_API_KEY || process.env.NEW_API_KEY),
+      newsErrors: [error instanceof Error ? error.message : "Failed to fetch brief"],
+    });
   }
 }
 
