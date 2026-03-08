@@ -51,17 +51,36 @@ function ChannelBadge({ channel }: { channel: string }) {
   return null;
 }
 
+function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = Math.min(100, (value / max) * 100);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-gray-500 w-12 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[10px] font-mono text-gray-400 w-8 text-right">
+        {max === 10 ? value.toFixed(1) : `${Math.round(value)}%`}
+      </span>
+    </div>
+  );
+}
+
 export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onPass?: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const sourceMeta = SOURCE_LABELS[opp.source] || SOURCE_LABELS.manual;
+  const daysUntilClose = opp.deadline
+    ? Math.max(0, Math.ceil((new Date(opp.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
 
   return (
     <div
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/plain", opp.id)}
-      className="bg-gray-900/80 border border-gray-800 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-gray-600 transition-all"
+      className="bg-gray-900/80 border border-gray-800 rounded-lg p-4 cursor-grab active:cursor-grabbing hover:border-gray-600 transition-all"
     >
-      <div className="flex items-start justify-between gap-2 mb-1">
+      {/* Row 1: Title + Action badge */}
+      <div className="flex items-start justify-between gap-3 mb-2">
         <h4 className="text-sm font-medium text-gray-200 leading-tight flex-1">
           {opp.sourceUrl ? (
             <a
@@ -80,70 +99,35 @@ export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onP
         {opp.opsEngineAction && <ActionBadge action={opp.opsEngineAction} onPass={onPass ? () => onPass(opp.id) : undefined} />}
       </div>
 
-      {/* Source & Agency */}
-      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-        <span
-          className={`inline-block text-[10px] font-mono px-1.5 py-0.5 rounded border ${sourceMeta.color}`}
-        >
+      {/* Row 2: Value + Channel + Source + Solicitation# */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-lg font-bold text-cyan-400 font-mono">{formatUsd(opp.valueUsd)}</span>
+        <ChannelBadge channel={opp.channel} />
+        <span className={`inline-block text-[10px] font-mono px-1.5 py-0.5 rounded border ${sourceMeta.color}`}>
           {sourceMeta.label}
         </span>
-        {opp.agency && (
-          <span className="text-[10px] text-gray-500 truncate">
-            {opp.agency}
-          </span>
-        )}
-        <ChannelBadge channel={opp.channel} />
+        {opp.solicitationNumber && <span className="text-[10px] font-mono text-gray-500">#{opp.solicitationNumber}</span>}
       </div>
 
-      <div className="text-xl font-bold text-cyan-400 font-mono mb-2">
-        {formatUsd(opp.valueUsd)}
+      {/* Row 3: Agency */}
+      {opp.agency && <div className="text-xs text-gray-400 mb-3">{opp.agency}</div>}
+
+      {/* Row 4: Fit + Win% bars side-by-side */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <ScoreBar label="Fit" value={opp.fitScore} max={10} color="bg-gradient-to-r from-green-500 to-emerald-400" />
+        <ScoreBar label="Win %" value={opp.probability} max={100} color="bg-gradient-to-r from-blue-500 to-cyan-400" />
       </div>
 
-      {/* Probability Bar */}
-      <div className="mb-2">
-        <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
-          <span>Probability</span>
-          <span className="font-mono">{opp.probability}%</span>
+      {/* Row 5: Days until close + Owner + Approval + More/Less */}
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2">
+          {daysUntilClose !== null && (
+            <span className={`font-mono ${daysUntilClose <= 45 ? "text-amber-400" : "text-gray-500"}`}>
+              {daysUntilClose}d until close
+            </span>
+          )}
+          <span className="text-gray-400">{opp.ownerEmoji} {opp.ownerAgent}</span>
         </div>
-        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all"
-            style={{ width: `${opp.probability}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Fit Score bar (if available) */}
-      {opp.fitScore > 0 && (
-        <div className="mb-2">
-          <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
-            <span>Fit Score</span>
-            <span className="font-mono">{opp.fitScore.toFixed(1)}/10</span>
-          </div>
-          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
-              style={{ width: `${(opp.fitScore / 10) * 100}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Solicitation & Deadline */}
-      <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono mb-2 flex-wrap">
-        {opp.solicitationNumber && <span>#{opp.solicitationNumber}</span>}
-        {opp.deadline && (
-          <span>Due: {new Date(opp.deadline).toLocaleDateString()}</span>
-        )}
-        {opp.setAsideType && (
-          <span className="px-1 py-0.5 rounded bg-gray-800 border border-gray-700 text-gray-400">{opp.setAsideType}</span>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">
-          {opp.ownerEmoji} {opp.ownerAgent}
-        </span>
         <div className="flex items-center gap-2">
           <ApprovalBadge approval={opp.shannonApproval} />
           <button
@@ -158,21 +142,25 @@ export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onP
       {/* Expanded Details */}
       {expanded && (
         <div className="mt-3 pt-3 border-t border-gray-800 space-y-3">
-          {/* Description */}
           {opp.description && (
-            <div>
-              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Description</span>
-              <p className="text-xs text-gray-400 leading-relaxed mt-1">{opp.description}</p>
-            </div>
+            <p className="text-xs text-gray-400 leading-relaxed">{opp.description}</p>
           )}
 
-          {/* NAICS Codes */}
-          {opp.naicsCodes && opp.naicsCodes.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-[10px] font-mono text-gray-500">NAICS:</span>
-              {opp.naicsCodes.map((code) => (
-                <span key={code} className="text-[10px] font-mono px-1 py-0.5 rounded bg-gray-800 text-gray-400">{code}</span>
-              ))}
+          {/* Source URL */}
+          {opp.sourceUrl && (
+            <div>
+              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Source Link</span>
+              <div className="mt-1">
+                <a
+                  href={opp.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors break-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {opp.sourceUrl} &rarr;
+                </a>
+              </div>
             </div>
           )}
 
@@ -185,6 +173,16 @@ export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onP
                   <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">{theme}</span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* NAICS Codes */}
+          {opp.naicsCodes && opp.naicsCodes.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-[10px] font-mono text-gray-500">NAICS:</span>
+              {opp.naicsCodes.map((code) => (
+                <span key={code} className="text-[10px] font-mono px-1 py-0.5 rounded bg-gray-800 text-gray-400">{code}</span>
+              ))}
             </div>
           )}
 
@@ -210,29 +208,22 @@ export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onP
             </div>
           )}
 
-          {/* Links Row */}
-          <div className="flex items-center gap-3">
-            {opp.sourceUrl && (
-              <a
-                href={opp.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View Source Listing &rarr;
-              </a>
-            )}
-            {opp.opsEngineAction && (
-              <a
-                href="/opportunity-engine"
-                className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View in Ops Engine &rarr;
-              </a>
-            )}
+          {/* Deadline + Set-aside */}
+          <div className="flex items-center gap-2 text-[10px] text-gray-500">
+            {opp.deadline && <span>Deadline: {new Date(opp.deadline).toLocaleDateString()}</span>}
+            {opp.setAsideType && <span>Set-aside: {opp.setAsideType}</span>}
           </div>
+
+          {/* Ops Engine link */}
+          {opp.opsEngineAction && (
+            <a
+              href="/opportunity-engine"
+              className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View in Ops Engine &rarr;
+            </a>
+          )}
         </div>
       )}
     </div>
