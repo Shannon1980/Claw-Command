@@ -12,6 +12,15 @@ interface ChatAgent {
   role: string;
 }
 
+function toChatAgent(row: { id: string; name: string; emoji: string; domain?: string }): Agent {
+  return {
+    id: row.id,
+    name: row.name,
+    emoji: row.emoji,
+    role: row.domain || "agent",
+  };
+}
+
 export default function ChatPage() {
   const { agents: storeAgents, loading, fetchAgents } = useAgentStore();
   const { unreadCounts, clearUnread } = useChatStore();
