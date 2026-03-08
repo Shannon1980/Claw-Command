@@ -345,6 +345,202 @@ async function newsapiSearch(
   return data;
 }
 
+// ── Reddit provider (free, no API key needed) ────────────────────────────
+
+interface RedditPost {
+  data: {
+    id: string;
+    title: string;
+    url: string;
+    permalink: string;
+    score: number;
+    num_comments: number;
+    author: string;
+    created_utc: number;
+    subreddit: string;
+    selftext: string;
+    is_self: boolean;
+    link_flair_text: string | null;
+    thumbnail: string;
+  };
+}
+
+export interface RedditNewsItem {
+  title: string;
+  url: string;
+  commentsUrl: string;
+  source: string;
+  author: string;
+  score: number;
+  commentCount: number;
+  flair: string | null;
+  publishedAt: string;
+  summary: string;
+  thumbnail: string | null;
+}
+
+const DEFAULT_SUBREDDITS = [
+  "artificial",
+  "MachineLearning",
+  "LocalLLaMA",
+  "govtech",
+  "FederalContractors",
+  "smallbusiness",
+  "technology",
+  "programming",
+];
+
+export async function fetchRedditNews(
+  subreddits?: string[],
+  limit = 5
+): Promise<RedditNewsItem[]> {
+  const subs = subreddits || DEFAULT_SUBREDDITS;
+  const items: RedditNewsItem[] = [];
+
+  const fetchers = subs.map(async (subreddit) => {
+    try {
+      const res = await fetch(
+        `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`,
+        {
+          headers: { "User-Agent": "ClawCommand/1.0" },
+          next: { revalidate: 900 },
+        }
+      );
+      if (!res.ok) return [];
+
+      const json = await res.json();
+      const posts: RedditPost[] = json?.data?.children ?? [];
+
+      return posts
+        .filter((p) => p.data.score >= 5 && !p.data.title.includes("[removed]"))
+        .map((p) => ({
+          title: p.data.title,
+          url: p.data.is_self
+            ? `https://www.reddit.com${p.data.permalink}`
+            : p.data.url,
+          commentsUrl: `https://www.reddit.com${p.data.permalink}`,
+          source: `r/${p.data.subreddit}`,
+          author: p.data.author,
+          score: p.data.score,
+          commentCount: p.data.num_comments,
+          flair: p.data.link_flair_text,
+          publishedAt: new Date(p.data.created_utc * 1000).toISOString(),
+          summary: p.data.selftext?.slice(0, 200) || "",
+          thumbnail:
+            p.data.thumbnail && p.data.thumbnail.startsWith("http")
+              ? p.data.thumbnail
+              : null,
+        }));
+    } catch {
+      return [];
+    }
+  });
+
+  const results = await Promise.allSettled(fetchers);
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      items.push(...result.value);
+    }
+  }
+
+  // Sort by score descending and deduplicate
+  items.sort((a, b) => b.score - a.score);
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.title.toLowerCase().slice(0, 60);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ── Hacker News provider (free, no API key needed) ───────────────────────
+
+interface HNHit {
+  objectID: string;
+  title: string;
+  url: string | null;
+  points: number;
+  num_comments: number;
+  author: string;
+  created_at: string;
+}
+
+export interface HackerNewsItem {
+  title: string;
+  url: string;
+  commentsUrl: string;
+  source: string;
+  author: string;
+  score: number;
+  commentCount: number;
+  publishedAt: string;
+}
+
+const HN_SEARCH_QUERIES = [
+  "government contracting",
+  "govtech",
+  "federal IT",
+  "AI agents",
+  "small business technology",
+];
+
+export async function fetchHackerNews(
+  queries?: string[],
+  hitsPerQuery = 5
+): Promise<HackerNewsItem[]> {
+  const terms = queries || HN_SEARCH_QUERIES;
+  const items: HackerNewsItem[] = [];
+
+  const fetchers = terms.map(async (term) => {
+    try {
+      const res = await fetch(
+        `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(term)}&tags=story&hitsPerPage=${hitsPerQuery}`,
+        { next: { revalidate: 900 } }
+      );
+      if (!res.ok) return [];
+
+      const json = await res.json();
+      const hits: HNHit[] = json?.hits ?? [];
+
+      return hits
+        .filter((h) => h.title && h.points > 0)
+        .map((h) => ({
+          title: h.title,
+          url:
+            h.url ||
+            `https://news.ycombinator.com/item?id=${h.objectID}`,
+          commentsUrl: `https://news.ycombinator.com/item?id=${h.objectID}`,
+          source: "Hacker News",
+          author: h.author,
+          score: h.points ?? 0,
+          commentCount: h.num_comments ?? 0,
+          publishedAt: h.created_at,
+        }));
+    } catch {
+      return [];
+    }
+  });
+
+  const results = await Promise.allSettled(fetchers);
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      items.push(...result.value);
+    }
+  }
+
+  // Deduplicate and sort by score
+  const seen = new Set<string>();
+  const deduped = items.filter((item) => {
+    const key = item.title.toLowerCase().slice(0, 60);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  deduped.sort((a, b) => b.score - a.score);
+  return deduped;
+}
+
 // ── Unified public API ────────────────────────────────────────────────────
 
 export async function fetchTopHeadlines(

@@ -6,6 +6,8 @@ import type {
   NewsItem,
   PodcastItem,
   YouTubeItem,
+  RedditNewsItem,
+  HackerNewsItem,
   DailyNewsBriefData,
 } from "@/lib/hooks/useNewsBrief";
 import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
@@ -362,6 +364,99 @@ function YouTubeCard({ item }: { item: YouTubeItem }) {
   );
 }
 
+function RedditCard({ item }: { item: RedditNewsItem }) {
+  return (
+    <div className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
+      <div className="flex">
+        {item.thumbnail && (
+          <div className="shrink-0 w-20 h-20">
+            <img
+              src={item.thumbnail}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        )}
+        <div className="flex-1 min-w-0 px-4 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-gray-200 hover:text-orange-400 transition-colors line-clamp-2"
+              >
+                {item.title}
+              </a>
+              {item.summary && (
+                <p className="text-xs text-gray-400 mt-1 line-clamp-2">{item.summary}</p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[10px] text-orange-400/70 font-mono block">
+                {item.source}
+              </span>
+              {item.flair && (
+                <span className="text-[10px] text-gray-500 bg-gray-800 px-1 py-0.5 rounded mt-0.5 inline-block">
+                  {item.flair}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500 font-mono">
+            <span>{item.score} pts</span>
+            <a
+              href={item.commentsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-orange-400 transition-colors"
+            >
+              {item.commentCount} comments
+            </a>
+            <span>u/{item.author}</span>
+            <span>{relativeTime(item.publishedAt)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HackerNewsCard({ item }: { item: HackerNewsItem }) {
+  return (
+    <div className="bg-gray-900/50 border border-gray-800 rounded-lg px-4 py-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-gray-200 hover:text-orange-400 transition-colors line-clamp-2"
+          >
+            {item.title}
+          </a>
+          <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-500 font-mono">
+            <span className="text-orange-400/70">{item.score} pts</span>
+            <a
+              href={item.commentsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-orange-400 transition-colors"
+            >
+              {item.commentCount} comments
+            </a>
+            <span>{item.author}</span>
+            <span>{relativeTime(item.publishedAt)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DomainSummary({
   domains,
 }: {
@@ -615,6 +710,42 @@ export default function DailyNewsBriefPage() {
               )}
             </Section>
 
+            {/* ── Reddit ── */}
+            <Section
+              title="Reddit"
+              icon="🔴"
+              badge={`${data.redditNews?.length || 0} posts`}
+              priority="medium"
+            >
+              {!data.redditNews?.length ? (
+                <p className="text-xs text-gray-500">No Reddit posts available</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.redditNews.map((item, i) => (
+                    <RedditCard key={i} item={item} />
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            {/* ── Hacker News ── */}
+            <Section
+              title="Hacker News"
+              icon="🟠"
+              badge={`${data.hackerNews?.length || 0} stories`}
+              priority="medium"
+            >
+              {!data.hackerNews?.length ? (
+                <p className="text-xs text-gray-500">No Hacker News stories available</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.hackerNews.map((item, i) => (
+                    <HackerNewsCard key={i} item={item} />
+                  ))}
+                </div>
+              )}
+            </Section>
+
             {/* ── Technology News ── */}
             <Section
               title="Technology"
@@ -770,7 +901,14 @@ export default function DailyNewsBriefPage() {
             {data.newsApiConfigured && (
               <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Powered by {data.newsProvider === "gnews" ? "GNews" : data.newsProvider === "guardian" ? "The Guardian" : "NewsAPI"} — news refreshes every 15 minutes
+                Powered by {data.newsProvider === "gnews" ? "GNews" : data.newsProvider === "guardian" ? "The Guardian" : "NewsAPI"} + Reddit + Hacker News — refreshes every 15 minutes
+              </div>
+            )}
+
+            {!data.newsApiConfigured && (data.redditNews?.length > 0 || data.hackerNews?.length > 0) && (
+              <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                Reddit + Hacker News (no API key needed) — refreshes every 15 minutes
               </div>
             )}
           </div>
