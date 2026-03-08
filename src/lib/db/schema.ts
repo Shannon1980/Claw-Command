@@ -464,6 +464,22 @@ export const taskComments = pgTable("task_comments", {
   createdAt: text("created_at").notNull(),
 });
 
+// ─── SKILLS (Local skills store — works offline without OpenClaw gateway) ────
+
+export const skills = pgTable("skills", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  enabled: boolean("enabled").notNull().default(true),
+  category: text("category"),
+  version: text("version"),
+  author: text("author"),
+  nodeIds: text("node_ids").notNull().default("[]"), // JSON array
+  config: text("config").notNull().default("{}"), // JSON object
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 // ─── GATEWAYS (Multi-gateway) ───────────────────────────────────────────────
 
 export const gateways = pgTable("gateways", {
