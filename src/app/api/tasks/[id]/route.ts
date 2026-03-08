@@ -29,30 +29,6 @@ const UpdateTaskSchema = z.object({
   outcome: z.string().nullable().optional(),
 });
 
-const UpdateTaskSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().optional(),
-  status: z
-    .enum([
-      "inbox",
-      "backlog",
-      "in_progress",
-      "review",
-      "quality_review",
-      "blocked",
-      "done",
-    ])
-    .optional(),
-  priority: z.enum(["high", "medium", "low"]).optional(),
-  assigned_to_agent_id: z.string().nullable().optional(),
-  depends_on_shannon: z.boolean().optional(),
-  due_date: z.string().nullable().optional(),
-  project: z.string().nullable().optional(),
-  ticket_ref: z.string().nullable().optional(),
-  parent_opportunity_id: z.string().nullable().optional(),
-  parent_application_id: z.string().nullable().optional(),
-});
-
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }
