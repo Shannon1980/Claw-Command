@@ -24,13 +24,15 @@ async function ensureSchema() {
 }
 
 function getBaseUrl(): string {
-  return (
+  const url =
     process.env.NEXTAUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "http://localhost:3000"
-  );
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+  if (!url) {
+    console.warn("[Cron Run] No base URL configured — falling back to http://localhost:3000");
+  }
+  return url || "http://localhost:3000";
 }
 
 export async function POST(
