@@ -700,20 +700,30 @@ export default function OpportunityEnginePage() {
         )}
 
         {lastScanResult && (
-          <div className="mb-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-cyan-400">&#10003;</span>
-              <span>
-                Scan complete{lastScanResult.totalInserted > 0 ? ` — ${lastScanResult.totalInserted} new opportunities found` : " — no new opportunities found"}.
-              </span>
-              {lastScanResult.actionBreakdown && lastScanResult.totalInserted > 0 && (
-                <span className="text-[10px] font-mono text-cyan-400/70">
-                  ({lastScanResult.actionBreakdown.capture} capture, {lastScanResult.actionBreakdown.teamSkyward + lastScanResult.actionBreakdown.teamVorentoe} team, {lastScanResult.actionBreakdown.watch} watch, {lastScanResult.actionBreakdown.pass} pass)
+          <div className="mb-4 space-y-2">
+            <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-cyan-400">&#10003;</span>
+                <span>
+                  Scan complete{lastScanResult.totalInserted > 0 ? ` — ${lastScanResult.totalInserted} new opportunities found` : " — no new opportunities found"}.
                 </span>
-              )}
-              {lastScanResult.message && <span className="text-cyan-400/60 text-xs font-mono">{lastScanResult.message}</span>}
+                {lastScanResult.actionBreakdown && lastScanResult.totalInserted > 0 && (
+                  <span className="text-[10px] font-mono text-cyan-400/70">
+                    ({lastScanResult.actionBreakdown.capture} capture, {lastScanResult.actionBreakdown.teamSkyward + lastScanResult.actionBreakdown.teamVorentoe} team, {lastScanResult.actionBreakdown.watch} watch, {lastScanResult.actionBreakdown.pass} pass)
+                  </span>
+                )}
+                {lastScanResult.message && <span className="text-cyan-400/60 text-xs font-mono">{lastScanResult.message}</span>}
+              </div>
+              <button onClick={dismissScanResult} className="text-cyan-400/60 hover:text-cyan-400 transition-colors text-xs ml-4 shrink-0">Dismiss</button>
             </div>
-            <button onClick={dismissScanResult} className="text-cyan-400/60 hover:text-cyan-400 transition-colors text-xs ml-4 shrink-0">Dismiss</button>
+            {/* Per-source error warnings */}
+            {lastScanResult.results?.filter((r) => r.error).map((r) => (
+              <div key={r.source} className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-2">
+                <span className="font-bold">!</span>
+                <SourceBadge source={r.source} />
+                <span className="font-mono">{r.error}</span>
+              </div>
+            ))}
           </div>
         )}
 

@@ -273,12 +273,30 @@ export async function scanAllSources(
   // EMMA (MSRB municipal securities)
   promises.push(scanEmma(existingHashes));
 
+  // Track which source each promise corresponds to for error attribution
+  const sourceLabels: string[] = [];
+  if (samApiKey) sourceLabels.push("sam_gov");
+  sourceLabels.push("montgomery_county_md");
+  sourceLabels.push("emma_msrb");
+
   const settled = await Promise.allSettled(promises);
-  for (const result of settled) {
+  for (let i = 0; i < settled.length; i++) {
+    const result = settled[i];
     if (result.status === "fulfilled") {
       results.push(result.value);
     } else {
-      console.error("[OpportunityEngine] Scanner failed:", result.reason);
+      const source = sourceLabels[i] || "unknown";
+      const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      console.error(`[OpportunityEngine] ${source} scanner crashed:`, reason);
+      results.push({
+        opportunities: [],
+        source: source as import("./types").OpportunitySource,
+        scannedAt: new Date().toISOString(),
+        totalFound: 0,
+        qualifiedCount: 0,
+        duplicatesSkipped: 0,
+        error: `${source} scanner crashed: ${reason}`,
+      });
     }
   }
 

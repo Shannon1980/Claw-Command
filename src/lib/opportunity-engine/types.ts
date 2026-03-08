@@ -73,6 +73,7 @@ export interface ScanResult {
   totalFound: number;
   qualifiedCount: number;
   duplicatesSkipped: number;
+  error?: string;
 }
 
 export interface DashboardQueue {
