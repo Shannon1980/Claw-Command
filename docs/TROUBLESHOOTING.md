@@ -20,7 +20,25 @@ This adds:
 - `mc_memories`: category, updated_at
 - `token_usage`, `gateways`, `alert_rules`, `pipelines`, `pipeline_runs`, `cron_jobs`, `webhook_deliveries`, `agent_messages`, `audit_log` tables
 
-## 2. Environment variables
+## 2. Verify database connection
+
+Run locally to confirm `DATABASE_URL` works:
+
+```bash
+npm run db:check
+```
+
+If you see `EAI_AGAIN` or DNS errors, the sandbox/CI environment may block outbound DB connections. Run this on your machine or in a deployment environment where the DB is reachable.
+
+**Before deploy (schema ready):** Run these locally (where DB is reachable):
+
+```bash
+npm run db:check    # Verify connection
+npm run db:push     # Push schema to Neon
+curl -X POST http://localhost:3000/api/seed   # Or after deploy: POST https://your-app.vercel.app/api/seed
+```
+
+## 3. Environment variables
 
 Ensure `.env.local` has:
 
@@ -30,7 +48,7 @@ Ensure `.env.local` has:
 | `OPENCLAW_URL` | No | OpenClaw gateway URL (default: localhost:18789). Needed for sync, gateway status. |
 | `MC_API_KEY` | No | If set, API requests need `Authorization: Bearer <key>` or session cookie |
 
-## 3. Auth blocking API calls
+## 4. Auth blocking API calls
 
 If `MC_API_KEY` is set (e.g. on Vercel), unauthenticated API requests return 401.
 
@@ -39,7 +57,7 @@ If `MC_API_KEY` is set (e.g. on Vercel), unauthenticated API requests return 401
 - Log in via `/api/auth/login` so the session cookie is set, or
 - Add `Authorization: Bearer <MC_API_KEY>` to API requests (for automation)
 
-## 4. Empty database
+## 5. Empty database
 
 If tables exist but are empty, agents and tasks will show as empty.
 
@@ -47,7 +65,7 @@ If tables exist but are empty, agents and tasks will show as empty.
 - `POST /api/seed` — seeds agents, tasks, opportunities, activities
 - Or run `scripts/run-migrations-in-neon.sql` and then seed
 
-## 5. OpenClaw gateway offline
+## 6. OpenClaw gateway offline
 
 Gateway status, sync, and some agent/task features require OpenClaw.
 
