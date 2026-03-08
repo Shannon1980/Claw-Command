@@ -9,6 +9,7 @@ export interface NewsItem {
   summary: string;
   category: string;
   publishedAt: string;
+  urlToImage?: string | null;
 }
 
 export interface PodcastItem {

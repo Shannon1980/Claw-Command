@@ -234,28 +234,57 @@ function SkywardSection({
 
 function NewsCard({ item }: { item: NewsItem }) {
   return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-lg px-4 py-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          {item.url ? (
+    <div className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
+      <div className="flex">
+        {item.urlToImage && (
+          <div className="shrink-0 w-28 h-28 sm:w-36 sm:h-28">
+            <img
+              src={item.urlToImage}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        )}
+        <div className="flex-1 min-w-0 px-4 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              {item.url ? (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-gray-200 hover:text-blue-400 transition-colors line-clamp-2"
+                >
+                  {item.title}
+                </a>
+              ) : (
+                <span className="text-sm font-medium text-gray-200 line-clamp-2">
+                  {item.title}
+                </span>
+              )}
+              <p className="text-xs text-gray-400 mt-1 line-clamp-2">{item.summary}</p>
+            </div>
+            <span className="text-[10px] text-gray-600 font-mono shrink-0">
+              {item.source}
+            </span>
+          </div>
+          {item.url && (
             <a
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium text-gray-200 hover:text-blue-400 transition-colors"
+              className="inline-flex items-center gap-1 mt-2 text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
             >
-              {item.title}
+              Read full article
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
             </a>
-          ) : (
-            <span className="text-sm font-medium text-gray-200">
-              {item.title}
-            </span>
           )}
-          <p className="text-xs text-gray-400 mt-1">{item.summary}</p>
         </div>
-        <span className="text-[10px] text-gray-600 font-mono shrink-0">
-          {item.source}
-        </span>
       </div>
     </div>
   );
