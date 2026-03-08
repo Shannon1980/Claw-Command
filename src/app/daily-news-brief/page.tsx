@@ -11,6 +11,7 @@ import type {
   DailyNewsBriefData,
 } from "@/lib/hooks/useNewsBrief";
 import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
+import WeatherForecastModal from "@/components/brief/WeatherForecastModal";
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -37,7 +38,7 @@ function relativeTime(dateStr: string): string {
 
 // ── Section Components ──────────────────────────────────────────────────
 
-function WeatherSummaryCard() {
+function WeatherSummaryCard({ onClick }: { onClick?: () => void }) {
   const { weather, loading } = useWeather();
 
   if (loading) {
@@ -59,18 +60,25 @@ function WeatherSummaryCard() {
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+    <div
+      className="bg-gray-900 border border-gray-800 rounded-lg p-4 cursor-pointer hover:border-gray-600 hover:bg-gray-900/80 transition-colors"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick?.(); }}
+    >
       <div className="text-2xl mb-1">{getWeatherEmoji(weather.icon)}</div>
       <div className="text-xs text-gray-500">Burtonsville, MD</div>
       <div className="text-2xl font-bold text-gray-100">{weather.temperature}&deg;F</div>
       <div className="text-[10px] text-gray-500 mt-0.5">
         {weather.description} &middot; H:{weather.high}&deg; L:{weather.low}&deg;
       </div>
+      <div className="text-[10px] text-blue-400 mt-1.5">View 10-day forecast</div>
     </div>
   );
 }
 
-function SummaryCards({ brief }: { brief: DailyNewsBriefData["briefSummary"] }) {
+function SummaryCards({ brief, onWeatherClick }: { brief: DailyNewsBriefData["briefSummary"]; onWeatherClick?: () => void }) {
   if (!brief?.summary) return null;
   const { tasksCompleted, newAlerts, pendingApprovals } = brief.summary;
 
@@ -82,7 +90,7 @@ function SummaryCards({ brief }: { brief: DailyNewsBriefData["briefSummary"] }) 
 
   return (
     <div className="grid grid-cols-4 gap-4">
-      <WeatherSummaryCard />
+      <WeatherSummaryCard onClick={onWeatherClick} />
       {cards.map((c) => (
         <div
           key={c.label}
@@ -584,8 +592,10 @@ function Section({
 
 export default function DailyNewsBriefPage() {
   const [date, setDate] = useState(todayString());
+  const [weatherModalOpen, setWeatherModalOpen] = useState(false);
   const { data, loading, error, refresh, generate, generating } =
     useNewsBrief(date);
+  const { weather, forecast } = useWeather();
 
   const isToday = date === todayString();
 
@@ -655,7 +665,7 @@ export default function DailyNewsBriefPage() {
             {/* ── Operations Summary (from Brief) ── */}
             {data.briefSummary && (
               <>
-                <SummaryCards brief={data.briefSummary} />
+                <SummaryCards brief={data.briefSummary} onWeatherClick={() => setWeatherModalOpen(true)} />
 
                 <Section
                   title="What Needs Your Attention"
@@ -925,6 +935,13 @@ export default function DailyNewsBriefPage() {
           </div>
         )}
       </div>
+
+      <WeatherForecastModal
+        isOpen={weatherModalOpen}
+        onClose={() => setWeatherModalOpen(false)}
+        weather={weather}
+        forecast={forecast}
+      />
     </div>
   );
 }
