@@ -1,5 +1,6 @@
 function getNewsApiKey(): string | undefined {
-  return process.env.NEWS_API_KEY || process.env.NEW_API_KEY;
+  const key = (process.env.NEWS_API_KEY || process.env.NEW_API_KEY || "").trim();
+  return key || undefined;
 }
 
 const BASE_URL = "https://newsapi.org/v2";
@@ -44,7 +45,6 @@ export async function fetchTopHeadlines(
   } = options;
 
   const params = new URLSearchParams({
-    apiKey: apiKey,
     country,
     pageSize: String(pageSize),
   });
@@ -53,6 +53,7 @@ export async function fetchTopHeadlines(
   if (query) params.set("q", query);
 
   const res = await fetch(`${BASE_URL}/top-headlines?${params}`, {
+    headers: { "X-Api-Key": apiKey },
     next: { revalidate: 900 }, // cache 15 minutes
   });
 
@@ -60,6 +61,9 @@ export async function fetchTopHeadlines(
     const err = await res.json().catch(() => ({}));
     const msg = err.message || `NewsAPI error: ${res.status}`;
     console.error(`[NewsClient] top-headlines failed (${res.status}):`, msg);
+    if (res.status === 426) {
+      throw new Error("NewsAPI free plan only works from localhost. Upgrade to a paid plan for production use, or use a proxy.");
+    }
     throw new Error(msg);
   }
 
@@ -83,7 +87,6 @@ export async function searchNews(
   const { sortBy = "publishedAt", pageSize = 20 } = options;
 
   const params = new URLSearchParams({
-    apiKey: apiKey,
     q: query,
     sortBy,
     pageSize: String(pageSize),
@@ -91,6 +94,7 @@ export async function searchNews(
   });
 
   const res = await fetch(`${BASE_URL}/everything?${params}`, {
+    headers: { "X-Api-Key": apiKey },
     next: { revalidate: 900 },
   });
 
@@ -98,6 +102,9 @@ export async function searchNews(
     const err = await res.json().catch(() => ({}));
     const msg = err.message || `NewsAPI error: ${res.status}`;
     console.error(`[NewsClient] everything search failed (${res.status}):`, msg);
+    if (res.status === 426) {
+      throw new Error("NewsAPI free plan only works from localhost. Upgrade to a paid plan for production use, or use a proxy.");
+    }
     throw new Error(msg);
   }
 
