@@ -137,6 +137,7 @@ async function runScan() {
         totalFound: r.totalFound,
         qualifiedCount: r.qualifiedCount,
         duplicatesSkipped: r.duplicatesSkipped,
+        error: r.error || null,
       })),
       totalInserted: inserted,
       actionBreakdown: {

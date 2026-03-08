@@ -63,6 +63,7 @@ export async function POST() {
         totalFound: r.totalFound,
         qualifiedCount: r.qualifiedCount,
         duplicatesSkipped: r.duplicatesSkipped,
+        error: r.error || null,
       })),
       syncedAt: new Date().toISOString(),
     });

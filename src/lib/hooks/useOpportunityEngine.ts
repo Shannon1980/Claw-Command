@@ -21,12 +21,21 @@ export interface ScanResultBreakdown {
   pass: number;
 }
 
+export interface SourceResult {
+  source: string;
+  totalFound: number;
+  qualifiedCount: number;
+  duplicatesSkipped: number;
+  error?: string | null;
+}
+
 export interface ScanResult {
   success: boolean;
   totalInserted: number;
   scannedAt: string;
   message?: string;
   actionBreakdown?: ScanResultBreakdown;
+  results?: SourceResult[];
 }
 
 export function useOpportunityEngine() {

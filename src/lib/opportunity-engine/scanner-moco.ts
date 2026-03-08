@@ -9,9 +9,15 @@ import { computeDedupeHash } from "./dedup";
 // ─── Montgomery County MD Procurement Scanner ──────────────────────────────
 // Uses the Montgomery County MD Open Data / eProcurement API
 // https://data.montgomerycountymd.gov/
+//
+// Dataset: Active/Open Solicitations
+// The dataset ID is for the "Solicitations" dataset on the MoCo open data portal.
+// Falls back to the general contracts dataset if the primary one is unavailable.
 
-const MOCO_API_BASE =
+const MOCO_SOLICITATIONS_URL =
   "https://data.montgomerycountymd.gov/resource/dvt3-7y7y.json";
+const MOCO_CONTRACTS_URL =
+  "https://data.montgomerycountymd.gov/resource/23hs-bne9.json";
 
 interface MocoSolicitation {
   solicitation_number?: string;
@@ -26,6 +32,84 @@ interface MocoSolicitation {
   solicitation_type?: string;
 }
 
+interface MocoContract {
+  contract_number?: string;
+  contract_description?: string;
+  department?: string;
+  start_date?: string;
+  end_date?: string;
+  award_amount?: string;
+  contract_type?: string;
+  vendor_name?: string;
+}
+
+async function tryFetchSolicitations(
+  headers: Record<string, string>
+): Promise<{ data: MocoSolicitation[]; url: string } | null> {
+  const params = new URLSearchParams({
+    $where: "status = 'Open'",
+    $limit: "100",
+    $order: "posted_date DESC",
+  });
+
+  const response = await fetch(`${MOCO_SOLICITATIONS_URL}?${params}`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data)) {
+    return null;
+  }
+
+  // Validate that at least some records have expected fields
+  if (data.length > 0) {
+    const first = data[0];
+    const hasExpectedFields =
+      "solicitation_title" in first ||
+      "solicitation_number" in first ||
+      "description" in first;
+    if (!hasExpectedFields) {
+      return null;
+    }
+  }
+
+  return { data, url: MOCO_SOLICITATIONS_URL };
+}
+
+async function tryFetchContracts(
+  headers: Record<string, string>
+): Promise<{ data: MocoContract[]; url: string } | null> {
+  // Fallback: fetch recent contracts to identify procurement activity
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 90);
+  const fromDate = thirtyDaysAgo.toISOString().split("T")[0];
+
+  const params = new URLSearchParams({
+    $where: `start_date >= '${fromDate}'`,
+    $limit: "100",
+    $order: "start_date DESC",
+  });
+
+  const response = await fetch(`${MOCO_CONTRACTS_URL}?${params}`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data)) {
+    return null;
+  }
+
+  return { data, url: MOCO_CONTRACTS_URL };
+}
+
 export async function scanMontgomeryCounty(
   existingHashes: Set<string>
 ): Promise<ScanResult> {
@@ -35,14 +119,7 @@ export async function scanMontgomeryCounty(
   let duplicatesSkipped = 0;
 
   try {
-    // Fetch open solicitations from Montgomery County Open Data
-    const params = new URLSearchParams({
-      $where: "status = 'Open'",
-      $limit: "100",
-      $order: "posted_date DESC",
-    });
-
-    // Add app token if available
+    // Add app token if available (increases rate limits)
     const appToken = process.env.MOCO_APP_TOKEN;
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -51,92 +128,187 @@ export async function scanMontgomeryCounty(
       headers["X-App-Token"] = appToken;
     }
 
-    const response = await fetch(`${MOCO_API_BASE}?${params}`, { headers });
-    if (!response.ok) {
-      throw new Error(`Montgomery County API returned ${response.status}`);
-    }
+    // Try the solicitations dataset first
+    const solicitations = await tryFetchSolicitations(headers);
 
-    const data: MocoSolicitation[] = await response.json();
-    totalFound = data.length;
+    if (solicitations && solicitations.data.length > 0) {
+      // Process solicitations (preferred data source)
+      totalFound = solicitations.data.length;
 
-    for (const sol of data) {
-      const title = sol.solicitation_title || sol.description || "";
-      if (!title) continue;
+      for (const sol of solicitations.data) {
+        const title = sol.solicitation_title || sol.description || "";
+        if (!title) continue;
 
-      const agency = `Montgomery County MD - ${sol.department || "General"}`;
-      const amount = parseFloat(sol.estimated_value || "0") || 0;
-      const deadline = sol.due_date || "";
+        const agency = `Montgomery County MD - ${sol.department || "General"}`;
+        const amount = parseFloat(sol.estimated_value || "0") || 0;
+        const deadline = sol.due_date || "";
 
-      // Deduplication
-      const hash = await computeDedupeHash(title, agency, amount, deadline);
-      if (existingHashes.has(hash)) {
-        duplicatesSkipped++;
-        continue;
+        const hash = await computeDedupeHash(title, agency, amount, deadline);
+        if (existingHashes.has(hash)) {
+          duplicatesSkipped++;
+          continue;
+        }
+
+        const deadlineDate = deadline ? new Date(deadline) : null;
+        const daysUntilClose = deadlineDate
+          ? Math.ceil(
+              (deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+            )
+          : 999;
+        if (daysUntilClose < 0) continue;
+
+        const description = sol.description || title;
+        const naicsCodes: string[] = [];
+
+        const { score: fitScore, breakdown: fitBreakdown } = calculateFitScore(
+          naicsCodes,
+          "",
+          description,
+          false
+        );
+
+        const { probability: winProbability, breakdown: winBreakdown } =
+          calculateWinProbability(fitScore, false, true, 5);
+
+        const { action, channel } = routeAction(
+          fitScore,
+          winProbability,
+          daysUntilClose,
+          false,
+          "",
+          amount
+        );
+
+        const winThemes = [
+          "Local presence and community knowledge",
+          "LSBRP certification advantage",
+        ];
+
+        opportunities.push({
+          id: `moco-${sol.solicitation_number || hash.slice(0, 12)}`,
+          title,
+          agency,
+          amount,
+          deadline,
+          daysUntilClose,
+          naicsCodes,
+          setAsideType: sol.category || "",
+          source: "montgomery_county_md",
+          sourceUrl: `https://www.montgomerycountymd.gov/PRO/divisions/eprocurement.html`,
+          solicitationNumber: sol.solicitation_number || "",
+          description: description.slice(0, 500),
+          fitScore,
+          winProbability,
+          action,
+          channel,
+          fitBreakdown,
+          winBreakdown,
+          winThemes,
+          dedupeHash: hash,
+          scannedAt: now,
+          qualifiedAt: now,
+        });
       }
+    } else {
+      // Fallback: try the contracts dataset for procurement intelligence
+      const contracts = await tryFetchContracts(headers);
 
-      // Days until close
-      const deadlineDate = deadline ? new Date(deadline) : null;
-      const daysUntilClose = deadlineDate
-        ? Math.ceil(
-            (deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-          )
-        : 999;
-      if (daysUntilClose < 0) continue;
+      if (contracts && contracts.data.length > 0) {
+        totalFound = contracts.data.length;
 
-      const description = sol.description || title;
-      const naicsCodes: string[] = [];
+        for (const contract of contracts.data) {
+          const title = contract.contract_description || "";
+          if (!title) continue;
 
-      const { score: fitScore, breakdown: fitBreakdown } = calculateFitScore(
-        naicsCodes,
-        "",
-        description,
-        false
-      );
+          const agency = `Montgomery County MD - ${contract.department || "General"}`;
+          const amount = parseFloat(contract.award_amount || "0") || 0;
+          const deadline = contract.end_date || "";
 
-      const { probability: winProbability, breakdown: winBreakdown } =
-        calculateWinProbability(fitScore, false, true, 5);
+          const hash = await computeDedupeHash(title, agency, amount, deadline);
+          if (existingHashes.has(hash)) {
+            duplicatesSkipped++;
+            continue;
+          }
 
-      const { action, channel } = routeAction(
-        fitScore,
-        winProbability,
-        daysUntilClose,
-        false,
-        "",
-        amount
-      );
+          const deadlineDate = deadline ? new Date(deadline) : null;
+          const daysUntilClose = deadlineDate
+            ? Math.ceil(
+                (deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+              )
+            : 999;
 
-      const winThemes = [
-        "Local presence and community knowledge",
-        "LSBRP certification advantage",
-      ];
+          const description = title;
+          const naicsCodes: string[] = [];
 
-      opportunities.push({
-        id: `moco-${sol.solicitation_number || hash.slice(0, 12)}`,
-        title,
-        agency,
-        amount,
-        deadline,
-        daysUntilClose,
-        naicsCodes,
-        setAsideType: sol.category || "",
-        source: "montgomery_county_md",
-        sourceUrl: `https://www.montgomerycountymd.gov/PRO/divisions/eprocurement.html`,
-        solicitationNumber: sol.solicitation_number || "",
-        description: description.slice(0, 500),
-        fitScore,
-        winProbability,
-        action,
-        channel,
-        fitBreakdown,
-        winBreakdown,
-        winThemes,
-        dedupeHash: hash,
-        scannedAt: now,
-        qualifiedAt: now,
-      });
+          const { score: fitScore, breakdown: fitBreakdown } = calculateFitScore(
+            naicsCodes,
+            "",
+            description,
+            false
+          );
+
+          const { probability: winProbability, breakdown: winBreakdown } =
+            calculateWinProbability(fitScore, false, true, 5);
+
+          const { action, channel } = routeAction(
+            fitScore,
+            winProbability,
+            daysUntilClose,
+            false,
+            "",
+            amount
+          );
+
+          const winThemes = [
+            "Local presence and community knowledge",
+            "LSBRP certification advantage",
+          ];
+
+          opportunities.push({
+            id: `moco-${contract.contract_number || hash.slice(0, 12)}`,
+            title,
+            agency,
+            amount,
+            deadline,
+            daysUntilClose,
+            naicsCodes,
+            setAsideType: contract.contract_type || "",
+            source: "montgomery_county_md",
+            sourceUrl: `https://www.montgomerycountymd.gov/PRO/divisions/eprocurement.html`,
+            solicitationNumber: contract.contract_number || "",
+            description: description.slice(0, 500),
+            fitScore,
+            winProbability,
+            action,
+            channel,
+            fitBreakdown,
+            winBreakdown,
+            winThemes,
+            dedupeHash: hash,
+            scannedAt: now,
+            qualifiedAt: now,
+          });
+        }
+      } else {
+        // Both datasets failed or returned empty
+        throw new Error(
+          "Montgomery County solicitations dataset (dvt3-7y7y) returned no results and contracts fallback (23hs-bne9) also failed. " +
+          "The dataset IDs may have changed — check https://data.montgomerycountymd.gov for current procurement datasets."
+        );
+      }
     }
   } catch (error) {
-    console.error("[OpportunityEngine] Montgomery County scan error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[OpportunityEngine] Montgomery County scan error:", message);
+    return {
+      opportunities: [],
+      source: "montgomery_county_md",
+      scannedAt: now,
+      totalFound: 0,
+      qualifiedCount: 0,
+      duplicatesSkipped: 0,
+      error: `Montgomery County scan failed: ${message}`,
+    };
   }
 
   return {
