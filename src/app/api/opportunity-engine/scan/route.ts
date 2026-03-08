@@ -78,6 +78,7 @@ async function runScan() {
         }
       }
 
+      const actionCounts = await getActionBreakdown();
       return NextResponse.json({
         success: true,
         results: results.map((r) => ({
@@ -87,6 +88,13 @@ async function runScan() {
           duplicatesSkipped: r.duplicatesSkipped,
         })),
         totalInserted: inserted,
+        actionBreakdown: {
+          capture: actionCounts["CAPTURE_NOW"] || 0,
+          teamSkyward: actionCounts["CAPTURE_NOW_TEAM_SKYWARD"] || 0,
+          teamVorentoe: actionCounts["CAPTURE_NOW_TEAM_VORENTOE"] || 0,
+          watch: actionCounts["WATCH"] || 0,
+          pass: actionCounts["PASS"] || 0,
+        },
         message: "SAM_GOV_API_KEY not set — SAM.gov was skipped. Add SAM_GOV_API_KEY to .env.local or Vercel environment variables to enable federal opportunity scanning.",
         scannedAt: new Date().toISOString(),
       });
@@ -121,6 +129,7 @@ async function runScan() {
       }
     }
 
+    const actionCounts = await getActionBreakdown();
     return NextResponse.json({
       success: true,
       results: results.map((r) => ({
@@ -130,6 +139,13 @@ async function runScan() {
         duplicatesSkipped: r.duplicatesSkipped,
       })),
       totalInserted: inserted,
+      actionBreakdown: {
+        capture: actionCounts["CAPTURE_NOW"] || 0,
+        teamSkyward: actionCounts["CAPTURE_NOW_TEAM_SKYWARD"] || 0,
+        teamVorentoe: actionCounts["CAPTURE_NOW_TEAM_VORENTOE"] || 0,
+        watch: actionCounts["WATCH"] || 0,
+        pass: actionCounts["PASS"] || 0,
+      },
       scannedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -139,6 +155,18 @@ async function runScan() {
       { status: 500 }
     );
   }
+}
+
+async function getActionBreakdown(): Promise<Record<string, number>> {
+  if (!pool) return {};
+  const res = await pool.query(
+    "SELECT action, COUNT(*)::int as count FROM qualified_opportunities GROUP BY action"
+  );
+  const breakdown: Record<string, number> = {};
+  for (const row of res.rows) {
+    breakdown[row.action as string] = row.count as number;
+  }
+  return breakdown;
 }
 
 async function upsertOpportunity(opp: QualifiedOpportunity) {

@@ -13,11 +13,20 @@ const EMPTY_QUEUE: DashboardQueue = {
   totalScanned: 0,
 };
 
+export interface ScanResultBreakdown {
+  capture: number;
+  teamSkyward: number;
+  teamVorentoe: number;
+  watch: number;
+  pass: number;
+}
+
 export interface ScanResult {
   success: boolean;
   totalInserted: number;
   scannedAt: string;
   message?: string;
+  actionBreakdown?: ScanResultBreakdown;
 }
 
 export function useOpportunityEngine() {
@@ -49,16 +58,15 @@ export function useOpportunityEngine() {
       const res = await fetch("/api/opportunity-engine/scan", {
         method: "POST",
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Scan failed");
-      }
       const scanData = await res.json();
+      if (!res.ok) {
+        throw new Error(scanData.error || "Scan failed");
+      }
       setLastScanResult(scanData);
-      await refresh();
     } catch (err) {
       setError(err as Error);
     } finally {
+      await refresh();
       setScanning(false);
     }
   }, [refresh]);
