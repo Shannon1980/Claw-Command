@@ -214,18 +214,6 @@ export async function POST(request: Request) {
       messageId: userMessageId,
       timestamp: now,
     });
-
-    // Log the activity
-    await db.insert(activities).values({
-      id: uuidv4(),
-      eventType: 'message_sent',
-      resourceType: 'chat',
-      resourceId: messageId,
-      details: JSON.stringify({ agentId, content }),
-      createdAt: new Date().toISOString(),
-    });
-
-    return NextResponse.json({ success: true, messageId });
   } catch (error) {
     console.error("Error sending message:", error);
     return NextResponse.json(
