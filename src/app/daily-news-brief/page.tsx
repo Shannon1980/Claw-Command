@@ -619,7 +619,7 @@ export default function DailyNewsBriefPage() {
   const [weatherModalOpen, setWeatherModalOpen] = useState(false);
   const { data, loading, error, refresh, generate, generating } =
     useNewsBrief(date);
-  const { weather, forecast } = useWeather();
+  const { weather, forecast, hourly } = useWeather();
 
   const isToday = date === todayString();
 
@@ -965,6 +965,7 @@ export default function DailyNewsBriefPage() {
         onClose={() => setWeatherModalOpen(false)}
         weather={weather}
         forecast={forecast}
+        hourly={hourly}
       />
     </div>
   );
