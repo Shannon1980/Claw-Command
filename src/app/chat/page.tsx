@@ -12,7 +12,7 @@ interface ChatAgent {
   role: string;
 }
 
-function toChatAgent(row: { id: string; name: string; emoji: string; domain?: string }): Agent {
+function toChatAgent(row: { id: string; name: string; emoji: string; domain?: string }): ChatAgent {
   return {
     id: row.id,
     name: row.name,
