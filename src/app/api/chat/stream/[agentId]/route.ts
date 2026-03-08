@@ -17,48 +17,22 @@ export async function GET(
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send connection confirmation
-      controller.enqueue(
-        encoder.encode(
-          `id: connected-${Date.now()}\nevent: connected\ndata: ${JSON.stringify({
-            agentId,
-            timestamp: new Date().toISOString(),
-          })}\n\n`
-        )
-      );
+      let closed = false;
 
-      // Listen for chat events targeting this agent
-      const unsubscribe = eventBus.on("chat_message", (event) => {
-        const data = event.data;
-        if (data.agentId !== agentId) return;
-
+      function safeSend(data: string): boolean {
+        if (closed) return false;
         try {
-          controller.enqueue(
-            encoder.encode(
-              `id: ${event.id}\nevent: ${data.event || "chat_message"}\ndata: ${JSON.stringify(data)}\n\n`
-            )
-          );
+          controller.enqueue(encoder.encode(data));
+          return true;
         } catch {
-          unsubscribe();
+          closed = true;
+          return false;
         }
-      });
+      }
 
-      // Heartbeat every 15s
-      const heartbeat = setInterval(() => {
-        try {
-          controller.enqueue(
-            encoder.encode(
-              `id: hb-${Date.now()}\nevent: heartbeat\ndata: ${JSON.stringify({ ts: new Date().toISOString() })}\n\n`
-            )
-          );
-        } catch {
-          clearInterval(heartbeat);
-          unsubscribe();
-        }
-      }, 15000);
-
-      // Clean up on disconnect
-      request.signal.addEventListener("abort", () => {
+      function cleanup() {
+        if (closed) return;
+        closed = true;
         clearInterval(heartbeat);
         unsubscribe();
         try {
@@ -66,6 +40,40 @@ export async function GET(
         } catch {
           // already closed
         }
+      }
+
+      // Send connection confirmation
+      safeSend(
+        `id: connected-${Date.now()}\nevent: connected\ndata: ${JSON.stringify({
+          agentId,
+          timestamp: new Date().toISOString(),
+        })}\n\n`
+      );
+
+      // Listen for chat events targeting this agent
+      const unsubscribe = eventBus.on("chat_message", (event) => {
+        const data = event.data;
+        if (data.agentId !== agentId) return;
+
+        if (!safeSend(
+          `id: ${event.id}\nevent: ${data.event || "chat_message"}\ndata: ${JSON.stringify(data)}\n\n`
+        )) {
+          cleanup();
+        }
+      });
+
+      // Heartbeat every 15s
+      const heartbeat = setInterval(() => {
+        if (!safeSend(
+          `id: hb-${Date.now()}\nevent: heartbeat\ndata: ${JSON.stringify({ ts: new Date().toISOString() })}\n\n`
+        )) {
+          cleanup();
+        }
+      }, 15000);
+
+      // Clean up on disconnect
+      request.signal.addEventListener("abort", () => {
+        cleanup();
       });
     },
   });

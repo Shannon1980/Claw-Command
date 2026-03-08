@@ -30,6 +30,30 @@ export async function GET(req: NextRequest) {
   const responseStream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+      let closed = false;
+
+      /** Safely enqueue data, returning false if the stream is closed. */
+      function safeSend(data: string): boolean {
+        if (closed) return false;
+        try {
+          controller.enqueue(encoder.encode(data));
+          return true;
+        } catch {
+          closed = true;
+          return false;
+        }
+      }
+
+      /** Safely close the controller once. */
+      function safeClose() {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      }
 
       // Send initial state
       try {
@@ -39,10 +63,8 @@ export async function GET(req: NextRequest) {
             status: "disconnected",
             error: { code: "NOT_CONFIGURED", message: "OPENCLAW_URL not set" },
           };
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-          );
-          controller.close();
+          safeSend(`data: ${JSON.stringify(event)}\n\n`);
+          safeClose();
           return;
         }
 
@@ -96,31 +118,34 @@ export async function GET(req: NextRequest) {
           },
         };
 
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(initialEvent)}\n\n`)
-        );
+        if (!safeSend(`data: ${JSON.stringify(initialEvent)}\n\n`)) return;
 
         // Send connection status
         const connEvent: GatewayEvent = {
           type: "connection_status",
           status: "connected",
         };
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(connEvent)}\n\n`)
-        );
+        if (!safeSend(`data: ${JSON.stringify(connEvent)}\n\n`)) return;
 
         // Poll for updates every 2s (configurable)
         const pollInterval = 2000;
         let lastSessions = sessions;
 
         const pollTimer = setInterval(async () => {
+          if (closed) {
+            clearInterval(pollTimer);
+            return;
+          }
+
           try {
             const newSessions = await listSessions();
             const newNodes = await listNodes();
             const newAgents = nodesToAgents(newNodes);
 
             // Check for new/updated sessions
-            newSessions.forEach((session) => {
+            for (const session of newSessions) {
+              if (closed) break;
+
               const sessionId = session.session_id || session.key;
               const oldSession = lastSessions.find(
                 (s) => (s.session_id || s.key) === sessionId
@@ -138,9 +163,7 @@ export async function GET(req: NextRequest) {
                     queuedAt: session.created_at || new Date().toISOString(),
                   },
                 };
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-                );
+                safeSend(`data: ${JSON.stringify(event)}\n\n`);
               }
 
               // Status change
@@ -150,9 +173,7 @@ export async function GET(req: NextRequest) {
                     type: "task_completed",
                     taskId: sessionId || "unknown",
                   };
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-                  );
+                  safeSend(`data: ${JSON.stringify(event)}\n\n`);
                 } else {
                   const event: GatewayEvent = {
                     type: "task_queued",
@@ -164,15 +185,15 @@ export async function GET(req: NextRequest) {
                       queuedAt: session.created_at || new Date().toISOString(),
                     },
                   };
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-                  );
+                  safeSend(`data: ${JSON.stringify(event)}\n\n`);
                 }
               }
-            });
+            }
 
             // Update agent statuses
-            newAgents.forEach((agent) => {
+            for (const agent of newAgents) {
+              if (closed) break;
+
               const oldAgent = nodesToAgents(
                 [nodes.find((n) => n.node_id === agent.id)!].filter(Boolean)
               )[0];
@@ -189,14 +210,13 @@ export async function GET(req: NextRequest) {
                     lastHeartbeat: agent.lastHeartbeat,
                   },
                 };
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-                );
+                safeSend(`data: ${JSON.stringify(event)}\n\n`);
               }
-            });
+            }
 
             lastSessions = newSessions;
           } catch (err) {
+            if (closed) return;
             console.error("[Gateway Subscribe] Poll error:", err);
             const event: GatewayEvent = {
               type: "connection_status",
@@ -206,26 +226,14 @@ export async function GET(req: NextRequest) {
                 message: err instanceof Error ? err.message : "Poll error",
               },
             };
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-            );
+            safeSend(`data: ${JSON.stringify(event)}\n\n`);
           }
         }, pollInterval);
 
-        // Cleanup on disconnect
-        const checkAbort = setInterval(() => {
-          if (req.signal.aborted) {
-            clearInterval(pollTimer);
-            clearInterval(checkAbort);
-            controller.close();
-          }
-        }, 100);
-
-        // Also cleanup on signal
+        // Cleanup on disconnect (single handler to avoid double-close)
         req.signal.addEventListener("abort", () => {
           clearInterval(pollTimer);
-          clearInterval(checkAbort);
-          controller.close();
+          safeClose();
         });
       } catch (err) {
         console.error("[Gateway Subscribe] Startup error:", err);
@@ -237,10 +245,8 @@ export async function GET(req: NextRequest) {
             message: err instanceof Error ? err.message : "Startup error",
           },
         };
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-        );
-        controller.close();
+        safeSend(`data: ${JSON.stringify(event)}\n\n`);
+        safeClose();
       }
     },
   });
