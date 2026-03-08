@@ -21,6 +21,7 @@ export default function DealsPage() {
     refresh,
     updateOpportunityStage,
     updateApplicationStage,
+    passOpportunity,
   } = usePipeline();
 
   const filteredOpportunities =
@@ -173,6 +174,7 @@ export default function DealsPage() {
               stages={BD_STAGES}
               opportunities={filteredOpportunities}
               onStageChange={updateOpportunityStage}
+              onPass={passOpportunity}
             />
           </>
         ) : (

@@ -38,7 +38,7 @@ function ChannelBadge({ channel }: { channel: string }) {
   return null;
 }
 
-export default function OpportunityCard({ opp }: { opp: Opportunity }) {
+export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onPass?: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const sourceMeta = SOURCE_LABELS[opp.source] || SOURCE_LABELS.manual;
 
@@ -133,6 +133,14 @@ export default function OpportunityCard({ opp }: { opp: Opportunity }) {
         </span>
         <div className="flex items-center gap-2">
           <ApprovalBadge approval={opp.shannonApproval} />
+          {onPass && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPass(opp.id); }}
+              className="text-[10px] text-gray-500 hover:text-red-400 transition-colors font-mono font-bold"
+            >
+              Pass
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
             className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors font-mono"

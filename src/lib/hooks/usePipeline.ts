@@ -84,6 +84,19 @@ export function usePipeline() {
     []
   );
 
+  const passOpportunity = useCallback(
+    async (id: string) => {
+      const res = await fetch(`/api/opportunities/${id}/pass`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setOpportunities((prev) => prev.filter((o) => o.id !== id));
+      }
+      return res.ok;
+    },
+    []
+  );
+
   return {
     opportunities,
     applications,
@@ -92,5 +105,6 @@ export function usePipeline() {
     refresh: fetchAll,
     updateOpportunityStage,
     updateApplicationStage,
+    passOpportunity,
   };
 }

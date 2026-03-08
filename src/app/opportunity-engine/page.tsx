@@ -101,7 +101,7 @@ function ThreatBadge({ level }: { level: string }) {
 
 // ─── Pipeline Opportunity Card ─────────────────────────────────────────────
 
-function OpportunityDetailCard({ opp }: { opp: QualifiedOpportunity }) {
+function OpportunityDetailCard({ opp, onPass }: { opp: QualifiedOpportunity; onPass?: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -164,6 +164,14 @@ function OpportunityDetailCard({ opp }: { opp: QualifiedOpportunity }) {
           >
             {pushing ? "Sending..." : "Send to Deals"}
           </button>
+          {onPass && (
+            <button
+              onClick={() => onPass(opp.id)}
+              className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium bg-gray-500/10 text-gray-400 border-gray-500/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-colors"
+            >
+              Pass
+            </button>
+          )}
           <a href="/deals" className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors font-mono">
             View Deals
           </a>
@@ -610,7 +618,7 @@ function ScanningOverlay() {
 }
 
 export default function OpportunityEnginePage() {
-  const { queue, loading, scanning, error, lastScanResult, refresh, triggerScan, dismissScanResult } = useOpportunityEngine();
+  const { queue, loading, scanning, error, lastScanResult, refresh, triggerScan, dismissScanResult, passOpportunity } = useOpportunityEngine();
   const [activeTab, setActiveTab] = useState<ViewTab>("capture");
   const [pageMode, setPageMode] = useState<PageMode>("pipeline");
 
@@ -792,7 +800,7 @@ export default function OpportunityEnginePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {tabOpps.map((opp) => <OpportunityDetailCard key={opp.id} opp={opp} />)}
+                {tabOpps.map((opp) => <OpportunityDetailCard key={opp.id} opp={opp} onPass={passOpportunity} />)}
               </div>
             )}
 
