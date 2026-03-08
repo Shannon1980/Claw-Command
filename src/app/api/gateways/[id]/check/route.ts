@@ -41,8 +41,8 @@ export async function POST(
 
     const now = new Date().toISOString();
     await pool.query(
-      `UPDATE gateways SET status = $1, last_check_at = $2, updated_at = $3 WHERE id = $4`,
-      [status, now, now, id]
+      `UPDATE gateways SET status = $1, last_check_at = $2 WHERE id = $3`,
+      [status, now, id]
     );
 
     return NextResponse.json({ status, latencyMs });

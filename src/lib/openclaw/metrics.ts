@@ -4,14 +4,15 @@
  * See: https://docs.openclaw.ai/concepts/usage-tracking
  */
 
-function getMetricsUrl(): string | null {
+async function getMetricsUrl(): Promise<string | null> {
   const explicit = process.env.OPENCLAW_METRICS_URL;
   if (explicit) return explicit;
 
   // On Vercel, localhost is unreachable; require explicit URL
   if (process.env.VERCEL) return null;
 
-  const base = process.env.OPENCLAW_URL || "http://localhost:18789";
+  const { getBaseUrl } = await import("./client");
+  const base = await getBaseUrl();
   try {
     const u = new URL(base);
     return `${u.protocol}//${u.hostname}:9464/metrics`;
@@ -76,7 +77,7 @@ function parsePrometheusMetrics(text: string): TokenMetrics {
  * Fetch token usage from OpenClaw Prometheus metrics endpoint.
  */
 export async function fetchTokenMetrics(): Promise<TokenMetrics> {
-  const url = getMetricsUrl();
+  const url = await getMetricsUrl();
   if (!url) {
     return {
       connected: false,

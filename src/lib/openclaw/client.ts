@@ -9,13 +9,35 @@ import type {
   OpenClawSkillCreateRequest,
   OpenClawSkillUpdateRequest,
 } from "./types";
+import { pool } from "@/lib/db/client";
 
 // Default OpenClaw RPC port
 const DEFAULT_URL = "http://localhost:18789";
 
-export function getBaseUrl(): string {
-  // Prefer OPENCLAW_URL if set, otherwise fallback to DEFAULT_URL
-  return process.env.OPENCLAW_URL || DEFAULT_URL;
+/**
+ * Resolve the effective gateway base URL.
+ * Priority: OPENCLAW_URL env var > first online DB gateway > first DB gateway > DEFAULT_URL
+ */
+export async function getBaseUrl(): Promise<string> {
+  if (process.env.OPENCLAW_URL) {
+    return process.env.OPENCLAW_URL;
+  }
+
+  if (pool) {
+    try {
+      // Prefer an online gateway, fall back to any saved gateway
+      const result = await pool.query(
+        `SELECT url FROM gateways ORDER BY CASE WHEN status = 'online' THEN 0 ELSE 1 END, created_at DESC LIMIT 1`
+      );
+      if (result.rows.length > 0 && result.rows[0].url) {
+        return result.rows[0].url;
+      }
+    } catch {
+      // DB query failed — fall through to default
+    }
+  }
+
+  return DEFAULT_URL;
 }
 
 export function isConfigured(): boolean {
@@ -26,7 +48,7 @@ export function isConfigured(): boolean {
 
 export async function isGatewayOnline(): Promise<boolean> {
   try {
-    const res = await fetch(getBaseUrl(), {
+    const res = await fetch(await getBaseUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", method: "node.list", id: Date.now() }),
@@ -39,7 +61,7 @@ export async function isGatewayOnline(): Promise<boolean> {
 }
 
 async function rpc<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
-  const base = getBaseUrl();
+  const base = await getBaseUrl();
   try {
     const res = await fetch(base, {
       method: "POST",
@@ -300,7 +322,7 @@ export async function toggleSkill(
 export async function chatCompletion(
   request: OpenClawChatRequest
 ): Promise<ReadableStream<Uint8Array>> {
-  const base = getBaseUrl();
+  const base = await getBaseUrl();
   // Strip trailing slash if present
   const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
   // If base is just http://host:port, append /v1/chat/completions
