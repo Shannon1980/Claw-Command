@@ -69,6 +69,26 @@ function todayString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// ── Age-based filtering ─────────────────────────────────────────────────
+// AI news, headlines, and entertainment: max 3 days old
+// Everything else: max 7 days old
+
+function filterByAge<T extends { publishedAt: string }>(
+  items: T[],
+  maxAgeDays: number
+): T[] {
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  return items.filter((item) => {
+    if (!item.publishedAt) return true;
+    const published = new Date(item.publishedAt).getTime();
+    if (isNaN(published)) return true;
+    return published >= cutoff;
+  });
+}
+
+const MAX_AGE_STRICT = 3;  // days — AI news, headlines, entertainment
+const MAX_AGE_DEFAULT = 7; // days — everything else
+
 /**
  * Fetch internal brief data by calling sibling API routes.
  */
@@ -188,8 +208,8 @@ async function fetchAllLiveNews() {
       businessNews: [] as NewsItem[],
       entertainmentNews: [] as NewsItem[],
       healthNews: [] as NewsItem[],
-      redditNews: redditResult.items,
-      hackerNews: hackerNewsResult.items,
+      redditNews: filterByAge(redditResult.items, MAX_AGE_DEFAULT),
+      hackerNews: filterByAge(hackerNewsResult.items, MAX_AGE_DEFAULT),
       newsErrors,
     };
   }
@@ -212,15 +232,15 @@ async function fetchAllLiveNews() {
   if (healthResult.error) newsErrors.push(`Health: ${healthResult.error}`);
 
   return {
-    aiNews: aiResult.items,
-    worldNews: generalResult.items,
-    usNews: generalResult.items.slice(0, 5),
-    technologyNews: technologyResult.items,
-    businessNews: businessResult.items,
-    entertainmentNews: entertainmentResult.items,
-    healthNews: healthResult.items,
-    redditNews: redditResult.items,
-    hackerNews: hackerNewsResult.items,
+    aiNews: filterByAge(aiResult.items, MAX_AGE_STRICT),
+    worldNews: filterByAge(generalResult.items, MAX_AGE_STRICT),
+    usNews: filterByAge(generalResult.items.slice(0, 5), MAX_AGE_DEFAULT),
+    technologyNews: filterByAge(technologyResult.items, MAX_AGE_DEFAULT),
+    businessNews: filterByAge(businessResult.items, MAX_AGE_DEFAULT),
+    entertainmentNews: filterByAge(entertainmentResult.items, MAX_AGE_STRICT),
+    healthNews: filterByAge(healthResult.items, MAX_AGE_DEFAULT),
+    redditNews: filterByAge(redditResult.items, MAX_AGE_DEFAULT),
+    hackerNews: filterByAge(hackerNewsResult.items, MAX_AGE_DEFAULT),
     newsErrors,
   };
 }
@@ -369,18 +389,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       id: row.id,
       date: row.date,
-      aiNews: row.ai_news || [],
+      aiNews: filterByAge(row.ai_news || [], MAX_AGE_STRICT),
       aiPodcasts: row.ai_podcasts || [],
       aiYouTube: row.ai_youtube || [],
-      worldNews: row.world_news || [],
-      usNews: row.us_news || [],
+      worldNews: filterByAge(row.world_news || [], MAX_AGE_STRICT),
+      usNews: filterByAge(row.us_news || [], MAX_AGE_DEFAULT),
       localNews: row.local_news || [],
-      technologyNews: row.world_news?.filter((n: NewsItem) => n.category === "technology") || [],
-      businessNews: row.world_news?.filter((n: NewsItem) => n.category === "business") || [],
-      entertainmentNews: row.world_news?.filter((n: NewsItem) => n.category === "entertainment") || [],
-      healthNews: row.world_news?.filter((n: NewsItem) => n.category === "health") || [],
-      redditNews: redditResult.status === "fulfilled" ? redditResult.value : [],
-      hackerNews: hnResult.status === "fulfilled" ? hnResult.value : [],
+      technologyNews: filterByAge(row.world_news?.filter((n: NewsItem) => n.category === "technology") || [], MAX_AGE_DEFAULT),
+      businessNews: filterByAge(row.world_news?.filter((n: NewsItem) => n.category === "business") || [], MAX_AGE_DEFAULT),
+      entertainmentNews: filterByAge(row.world_news?.filter((n: NewsItem) => n.category === "entertainment") || [], MAX_AGE_STRICT),
+      healthNews: filterByAge(row.world_news?.filter((n: NewsItem) => n.category === "health") || [], MAX_AGE_DEFAULT),
+      redditNews: filterByAge(redditResult.status === "fulfilled" ? redditResult.value : [], MAX_AGE_DEFAULT),
+      hackerNews: filterByAge(hnResult.status === "fulfilled" ? hnResult.value : [], MAX_AGE_DEFAULT),
       standupSummary: row.standup_summary,
       briefSummary: row.brief_summary,
       skywardSummary: row.skyward_summary,
