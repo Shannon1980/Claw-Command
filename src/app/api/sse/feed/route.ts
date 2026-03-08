@@ -19,61 +19,70 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send connection event
-      controller.enqueue(
-        encoder.encode(
-          [
-            `id: connected-${Date.now()}`,
-            `event: connected`,
-            `data: ${JSON.stringify({
-              message: "Connected to Claw Command SSE feed",
-              timestamp: new Date().toISOString(),
-            })}`,
-            "",
-            "",
-          ].join("\n")
-        )
-      );
+      let closed = false;
 
-      // Subscribe to all events from the event bus
-      const unsubscribe = eventBus.onAll((event: MCEvent) => {
+      function safeSend(data: string): boolean {
+        if (closed) return false;
         try {
-          controller.enqueue(encoder.encode(formatSSE(event)));
+          controller.enqueue(encoder.encode(data));
+          return true;
         } catch {
-          // Stream closed
-          unsubscribe();
+          closed = true;
+          return false;
         }
-      });
+      }
 
-      // Heartbeat every 30 seconds to keep connection alive
-      const heartbeatInterval = setInterval(() => {
-        try {
-          controller.enqueue(
-            encoder.encode(
-              [
-                `id: hb-${Date.now()}`,
-                `event: heartbeat`,
-                `data: ${JSON.stringify({ timestamp: new Date().toISOString() })}`,
-                "",
-                "",
-              ].join("\n")
-            )
-          );
-        } catch {
-          clearInterval(heartbeatInterval);
-          unsubscribe();
-        }
-      }, 30000);
-
-      // Clean up on client disconnect
-      request.signal.addEventListener("abort", () => {
+      function cleanup() {
+        if (closed) return;
+        closed = true;
         clearInterval(heartbeatInterval);
         unsubscribe();
         try {
           controller.close();
         } catch {
-          // Already closed
+          // already closed
         }
+      }
+
+      // Send connection event
+      safeSend(
+        [
+          `id: connected-${Date.now()}`,
+          `event: connected`,
+          `data: ${JSON.stringify({
+            message: "Connected to Claw Command SSE feed",
+            timestamp: new Date().toISOString(),
+          })}`,
+          "",
+          "",
+        ].join("\n")
+      );
+
+      // Subscribe to all events from the event bus
+      const unsubscribe = eventBus.onAll((event: MCEvent) => {
+        if (!safeSend(formatSSE(event))) {
+          cleanup();
+        }
+      });
+
+      // Heartbeat every 30 seconds to keep connection alive
+      const heartbeatInterval = setInterval(() => {
+        if (!safeSend(
+          [
+            `id: hb-${Date.now()}`,
+            `event: heartbeat`,
+            `data: ${JSON.stringify({ timestamp: new Date().toISOString() })}`,
+            "",
+            "",
+          ].join("\n")
+        )) {
+          cleanup();
+        }
+      }, 30000);
+
+      // Clean up on client disconnect
+      request.signal.addEventListener("abort", () => {
+        cleanup();
       });
     },
   });

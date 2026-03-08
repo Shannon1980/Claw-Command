@@ -26,13 +26,16 @@ export function useChat(agentId: string) {
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCount = useRef(0);
+  const disposed = useRef(false);
 
   // Fetch initial message history once
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(`/api/chat/${agentId}`);
       if (!res.ok) throw new Error('Failed to fetch messages');
+      if (disposed.current) return;
       const data = await res.json();
+      if (disposed.current) return;
       const raw = Array.isArray(data) ? data : (data.messages || []);
       const backendMessages: Message[] = (raw as unknown[]).map((m: unknown) => {
         const r = m as Record<string, unknown>;
@@ -50,16 +53,19 @@ export function useChat(agentId: string) {
       setLocalMessages(backendMessages);
       setError(null);
     } catch (err) {
-      setError((err as Error).message);
+      if (!disposed.current) setError((err as Error).message);
     } finally {
-      setLoading(false);
+      if (!disposed.current) setLoading(false);
     }
   }, [agentId]);
 
   // Connect to SSE stream for real-time updates
   const connectSSE = useCallback(() => {
+    if (disposed.current) return;
+
     if (esRef.current) {
       esRef.current.close();
+      esRef.current = null;
     }
 
     const es = new EventSource(`/api/chat/stream/${agentId}`);
@@ -67,6 +73,7 @@ export function useChat(agentId: string) {
 
     // New message from user or agent (final)
     es.addEventListener("new_message", (event: MessageEvent) => {
+      if (disposed.current) return;
       try {
         const data = JSON.parse(event.data);
         const msg = data.message;
@@ -118,15 +125,16 @@ export function useChat(agentId: string) {
 
     // Agent is typing
     es.addEventListener("typing_start", () => {
-      setAgentTyping(true);
+      if (!disposed.current) setAgentTyping(true);
     });
 
     es.addEventListener("typing_end", () => {
-      setAgentTyping(false);
+      if (!disposed.current) setAgentTyping(false);
     });
 
     // Streaming tokens from agent response
     es.addEventListener("chat_stream", (event: MessageEvent) => {
+      if (disposed.current) return;
       try {
         const data = JSON.parse(event.data);
         const { messageId, content } = data;
@@ -168,6 +176,8 @@ export function useChat(agentId: string) {
     es.onerror = () => {
       es.close();
       esRef.current = null;
+      // Don't reconnect if disposed
+      if (disposed.current) return;
       // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
       const delay = Math.min(1000 * Math.pow(2, retryCount.current), 15000);
       retryCount.current++;
@@ -177,12 +187,20 @@ export function useChat(agentId: string) {
 
   useEffect(() => {
     if (!agentId) return;
+    disposed.current = false;
     setLoading(true);
     fetchMessages();
     connectSSE();
     return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (esRef.current) esRef.current.close();
+      disposed.current = true;
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      if (esRef.current) {
+        esRef.current.close();
+        esRef.current = null;
+      }
     };
   }, [agentId, fetchMessages, connectSSE]);
 

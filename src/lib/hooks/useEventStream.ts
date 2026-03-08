@@ -52,10 +52,15 @@ export function useEventStream() {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEventId = useRef<string>("");
   const retryCount = useRef(0);
+  const disposed = useRef(false);
 
   const connect = useCallback(() => {
+    // Don't reconnect if the hook has been cleaned up
+    if (disposed.current) return;
+
     if (esRef.current) {
       esRef.current.close();
+      esRef.current = null;
     }
 
     const url = lastEventId.current
@@ -83,6 +88,7 @@ export function useEventStream() {
 
     for (const type of eventTypes) {
       es.addEventListener(type, (event: MessageEvent) => {
+        if (disposed.current) return;
         try {
           lastEventId.current = (event as MessageEvent & { lastEventId?: string }).lastEventId || "";
           const data = JSON.parse(event.data);
@@ -101,6 +107,8 @@ export function useEventStream() {
     es.onerror = () => {
       es.close();
       esRef.current = null;
+      // Don't reconnect if disposed
+      if (disposed.current) return;
       // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
       const delay = Math.min(1000 * Math.pow(2, retryCount.current), 30000);
       retryCount.current++;
@@ -109,10 +117,18 @@ export function useEventStream() {
   }, []);
 
   useEffect(() => {
+    disposed.current = false;
     connect();
     return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (esRef.current) esRef.current.close();
+      disposed.current = true;
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      if (esRef.current) {
+        esRef.current.close();
+        esRef.current = null;
+      }
     };
   }, [connect]);
 }
