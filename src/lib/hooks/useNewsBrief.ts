@@ -41,7 +41,7 @@ export interface DailyNewsBriefData {
   localNews: NewsItem[];
   technologyNews: NewsItem[];
   businessNews: NewsItem[];
-  scienceNews: NewsItem[];
+  entertainmentNews: NewsItem[];
   healthNews: NewsItem[];
   standupSummary: {
     date: string;
@@ -78,7 +78,7 @@ const EMPTY_DATA: DailyNewsBriefData = {
   localNews: [],
   technologyNews: [],
   businessNews: [],
-  scienceNews: [],
+  entertainmentNews: [],
   healthNews: [],
   standupSummary: null,
   briefSummary: null,
