@@ -20,6 +20,15 @@ async function ensureSchema() {
       source_id TEXT NOT NULL DEFAULT '',
       agency TEXT NOT NULL DEFAULT '',
       deadline TEXT,
+      description TEXT NOT NULL DEFAULT '',
+      solicitation_number TEXT NOT NULL DEFAULT '',
+      set_aside_type TEXT NOT NULL DEFAULT '',
+      naics_codes TEXT NOT NULL DEFAULT '[]',
+      fit_score NUMERIC NOT NULL DEFAULT 0,
+      win_themes TEXT NOT NULL DEFAULT '[]',
+      ops_engine_action TEXT NOT NULL DEFAULT '',
+      channel TEXT NOT NULL DEFAULT 'direct',
+      attachments TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (now()::text),
       updated_at TEXT NOT NULL DEFAULT (now()::text)
     );
@@ -32,6 +41,15 @@ async function ensureSchema() {
       ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source_id TEXT NOT NULL DEFAULT '';
       ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS agency TEXT NOT NULL DEFAULT '';
       ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS deadline TEXT;
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS solicitation_number TEXT NOT NULL DEFAULT '';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS set_aside_type TEXT NOT NULL DEFAULT '';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS naics_codes TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS fit_score NUMERIC NOT NULL DEFAULT 0;
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS win_themes TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS ops_engine_action TEXT NOT NULL DEFAULT '';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'direct';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS attachments TEXT NOT NULL DEFAULT '[]';
     EXCEPTION WHEN others THEN NULL;
     END $$;
   `);
@@ -49,6 +67,9 @@ export async function GET() {
     const res = await pool.query(
       `SELECT o.id, o.title, o.stage, o.value_usd, o.probability, o.shannon_approval,
               o.source, o.source_url, o.source_id, o.agency, o.deadline,
+              o.description, o.solicitation_number, o.set_aside_type,
+              o.naics_codes, o.fit_score, o.win_themes,
+              o.ops_engine_action, o.channel, o.attachments,
               a.name as owner_name, a.emoji as owner_emoji
        FROM opportunities o
        LEFT JOIN agents a ON o.owner_agent_id = a.id
@@ -69,6 +90,15 @@ export async function GET() {
       sourceId: r.source_id || "",
       agency: r.agency || "",
       deadline: r.deadline || "",
+      description: r.description || "",
+      solicitationNumber: r.solicitation_number || "",
+      setAsideType: r.set_aside_type || "",
+      naicsCodes: JSON.parse(r.naics_codes || "[]"),
+      fitScore: Number(r.fit_score) || 0,
+      winThemes: JSON.parse(r.win_themes || "[]"),
+      opsEngineAction: r.ops_engine_action || "",
+      channel: r.channel || "direct",
+      attachments: JSON.parse(r.attachments || "[]"),
     }));
 
     return NextResponse.json(opportunities);

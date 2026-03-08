@@ -1,3 +1,10 @@
+export interface OpportunityAttachment {
+  name: string;
+  url: string;
+  type: string; // pdf, docx, xlsx, etc.
+  addedAt: string;
+}
+
 export interface Opportunity {
   id: string;
   title: string;
@@ -12,6 +19,16 @@ export interface Opportunity {
   sourceId: string;
   agency: string;
   deadline: string;
+  // Extended detail fields
+  description: string;
+  solicitationNumber: string;
+  setAsideType: string;
+  naicsCodes: string[];
+  fitScore: number;        // 0-10
+  winThemes: string[];
+  opsEngineAction: string; // CAPTURE_NOW, WATCH, PASS, etc.
+  channel: string;         // direct, teaming_skyward_prime, teaming_vorentoe_prime
+  attachments: OpportunityAttachment[];
 }
 
 export interface Application {
@@ -64,6 +81,12 @@ export const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   sam_gov: { label: "SAM.gov", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
   montgomery_county_md: { label: "MoCo MD", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
   emma_msrb: { label: "EMMA", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+  emaryland: { label: "eMaryland", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  eva_virginia: { label: "eVA", color: "bg-teal-500/20 text-teal-400 border-teal-500/30" },
+  dc_ocp: { label: "DC OCP", color: "bg-violet-500/20 text-violet-400 border-violet-500/30" },
+  naspo: { label: "NASPO", color: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
+  fpds_ng: { label: "FPDS-NG", color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+  ops_engine: { label: "Ops Engine", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
   manual: { label: "Manual", color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
 };
 

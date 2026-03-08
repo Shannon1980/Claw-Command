@@ -103,10 +103,44 @@ function ThreatBadge({ level }: { level: string }) {
 
 function OpportunityDetailCard({ opp }: { opp: QualifiedOpportunity }) {
   const [expanded, setExpanded] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handlePushToDeals = async () => {
+    setPushing(true);
+    setPushResult(null);
+    try {
+      const res = await fetch("/api/opportunity-engine/push-to-deals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opportunityId: opp.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPushResult({ success: true, message: data.message || "Pushed to deals pipeline" });
+      } else {
+        setPushResult({ success: false, message: data.error || "Push failed" });
+      }
+    } catch (err) {
+      setPushResult({ success: false, message: String(err) });
+    } finally {
+      setPushing(false);
+      setTimeout(() => setPushResult(null), 5000);
+    }
+  };
+
   return (
     <div className="bg-gray-900/80 border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition-all">
       <div className="flex items-start justify-between gap-3 mb-2">
-        <h4 className="text-sm font-medium text-gray-200 leading-tight flex-1">{opp.title}</h4>
+        <h4 className="text-sm font-medium text-gray-200 leading-tight flex-1">
+          {opp.sourceUrl ? (
+            <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors">
+              {opp.title}
+            </a>
+          ) : (
+            opp.title
+          )}
+        </h4>
         <ActionBadge action={opp.action} />
       </div>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -122,11 +156,44 @@ function OpportunityDetailCard({ opp }: { opp: QualifiedOpportunity }) {
       </div>
       <div className="flex items-center justify-between text-xs">
         <span className={`font-mono ${opp.daysUntilClose <= 45 ? "text-amber-400" : "text-gray-500"}`}>{opp.daysUntilClose}d until close</span>
-        <button onClick={() => setExpanded(!expanded)} className="text-gray-500 hover:text-gray-300 transition-colors">{expanded ? "Less" : "Details"}</button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePushToDeals}
+            disabled={pushing}
+            className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+          >
+            {pushing ? "Sending..." : "Send to Deals"}
+          </button>
+          <a href="/deals" className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors font-mono">
+            View Deals
+          </a>
+          <button onClick={() => setExpanded(!expanded)} className="text-gray-500 hover:text-gray-300 transition-colors">{expanded ? "Less" : "Details"}</button>
+        </div>
       </div>
+
+      {/* Push result feedback */}
+      {pushResult && (
+        <div className={`mt-2 text-[10px] font-mono px-2 py-1 rounded ${pushResult.success ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
+          {pushResult.message}
+        </div>
+      )}
+
       {expanded && (
         <div className="mt-3 pt-3 border-t border-gray-800 space-y-3">
           {opp.description && <p className="text-xs text-gray-400 leading-relaxed">{opp.description}</p>}
+
+          {/* Source URL */}
+          {opp.sourceUrl && (
+            <div>
+              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Source Link</span>
+              <div className="mt-1">
+                <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors break-all">
+                  {opp.sourceUrl} &rarr;
+                </a>
+              </div>
+            </div>
+          )}
+
           {opp.winThemes.length > 0 && (
             <div>
               <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Win Themes</span>
@@ -571,6 +638,12 @@ export default function OpportunityEnginePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href="/deals"
+              className="px-3 py-1.5 text-sm font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors mr-2"
+            >
+              Deals Pipeline
+            </a>
             {/* Mode Toggle */}
             <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-0.5 mr-2">
               <button

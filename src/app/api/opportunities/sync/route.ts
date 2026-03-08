@@ -88,18 +88,32 @@ async function upsertDealOpportunity(opp: QualifiedOpportunity) {
       id, title, stage, value_usd, probability,
       owner_agent_id, shannon_approval,
       source, source_url, source_id, agency, deadline,
+      description, solicitation_number, set_aside_type,
+      naics_codes, fit_score, win_themes,
+      ops_engine_action, channel, attachments,
       created_at, updated_at
     ) VALUES (
       $1, $2, $3, $4, $5,
       $6, $7,
       $8, $9, $10, $11, $12,
-      $13, $14
+      $13, $14, $15,
+      $16, $17, $18,
+      $19, $20, $21,
+      $22, $23
     ) ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       value_usd = EXCLUDED.value_usd,
       probability = EXCLUDED.probability,
       source_url = EXCLUDED.source_url,
       deadline = EXCLUDED.deadline,
+      description = EXCLUDED.description,
+      solicitation_number = EXCLUDED.solicitation_number,
+      set_aside_type = EXCLUDED.set_aside_type,
+      naics_codes = EXCLUDED.naics_codes,
+      fit_score = EXCLUDED.fit_score,
+      win_themes = EXCLUDED.win_themes,
+      ops_engine_action = EXCLUDED.ops_engine_action,
+      channel = EXCLUDED.channel,
       updated_at = EXCLUDED.updated_at`,
     [
       opp.id,
@@ -114,6 +128,15 @@ async function upsertDealOpportunity(opp: QualifiedOpportunity) {
       opp.id,
       opp.agency,
       opp.deadline,
+      opp.description,
+      opp.solicitationNumber,
+      opp.setAsideType,
+      JSON.stringify(opp.naicsCodes),
+      opp.fitScore,
+      JSON.stringify(opp.winThemes),
+      opp.action,
+      opp.channel,
+      "[]", // No attachments from scan
       now,
       now,
     ]
