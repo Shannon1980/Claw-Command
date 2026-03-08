@@ -62,7 +62,7 @@ export const useOverviewStore = create<OverviewStore>()((set) => ({
       set({
         health: {
           gatewayStatus: data.connected ? "online" : "offline",
-          gatewayLatencyMs: data.latencyMs ?? null,
+          gatewayLatencyMs: data.latencyMs ?? data.metrics?.latencyMs ?? null,
           dbSizeMb: data.dbSizeMb ?? null,
           uptime: data.uptime ?? null,
           errorCount24h: data.errorCount24h ?? 0,

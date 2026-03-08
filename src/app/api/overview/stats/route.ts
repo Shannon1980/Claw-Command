@@ -26,6 +26,7 @@ export async function GET(_request: NextRequest) {
       tasksByStatusRes,
       activities24hRes,
       activities7dRes,
+      errors24hRes,
       webhooksRes,
       notificationsRes,
     ] = await Promise.all([
@@ -51,6 +52,9 @@ export async function GET(_request: NextRequest) {
       pool.query(
         `SELECT COUNT(*)::int AS count FROM activities WHERE created_at::timestamptz > NOW() - INTERVAL '7 days'`
       ),
+      pool.query(
+        `SELECT COUNT(*)::int AS count FROM agent_logs WHERE level = 'error' AND created_at::timestamptz > NOW() - INTERVAL '24 hours'`
+      ).catch(() => ({ rows: [{ count: 0 }] })),
       pool.query(`SELECT COUNT(*)::int AS count FROM webhooks`).catch(() => ({
         rows: [{ count: 0 }],
       })),
@@ -71,7 +75,7 @@ export async function GET(_request: NextRequest) {
       totalAgents: Number(agentsRes.rows[0].total),
       tasksRunning: Number(tasksRes.rows[0].running),
       totalTasks: Number(tasksRes.rows[0].total),
-      errors24h: 0,
+      errors24h: errors24hRes.rows[0].count,
       auditEvents24h: activities24hRes.rows[0].count,
       auditEvents7d: activities7dRes.rows[0].count,
       webhooksConfigured: webhooksRes.rows[0].count,
