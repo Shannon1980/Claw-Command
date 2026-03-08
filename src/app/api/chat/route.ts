@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
 import { addMessage } from "@/lib/chat/store";
+import { eventBus } from "@/lib/events/eventBus";
 import { isGatewayOnline, chatCompletion } from "@/lib/openclaw/client";
 
 let schemaReady = false;
@@ -51,8 +52,10 @@ async function getRecentHistory(agentId: string, limit = 10) {
   }
 }
 
-/** Try to get AI response via OpenClaw, return null if unavailable */
-async function getAIReply(
+/** Try to get AI response via OpenClaw with real-time streaming via eventBus */
+async function getAIReplyStreaming(
+  agentId: string,
+  replyId: string,
   agentInfo: Record<string, unknown>,
   history: { sender: string; content: string }[],
   userMessage: string
@@ -83,11 +86,23 @@ async function getAIReply(
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     let reply = "";
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      reply += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
+      reply += chunk;
+
+      // Emit each token chunk via eventBus for real-time streaming
+      eventBus.emit("chat_message", {
+        event: "chat_stream",
+        agentId,
+        messageId: replyId,
+        chunk,
+        content: reply,
+      });
     }
+
     return reply.trim() || null;
   } catch {
     return null;
@@ -175,6 +190,20 @@ export async function POST(request: Request) {
       addMessage({ agentId, sender: "user", content });
     }
 
+    // Emit user message event so SSE clients see it instantly
+    eventBus.emit("chat_message", {
+      event: "new_message",
+      agentId,
+      message: {
+        id: userMessageId,
+        agentId,
+        sender: "user",
+        content,
+        timestamp: now,
+        status: "sent",
+      },
+    });
+
     // Generate agent reply (async, non-blocking for the response)
     generateAndSaveReply(agentId, content).catch((err) =>
       console.error("[Chat] Reply generation failed:", err)
@@ -195,19 +224,24 @@ export async function POST(request: Request) {
 }
 
 async function generateAndSaveReply(agentId: string, userMessage: string) {
-  // Small delay so the user message appears first
-  await new Promise((r) => setTimeout(r, 800));
+  const replyId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+  // Emit typing indicator
+  eventBus.emit("chat_message", {
+    event: "typing_start",
+    agentId,
+    messageId: replyId,
+  });
 
   const agentInfo = await getAgentInfo(agentId);
   const history = await getRecentHistory(agentId);
 
-  // Try AI-powered reply first, fall back to contextual template
-  let reply = await getAIReply(agentInfo || {}, history, userMessage);
+  // Try AI-powered streaming reply first, fall back to contextual template
+  let reply = await getAIReplyStreaming(agentId, replyId, agentInfo || {}, history, userMessage);
   if (!reply) {
     reply = generateFallbackReply(agentInfo, userMessage);
   }
 
-  const replyId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const now = new Date().toISOString();
 
   if (pool) {
@@ -225,4 +259,24 @@ async function generateAndSaveReply(agentId: string, userMessage: string) {
   } else {
     addMessage({ agentId, sender: "agent", content: reply });
   }
+
+  // Emit the completed message so SSE clients get it instantly
+  eventBus.emit("chat_message", {
+    event: "new_message",
+    agentId,
+    message: {
+      id: replyId,
+      agentId,
+      sender: "agent",
+      content: reply,
+      timestamp: now,
+      status: "sent",
+    },
+  });
+
+  // Emit typing end
+  eventBus.emit("chat_message", {
+    event: "typing_end",
+    agentId,
+  });
 }
