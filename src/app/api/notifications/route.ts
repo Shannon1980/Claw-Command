@@ -4,7 +4,10 @@ import { emitNotification } from "@/lib/events/emitActivity";
 
 export async function GET(request: NextRequest) {
   if (!pool) {
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
   }
 
   try {

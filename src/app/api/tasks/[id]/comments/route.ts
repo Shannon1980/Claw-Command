@@ -9,7 +9,7 @@ export async function GET(
   const { id: taskId } = await context.params;
 
   if (!pool) {
-    return NextResponse.json([]);
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
 
   try {
@@ -59,7 +59,7 @@ export async function GET(
     return NextResponse.json(topLevel);
   } catch (error) {
     console.error("[Task Comments] GET error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
   }
 }
 

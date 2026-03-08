@@ -44,13 +44,13 @@ function mapRow(row: Record<string, unknown>) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     await ensureSchema();
   } catch (err) {
     console.error("[Memory API] Schema error:", err);
-    return NextResponse.json([]);
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to fetch data" }, { status: 500 });
   }
 
   const searchParams = request.nextUrl.searchParams;
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result.rows.map(mapRow));
   } catch (error) {
     console.error("[Memory API] GET error:", error);
-    return NextResponse.json([], { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
   }
 }
 

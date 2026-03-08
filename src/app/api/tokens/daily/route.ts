@@ -17,7 +17,7 @@ async function ensureSchema() {
 
 export async function GET(request: NextRequest) {
   if (!pool) {
-    return NextResponse.json([]);
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -59,6 +59,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(rows);
   } catch (error) {
     console.error("[Tokens Daily] Error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
   }
 }

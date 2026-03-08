@@ -5,7 +5,7 @@ import { emitNotification } from "@/lib/events/emitActivity";
 import { logAuditEvent } from "@/lib/events/auditLog";
 
 export async function GET() {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     const result = await pool.query(`SELECT * FROM webhooks ORDER BY created_at DESC`);

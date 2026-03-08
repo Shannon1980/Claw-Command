@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Query parameter 'q' is required" }, { status: 400 });
   }
 
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     const result = await pool.query(

@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (!pool) {
-    return NextResponse.json([]);
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
 
   try {

@@ -36,14 +36,19 @@ export const useNotificationStore = create<NotificationStore>()((set, get) => ({
     set({ loading: true });
     try {
       const res = await fetch(`/api/notifications?limit=${limit}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn("[NotificationStore] Fetch failed:", res.status);
+        set({ loading: false });
+        return;
+      }
       const data = await res.json();
       const items = Array.isArray(data) ? data : [];
       const unread = items.filter(
         (n: Notification) => n.readAt === null
       ).length;
       set({ notifications: items, unreadCount: unread, loading: false });
-    } catch {
+    } catch (err) {
+      console.warn("[NotificationStore] Fetch error:", err);
       set({ loading: false });
     }
   },
