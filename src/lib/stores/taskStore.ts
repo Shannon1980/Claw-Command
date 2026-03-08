@@ -35,6 +35,7 @@ export interface Task {
   agent_emoji?: string;
   agent_domain?: string;
   comment_count?: number;
+  linked_doc_count?: number;
 }
 
 interface TaskFilters {
@@ -95,6 +96,7 @@ export const useTaskStore = create<TaskStore>()(
           agent_emoji: (r.agent_emoji as string) || "👤",
           agent_domain: (r.agent_domain as string) || undefined,
           comment_count: (r.comment_count as number) || undefined,
+          linked_doc_count: (r.linked_doc_count as number) || undefined,
         }));
         set({ tasks, loading: false });
       } catch (err) {

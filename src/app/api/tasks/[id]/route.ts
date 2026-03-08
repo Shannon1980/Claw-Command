@@ -49,7 +49,11 @@ export async function GET(
               t.parent_opportunity_id, t.parent_application_id,
               t.created_at, t.updated_at,
               a.name as agent_name, a.emoji as agent_emoji, a.domain as agent_domain,
-              (SELECT COUNT(*) FROM task_comments tc WHERE tc.task_id = t.id) as comment_count
+              (SELECT COUNT(*) FROM task_comments tc WHERE tc.task_id = t.id) as comment_count,
+              COALESCE((
+                SELECT COUNT(*)::int FROM docs d
+                WHERE d.linked_to::text LIKE '%' || t.id || '%'
+              ), 0) as linked_doc_count
        FROM tasks t
        LEFT JOIN agents a ON t.assigned_to_agent_id = a.id
        WHERE t.id = $1`,
@@ -64,6 +68,7 @@ export async function GET(
     return NextResponse.json({
       ...row,
       comment_count: parseInt(row.comment_count, 10),
+      linked_doc_count: parseInt(String(row.linked_doc_count ?? "0"), 10),
       agent_name: row.agent_name ?? "Shannon",
       agent_emoji: row.agent_emoji ?? "👤",
     });
