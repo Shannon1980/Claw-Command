@@ -223,6 +223,21 @@ export default function TaskEditModal({
     }
   };
 
+  const handleAssignDocAndReview = async (docIdToAssign: string) => {
+    if (!task?.id) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/assign-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ docId: docIdToAssign, requestReview: true }),
+      });
+      if (res.ok) onSaved();
+    } catch { /* ignore */ } finally {
+      setSaving(false);
+    }
+  };
+
   const handleApprove = async () => {
     if (!task?.id) return;
     setSaving(true);
@@ -534,20 +549,42 @@ export default function TaskEditModal({
                 ) : (
                   <div className="space-y-1.5 max-h-40 overflow-y-auto">
                     {availableDocs.map((doc) => (
-                      <button
+                      <div
                         key={doc.id}
-                        type="button"
-                        onClick={() => handleLinkDoc(doc)}
-                        className="w-full flex items-center justify-between px-3 py-2 text-left bg-gray-800/50 border border-gray-700/50 rounded hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-colors"
+                        className="flex items-center justify-between px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-colors"
                       >
-                        <div>
+                        <button
+                          type="button"
+                          onClick={() => handleLinkDoc(doc)}
+                          className="flex-1 text-left"
+                        >
                           <span className="text-sm text-gray-200">{doc.agentEmoji} {doc.title}</span>
                           <div className="text-[10px] text-gray-500">{doc.agent} &middot; {doc.type}</div>
+                        </button>
+                        <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleLinkDoc(doc)}
+                            title="Link document"
+                            className="p-1 text-gray-600 hover:text-cyan-400 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                          {status !== "review" && status !== "done" && (
+                            <button
+                              type="button"
+                              onClick={() => handleAssignDocAndReview(doc.id)}
+                              disabled={saving}
+                              title="Link and request review"
+                              className="px-1.5 py-0.5 text-[10px] font-mono text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                            >
+                              + Review
+                            </button>
+                          )}
                         </div>
-                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
