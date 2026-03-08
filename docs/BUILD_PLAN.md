@@ -1,7 +1,5 @@
 # Mission Control Integration — Build Plan
 
-> **Reference:** [MISSION_CONTROL_INTEGRATION_PLAN.md](./MISSION_CONTROL_INTEGRATION_PLAN.md)
->
 > **Approach:** Best implementation wins. Override Claw Command code when Mission Control's approach is superior. Keep domain-specific features. Delete mock data. Unify into one platform.
 >
 > **Stack:** Next.js 16 / React 19 / Tailwind CSS / Drizzle ORM (Postgres) / Zustand / SSE
@@ -47,11 +45,13 @@ Add all new tables to `src/lib/db/schema.ts` via Drizzle migration `drizzle/migr
 - [ ] `drizzle/migrations/0003_mission_control_full.sql` — generated migration
 - [ ] Run migration against dev DB, verify all tables created
 
-### 0.2 Install Dependencies
+### 0.2 Install Dependencies ✓
 
 ```bash
 npm install zustand recharts @hello-pangea/dnd zod @xyflow/react pino
 ```
+
+> **Status:** Done. `zustand`, `@hello-pangea/dnd`, `zod`, and `pino` are installed (see `package.json`). `recharts` and `@xyflow/react` to be added when their respective sprints begin.
 
 ### 0.3 Zustand Store Scaffolding
 

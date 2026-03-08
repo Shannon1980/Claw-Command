@@ -1,5 +1,7 @@
 # Running Mission Control as a Separate App
 
+> **Note:** This document is transitional. As Mission Control features are integrated directly into Claw Command (see [BUILD_PLAN.md](./BUILD_PLAN.md)), the need to run MC separately will be eliminated. This doc will be removed once the integration is complete.
+
 Use [Mission Control](https://github.com/builderz-labs/mission-control) alongside Claw-Command for agent orchestration (Kanban, cost tracking, real-time monitoring).
 
 ## Mission Control–Style Features in Claw-Command
