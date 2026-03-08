@@ -399,13 +399,25 @@ export async function fetchRedditNews(
 
   const fetchers = subs.map(async (subreddit) => {
     try {
-      const res = await fetch(
-        `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`,
-        {
-          headers: { "User-Agent": "ClawCommand/1.0" },
-          next: { revalidate: 900 },
-        }
+      // Reddit requires a descriptive User-Agent; generic ones get 429s
+      const headers: Record<string, string> = {
+        "User-Agent": "web:ClawCommand:v1.0 (by /u/ClawCommandBot)",
+        Accept: "application/json",
+      };
+
+      let res = await fetch(
+        `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}&raw_json=1`,
+        { headers, next: { revalidate: 900 } }
       );
+
+      // Fallback to old.reddit.com if main domain fails
+      if (!res.ok) {
+        res = await fetch(
+          `https://old.reddit.com/r/${subreddit}/hot.json?limit=${limit}&raw_json=1`,
+          { headers, next: { revalidate: 900 } }
+        );
+      }
+
       if (!res.ok) return [];
 
       const json = await res.json();
@@ -492,10 +504,21 @@ export async function fetchHackerNews(
   const terms = queries || HN_SEARCH_QUERIES;
   const items: HackerNewsItem[] = [];
 
+  // Only show stories from the last 7 days
+  const sevenDaysAgo = Math.floor(
+    (Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000
+  );
+
   const fetchers = terms.map(async (term) => {
     try {
+      const params = new URLSearchParams({
+        query: term,
+        tags: "story",
+        hitsPerPage: String(hitsPerQuery),
+        numericFilters: `created_at_i>${sevenDaysAgo}`,
+      });
       const res = await fetch(
-        `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(term)}&tags=story&hitsPerPage=${hitsPerQuery}`,
+        `https://hn.algolia.com/api/v1/search?${params}`,
         { next: { revalidate: 900 } }
       );
       if (!res.ok) return [];

@@ -470,6 +470,30 @@ function HackerNewsCard({ item }: { item: HackerNewsItem }) {
             <span>{item.author}</span>
             <span>{relativeTime(item.publishedAt)}</span>
           </div>
+          <div className="flex items-center gap-3 mt-1.5">
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] text-orange-400 hover:text-orange-300 transition-colors"
+            >
+              Read article
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+            <a
+              href={item.commentsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-orange-400 transition-colors"
+            >
+              HN discussion
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+            </a>
+          </div>
         </div>
       </div>
     </div>
