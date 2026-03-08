@@ -28,15 +28,48 @@ const AGENT_META: Record<string, { name: string; emoji: string }> = {
 
 const EXCLUDED_FILES = ["MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md", "TOOLS.md", "HEARTBEAT.md"];
 
+// Repo documentation files that should NOT appear as business documents
+const EXCLUDED_REPO_FILES = [
+  "README.md", "readme.md", "Readme.md",
+  "CONTRIBUTING.md", "contributing.md",
+  "LICENSE.md", "license.md", "LICENSE",
+  "CHANGELOG.md", "changelog.md", "CHANGES.md",
+  "CODE_OF_CONDUCT.md", "SECURITY.md",
+  "PULL_REQUEST_TEMPLATE.md", "ISSUE_TEMPLATE.md",
+  "TODO.md", "ROADMAP.md", "ARCHITECTURE.md",
+  "INSTALL.md", "SETUP.md", "DEVELOPMENT.md",
+  "DEPLOY.md", "MIGRATION.md",
+  ".gitignore", ".eslintrc", ".prettierrc",
+  "package.json", "tsconfig.json",
+];
+
+// Filename patterns that indicate repo/technical docs rather than business docs
+const REPO_DOC_PATTERNS = [
+  /^api-/i,              // API documentation
+  /^component/i,         // Component docs
+  /^implementation/i,    // Implementation notes
+  /^spec-/i,             // Technical specifications
+  /^design-/i,           // Technical design docs
+  /^checklist-/i,        // Dev checklists
+  /^agent-/i,            // Agent system configs
+  /^subagent-/i,         // Subagent definitions
+  /^dashboard-/i,        // Dashboard configs
+  /^task-/i,             // Task system definitions
+  /^sam-/i,              // SAM system docs
+  /^\./, // Hidden/dot files
+];
+
+function isRepoDoc(filename: string): boolean {
+  if (EXCLUDED_REPO_FILES.includes(filename)) return true;
+  return REPO_DOC_PATTERNS.some((pattern) => pattern.test(filename));
+}
+
 function guessAgent(filename: string, content: string): string {
   const fn = filename.toLowerCase();
   if (fn.includes("cpars") || fn.includes("seas") || fn.includes("skyward")) return "skylar";
   if (fn.includes("mbe") || fn.includes("cert") || fn.includes("wosb") || fn.includes("lsbrp")) return "veronica";
   if (fn.includes("capability") || fn.includes("brand") || fn.includes("muse")) return "muse";
   if (fn.includes("bd-") || fn.includes("opportunity") || fn.includes("capture") || fn.includes("scout") || fn.includes("competitive")) return "bertha";
-  if (fn.includes("safe") || fn.includes("itbiz") || fn.includes("lesson") || fn.includes("teaching")) return "bob";
-  if (fn.includes("agent") || fn.includes("subagent") || fn.includes("dashboard") || fn.includes("task")) return "bob";
-  if (fn.includes("api-") || fn.includes("component") || fn.includes("implementation") || fn.includes("sam-")) return "forge";
   if (fn.includes("depa")) return "depa";
   if (fn.includes("pta") || fn.includes("community") || fn.includes("courtyard")) return "harmony";
   return "bob";
@@ -89,7 +122,10 @@ function readWorkspaceDocs(): Document[] {
 
   try {
     const files = fs.readdirSync(workspacePath).filter(
-      (f) => (f.endsWith(".md") || f.endsWith(".txt")) && !EXCLUDED_FILES.includes(f)
+      (f) =>
+        (f.endsWith(".md") || f.endsWith(".txt")) &&
+        !EXCLUDED_FILES.includes(f) &&
+        !isRepoDoc(f)
     );
 
     const now = new Date().toISOString();

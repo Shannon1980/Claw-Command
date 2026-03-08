@@ -35,6 +35,32 @@ const path = require('path');
 const workspace = process.argv[1];
 const EXCLUDED = ['MEMORY.md','SOUL.md','USER.md','IDENTITY.md','TOOLS.md','HEARTBEAT.md'];
 
+// Repo documentation files that should NOT appear as business documents
+const EXCLUDED_REPO_FILES = [
+  'README.md','readme.md','Readme.md',
+  'CONTRIBUTING.md','contributing.md',
+  'LICENSE.md','license.md','LICENSE',
+  'CHANGELOG.md','changelog.md','CHANGES.md',
+  'CODE_OF_CONDUCT.md','SECURITY.md',
+  'PULL_REQUEST_TEMPLATE.md','ISSUE_TEMPLATE.md',
+  'TODO.md','ROADMAP.md','ARCHITECTURE.md',
+  'INSTALL.md','SETUP.md','DEVELOPMENT.md',
+  'DEPLOY.md','MIGRATION.md',
+];
+
+// Filename patterns that indicate repo/technical docs
+const REPO_DOC_PATTERNS = [
+  /^api-/i, /^component/i, /^implementation/i,
+  /^spec-/i, /^design-/i, /^checklist-/i,
+  /^agent-/i, /^subagent-/i, /^dashboard-/i,
+  /^task-/i, /^sam-/i, /^\./,
+];
+
+function isRepoDoc(filename) {
+  if (EXCLUDED_REPO_FILES.includes(filename)) return true;
+  return REPO_DOC_PATTERNS.some(p => p.test(filename));
+}
+
 function walkDir(dir, files = []) {
   if (!fs.existsSync(dir)) return files;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -42,7 +68,7 @@ function walkDir(dir, files = []) {
     const full = path.join(dir, e.name);
     if (e.isDirectory() && !e.name.startsWith('.')) {
       walkDir(full, files);
-    } else if (e.isFile() && (e.name.endsWith('.md') || e.name.endsWith('.txt')) && !EXCLUDED.includes(e.name)) {
+    } else if (e.isFile() && (e.name.endsWith('.md') || e.name.endsWith('.txt')) && !EXCLUDED.includes(e.name) && !isRepoDoc(e.name)) {
       files.push(path.relative(workspace, full));
     }
   }
@@ -53,17 +79,13 @@ const maxDocs = parseInt(process.env.SYNC_DOCS_MAX || '500', 10);
 const allFiles = walkDir(workspace).sort();
 const files = allFiles.slice(0, maxDocs);
 
-// Agent mapping by content/name patterns
+// Agent mapping by content/name patterns (business docs only)
 function guessAgent(filename, content) {
   const fn = filename.toLowerCase();
-  const c = (content || '').toLowerCase().slice(0, 500);
   if (fn.includes('cpars') || fn.includes('seas') || fn.includes('skyward')) return 'skylar';
   if (fn.includes('mbe') || fn.includes('cert') || fn.includes('wosb') || fn.includes('lsbrp')) return 'veronica';
   if (fn.includes('capability') || fn.includes('brand') || fn.includes('muse')) return 'muse';
   if (fn.includes('bd-') || fn.includes('opportunity') || fn.includes('capture') || fn.includes('scout') || fn.includes('competitive')) return 'bertha';
-  if (fn.includes('safe') || fn.includes('itbiz') || fn.includes('lesson') || fn.includes('teaching')) return 'bob';
-  if (fn.includes('agent') || fn.includes('subagent') || fn.includes('dashboard') || fn.includes('task')) return 'bob';
-  if (fn.includes('api-') || fn.includes('component') || fn.includes('implementation') || fn.includes('sam-')) return 'forge';
   if (fn.includes('depa')) return 'depa';
   if (fn.includes('pta') || fn.includes('community') || fn.includes('courtyard')) return 'harmony';
   return 'bob';
@@ -75,9 +97,6 @@ function guessType(filename) {
   if (fn.includes('cert') || fn.includes('mbe') || fn.includes('wosb') || fn.includes('lsbrp')) return 'certification_doc';
   if (fn.includes('cpars') || fn.includes('report') || fn.includes('seas')) return 'report';
   if (fn.includes('template')) return 'template';
-  if (fn.includes('spec') || fn.includes('api-') || fn.includes('design') || fn.includes('checklist')) return 'reference';
-  if (fn.includes('safe') || fn.includes('lesson') || fn.includes('teaching')) return 'teaching';
-  if (fn.includes('agent') || fn.includes('task') || fn.includes('dashboard')) return 'internal';
   return 'report';
 }
 
