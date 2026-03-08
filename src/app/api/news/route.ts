@@ -3,6 +3,8 @@ import {
   fetchTopHeadlines,
   searchNews,
   NEWS_CATEGORIES,
+  isNewsConfigured,
+  getConfiguredProvider,
   type NewsCategory,
 } from "@/lib/news/client";
 
@@ -15,17 +17,19 @@ export async function GET(request: NextRequest) {
     50
   );
 
-  if (!process.env.NEWS_API_KEY && !process.env.NEW_API_KEY) {
+  if (!isNewsConfigured()) {
     return NextResponse.json(
       {
-        error: "NEWS_API_KEY not configured",
-        hint: "Add NEWS_API_KEY (or NEW_API_KEY) to your .env.local file. Get one at newsapi.org",
+        error: "No news API configured",
+        hint: "Add one of GNEWS_API_KEY (gnews.io), GUARDIAN_API_KEY (theguardian.com), or NEWS_API_KEY (newsapi.org) to your .env.local file.",
       },
       { status: 503 }
     );
   }
 
   try {
+    const provider = getConfiguredProvider();
+
     if (query) {
       const sortBy =
         (searchParams.get("sortBy") as
@@ -38,6 +42,7 @@ export async function GET(request: NextRequest) {
         totalResults: result.totalResults,
         query,
         sortBy,
+        provider,
       });
     }
 
@@ -50,6 +55,7 @@ export async function GET(request: NextRequest) {
         articles: result.articles.filter((a) => a.title !== "[Removed]"),
         totalResults: result.totalResults,
         category,
+        provider,
       });
     }
 
@@ -59,6 +65,7 @@ export async function GET(request: NextRequest) {
       articles: result.articles.filter((a) => a.title !== "[Removed]"),
       totalResults: result.totalResults,
       category: "general",
+      provider,
     });
   } catch (error) {
     console.error("[News API] Error:", error);
