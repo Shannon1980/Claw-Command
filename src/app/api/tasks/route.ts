@@ -29,6 +29,31 @@ const CreateTaskSchema = z.object({
   parent_application_id: z.string().nullable().optional(),
 });
 
+const CreateTaskSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional().default(""),
+  status: z
+    .enum([
+      "inbox",
+      "backlog",
+      "in_progress",
+      "review",
+      "quality_review",
+      "blocked",
+      "done",
+    ])
+    .optional()
+    .default("backlog"),
+  priority: z.enum(["high", "medium", "low"]).optional().default("medium"),
+  assigned_to_agent_id: z.string().nullable().optional(),
+  depends_on_shannon: z.boolean().optional().default(false),
+  due_date: z.string().nullable().optional(),
+  project: z.string().nullable().optional(),
+  ticket_ref: z.string().nullable().optional(),
+  parent_opportunity_id: z.string().nullable().optional(),
+  parent_application_id: z.string().nullable().optional(),
+});
+
 function generateTaskId(): string {
   return `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
