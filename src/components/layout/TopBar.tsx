@@ -2,21 +2,30 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
 import { useAgentStore } from "@/lib/stores/agentStore";
 import { useTaskStore } from "@/lib/stores/taskStore";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import CommandPalette from "@/components/layout/CommandPalette";
+import SettingsDropdown from "@/components/layout/SettingsDropdown";
 import ChatFlyout from "@/components/chat/ChatFlyout";
 import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
 
 export default function TopBar() {
+  const pathname = usePathname();
   const { unreadCount, toggleBell, bellOpen } = useNotificationStore();
   const { agents } = useAgentStore();
   const { tasks } = useTaskStore();
   const { weather } = useWeather();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [clock, setClock] = useState("");
+
+  const adminRoutes = ["/settings", "/users", "/audit", "/standup"];
+  const isOnAdminPage = adminRoutes.some(
+    (r) => pathname === r || pathname.startsWith(r + "/")
+  );
 
   const agentsOnline = agents.filter((a) => a.status === "active").length;
   const tasksBlocked = tasks.filter((t) => t.status === "blocked").length;
@@ -123,9 +132,45 @@ export default function TopBar() {
           {/* Chat */}
           <ChatFlyout compact />
 
+          {/* Settings gear */}
+          <button
+            onClick={() => {
+              setSettingsOpen((prev) => !prev);
+              if (bellOpen) toggleBell();
+            }}
+            className={`relative p-1.5 transition-colors ${
+              isOnAdminPage || settingsOpen
+                ? "text-cyan-400 hover:text-cyan-300"
+                : "text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+
           {/* Notification bell */}
           <button
-            onClick={toggleBell}
+            onClick={() => {
+              toggleBell();
+              if (settingsOpen) setSettingsOpen(false);
+            }}
             className="relative p-1.5 text-gray-500 hover:text-gray-300 transition-colors"
           >
             <svg
@@ -152,6 +197,11 @@ export default function TopBar() {
 
       {/* Notification dropdown */}
       {bellOpen && <NotificationCenter />}
+
+      {/* Settings dropdown */}
+      {settingsOpen && (
+        <SettingsDropdown onClose={() => setSettingsOpen(false)} />
+      )}
 
       {/* Command palette */}
       {commandPaletteOpen && (
