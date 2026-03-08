@@ -1,5 +1,6 @@
 import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
+import { parseSeedMemories } from "@/lib/db/seed-memories";
 
 const now = new Date().toISOString();
 
@@ -459,6 +460,17 @@ export async function POST() {
       );
     }
 
+    // Seed memories from markdown files (only clear seed-originated ones)
+    await client.query("DELETE FROM mc_memories WHERE source = 'seed'");
+    const seedMemories = parseSeedMemories();
+    for (const mem of seedMemories) {
+      await client.query(
+        `INSERT INTO mc_memories (id, content, source, tags, category, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [mem.id, mem.content, mem.source, mem.tags, mem.category, mem.createdAt, mem.updatedAt]
+      );
+    }
+
     await client.query("COMMIT");
 
     return NextResponse.json({
@@ -474,6 +486,7 @@ export async function POST() {
         docs: DOCS.length,
         calendar_events: CALENDAR_EVENTS.length,
         token_usage: TOKEN_USAGE.length,
+        mc_memories: seedMemories.length,
       },
     });
   } catch (error) {
