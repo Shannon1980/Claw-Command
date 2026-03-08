@@ -20,6 +20,7 @@ export async function GET() {
 
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   const scopes = [
+    "openid",
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.labels",

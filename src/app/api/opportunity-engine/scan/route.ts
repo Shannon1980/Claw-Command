@@ -43,24 +43,46 @@ async function runScan() {
     );
   }
 
-  // When SAM API key is missing, return count of existing opportunities (no 503)
+  // When SAM API key is missing, still scan non-SAM sources and warn about SAM
   if (!samApiKey) {
+    console.warn("[OpportunityEngine] SAM_GOV_API_KEY not set — skipping SAM.gov, scanning other sources only.");
     try {
       await ensureSchema();
-      const res = await pool.query("SELECT COUNT(*)::int as count FROM qualified_opportunities");
-      const count = res.rows[0]?.count ?? 0;
+      const hashRes = await pool.query(
+        "SELECT dedupe_hash FROM qualified_opportunities"
+      );
+      const existingHashes = new Set(
+        hashRes.rows.map((r: { dedupe_hash: string }) => r.dedupe_hash)
+      );
+
+      // Still scan non-SAM sources (Montgomery County, EMMA, etc.)
+      const results = await scanAllSources(null, existingHashes);
+
+      let inserted = 0;
+      for (const result of results) {
+        for (const opp of result.opportunities) {
+          await upsertOpportunity(opp);
+          inserted++;
+        }
+      }
+
       return NextResponse.json({
         success: true,
-        scanned: count,
-        message: "SAM_GOV_API_KEY not set. Returning existing opportunity count. Set SAM_GOV_API_KEY to enable live SAM.gov scanning.",
-        totalInserted: 0,
+        results: results.map((r) => ({
+          source: r.source,
+          totalFound: r.totalFound,
+          qualifiedCount: r.qualifiedCount,
+          duplicatesSkipped: r.duplicatesSkipped,
+        })),
+        totalInserted: inserted,
+        message: "SAM_GOV_API_KEY not set — SAM.gov was skipped. Add SAM_GOV_API_KEY to .env.local or Vercel environment variables to enable federal opportunity scanning.",
         scannedAt: new Date().toISOString(),
       });
     } catch (err) {
-      console.error("[OpportunityEngine] Count error:", err);
+      console.error("[OpportunityEngine] Scan error (no SAM key):", err);
       return NextResponse.json(
-        { error: "Database error", details: String(err) },
-        { status: 503 }
+        { error: "Scan failed", details: String(err) },
+        { status: 500 }
       );
     }
   }

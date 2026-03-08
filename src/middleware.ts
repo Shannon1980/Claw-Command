@@ -8,6 +8,8 @@ const PUBLIC_PATHS = [
   "/api/mc/",
   "/api/gateway/",
   "/api/agent-context",
+  "/api/docs",
+  "/api/sync/docs",
   "/_next/",
   "/favicon.ico",
 ];

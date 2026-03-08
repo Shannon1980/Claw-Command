@@ -42,6 +42,11 @@ const REAL_OPPORTUNITIES = [
 ];
 
 async function seedRealOpportunities() {
+  if (!db) {
+    console.error("❌ Database not configured. Set DATABASE_URL.");
+    process.exit(1);
+  }
+
   console.log("🌱 Seeding REAL Opportunities...");
 
   if (!db) {
@@ -57,7 +62,7 @@ async function seedRealOpportunities() {
 
     // 2. Insert Real Opportunities
     const now = new Date().toISOString();
-    
+
     for (const opp of REAL_OPPORTUNITIES) {
       await db.insert(opportunities).values({
         ...opp,

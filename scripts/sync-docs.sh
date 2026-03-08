@@ -3,10 +3,13 @@
 # Reads .md/.txt files from ~/.openclaw/workspace (recursive) and pushes to Claw Command DB
 #
 # Usage:
-#   ./scripts/sync-docs.sh              # sync (apply directly)
-#   ./scripts/sync-docs.sh --preview    # show changes only, don't apply
-#   ./scripts/sync-docs.sh -i           # interactive: preview, then prompt to accept/decline
-#   CLAW_COMMAND_URL=http://localhost:3000 ./scripts/sync-docs.sh   # sync to local dev
+#   ./scripts/sync-docs.sh              # sync to remote (apply directly)
+#   ./scripts/sync-docs.sh --preview    # show changes only
+#   ./scripts/sync-docs.sh -i           # interactive: preview, then prompt accept/decline
+#
+# For local Claw Command (npm run dev):
+#   CLAW_COMMAND_URL=http://localhost:3000 ./scripts/sync-docs.sh -i
+# Ensure .env.local has DATABASE_URL.
 
 WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 DASHBOARD_URL="${CLAW_COMMAND_URL:-https://claw-command-pi.vercel.app}"
@@ -133,22 +136,42 @@ if [ "$PREVIEW" = 1 ] || [ "$INTERACTIVE" = 1 ]; then
     d.preview=true;
     console.log(JSON.stringify(d));
   ")
-  RESPONSE=$(curl -s --max-time 30 -X POST \
+  HTTP_CODE=$(curl -s -o /tmp/sync-preview.json -w "%{http_code}" --max-time 30 -X POST \
     -H "Content-Type: application/json" \
     -d "$PREVIEW_PAYLOAD" \
     "${DASHBOARD_URL}/api/sync/docs")
-  echo "$RESPONSE" | node -e "
-    const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-    if (d.preview) {
-      const c=(d.created||[]).length, u=(d.updated||[]).length, del=(d.deleted||[]).length;
-      console.log('[Sync preview] Created:', c, 'Updated:', u, 'No longer in workspace:', del);
-      if (c>0) (d.created||[]).slice(0,5).forEach(x=>console.log('  +', x.title));
-      if (u>0) (d.updated||[]).slice(0,5).forEach(x=>console.log('  ~', x.title));
-      if (del>0) (d.deleted||[]).slice(0,5).forEach(x=>console.log('  -', x.title));
-    } else {
-      console.log('Preview failed:', d.error || JSON.stringify(d));
-    }
-  " 2>/dev/null || echo "[$(date)] Preview: $RESPONSE"
+  RESPONSE=$(cat /tmp/sync-preview.json 2>/dev/null)
+  if [ "$HTTP_CODE" != "200" ]; then
+    echo "[$(date)] Preview request failed (HTTP $HTTP_CODE)"
+    echo "$RESPONSE" | head -c 500
+    echo ""
+    if [ "$HTTP_CODE" = "503" ]; then
+      echo "[$(date)] Hint: Database may not be configured. Ensure Claw Command has DATABASE_URL set."
+    fi
+    if [ "$HTTP_CODE" = "000" ] || [ -z "$HTTP_CODE" ]; then
+      echo "[$(date)] Hint: Is Claw Command running? For local: CLAW_COMMAND_URL=http://localhost:3000 ./scripts/sync-docs.sh -i"
+    fi
+    [ "$INTERACTIVE" = 1 ] && echo "[$(date)] Cannot proceed with apply after preview failure."
+    exit 1
+  else
+    echo "$RESPONSE" | node -e "
+      try {
+        const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+        if (d.preview) {
+          const c=(d.created||[]).length, u=(d.updated||[]).length, del=(d.deleted||[]).length;
+          console.log('[Sync preview] Created:', c, 'Updated:', u, 'No longer in workspace:', del);
+          if (c>0) (d.created||[]).slice(0,5).forEach(x=>console.log('  +', x.title));
+          if (u>0) (d.updated||[]).slice(0,5).forEach(x=>console.log('  ~', x.title));
+          if (del>0) (d.deleted||[]).slice(0,5).forEach(x=>console.log('  -', x.title));
+        } else {
+          console.log('Preview failed:', d.error || JSON.stringify(d));
+        }
+      } catch(e) {
+        console.error('Could not parse response:', e.message);
+        process.exit(1);
+      }
+    " || echo "[$(date)] Preview parse error. Raw: $(echo "$RESPONSE" | head -c 200)"
+  fi
   if [ "$PREVIEW" = 1 ]; then
     echo "[$(date)] Preview only. Run without --preview to apply, or use -i for interactive."
     exit 0
@@ -161,10 +184,17 @@ if [ "$PREVIEW" = 1 ] || [ "$INTERACTIVE" = 1 ]; then
   fi
 fi
 
-# Push to dashboard
-RESPONSE=$(curl -s --max-time 30 -X POST \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD" \
-  "${DASHBOARD_URL}/api/sync/docs")
+while true; do
+  export OFFSET
+  export BATCH_SIZE
+  BATCH=$(echo "$PAYLOAD" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));const o=parseInt(process.env.OFFSET||0);const s=parseInt(process.env.BATCH_SIZE||100);const b=d.docs.slice(o,o+s);if(b.length===0){process.exit(1);}console.log(JSON.stringify({docs:b}));" 2>/dev/null)
+  [ $? -ne 0 ] && break
+  RESPONSE=$(echo "$BATCH" | curl -s --max-time 30 -X POST \
+    -H "Content-Type: application/json" \
+    -d @- \
+    "${DASHBOARD_URL}/api/sync/docs")
+  echo "[$(date)] Batch offset $OFFSET: $RESPONSE"
+  OFFSET=$((OFFSET + BATCH_SIZE))
+done
 
-echo "[$(date)] ✅ Response: $RESPONSE"
+echo "[$(date)] Sync complete"

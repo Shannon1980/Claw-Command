@@ -11,7 +11,7 @@ import type {
   AssignTarget,
   DocumentPriority,
 } from "@/lib/mock-docs";
-import { CATEGORY_OPTIONS } from "@/lib/mock-docs";
+import { CATEGORY_OPTIONS, SEED_DOCUMENTS } from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -22,7 +22,7 @@ type ViewMode = "grid" | "list";
 type TabMode = "all" | "queue";
 
 export default function DocsPage() {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<Document[]>(SEED_DOCUMENTS);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
@@ -45,14 +45,30 @@ export default function DocsPage() {
     updated: { id: string; title: string }[];
     deleted: { id: string; title: string }[];
   } | null>(null);
+  const [copiedCommand, setCopiedCommand] = useState(false);
+
+  const SYNC_SCRIPT_CMD = "~/.openclaw/workspace/Claw-Command/scripts/sync-docs.sh";
+
+  const copySyncCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(SYNC_SCRIPT_CMD);
+      setCopiedCommand(true);
+      setTimeout(() => setCopiedCommand(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchDocuments = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/docs");
-      const data = await res.json();
-      setDocuments(Array.isArray(data) ? data : []);
+      const data = await res.json().catch(() => null);
+      if (res.ok && Array.isArray(data)) {
+        setDocuments(data.length > 0 ? data : SEED_DOCUMENTS);
+      }
     } catch {
-      setDocuments([]);
+      // Keep seed docs on fetch failure
     } finally {
       setLoading(false);
     }
@@ -154,19 +170,27 @@ export default function DocsPage() {
       const res = await fetch("/api/sync/docs/trigger?preview=1", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.preview) {
-        const hasChanges =
-          (data.created?.length ?? 0) > 0 ||
-          (data.updated?.length ?? 0) > 0 ||
-          (data.deleted?.length ?? 0) > 0;
-        setSyncStatus({ loading: false, message: null });
-        if (hasChanges) {
-          setSyncPreview({
-            created: data.created ?? [],
-            updated: data.updated ?? [],
-            deleted: data.deleted ?? [],
+        if (data.workspaceUnavailable) {
+          setSyncStatus({
+            loading: false,
+            message: null,
+            error: data.error || "Run ./scripts/sync-docs.sh from your local machine.",
           });
         } else {
-          setSyncStatus({ loading: false, message: "Documents already up to date.", error: undefined });
+          const hasChanges =
+            (data.created?.length ?? 0) > 0 ||
+            (data.updated?.length ?? 0) > 0 ||
+            (data.deleted?.length ?? 0) > 0;
+          setSyncStatus({ loading: false, message: null });
+          if (hasChanges) {
+            setSyncPreview({
+              created: data.created ?? [],
+              updated: data.updated ?? [],
+              deleted: data.deleted ?? [],
+            });
+          } else {
+            setSyncStatus({ loading: false, message: "Documents already up to date.", error: undefined });
+          }
         }
       } else if (res.ok && data.success) {
         setSyncStatus({
@@ -321,10 +345,17 @@ export default function DocsPage() {
               </span>
             )}
             <button
+              onClick={copySyncCommand}
+              className="px-3 py-1.5 text-sm text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors border border-amber-500/30"
+              title="Copy command to run in your local terminal"
+            >
+              {copiedCommand ? "Copied!" : "Run sync locally"}
+            </button>
+            <button
               onClick={handleSyncFromWorkspace}
               disabled={syncStatus.loading || loading}
               className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 border border-gray-700/50 hover:border-gray-600"
-              title="Sync documents from OpenClaw workspace (local) or run ./scripts/sync-docs.sh"
+              title="Try sync from server (works when app runs locally with workspace)"
             >
               {syncStatus.loading ? "Syncing…" : "Sync from Workspace"}
             </button>

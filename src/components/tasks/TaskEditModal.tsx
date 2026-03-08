@@ -91,13 +91,40 @@ export default function TaskEditModal({
   useEffect(() => {
     if (task?.id && status === "done") {
       setLoadingDocs(true);
+      // First try explicitly linked docs, then fall back to agent's docs
       fetch(`/api/docs?linkedType=task&linkedId=${task.id}`)
         .then((res) => res.json())
-        .then((data) => setLinkedDocs(Array.isArray(data) ? data : []))
-        .catch(() => setLinkedDocs([]))
-        .finally(() => setLoadingDocs(false));
+        .then((data) => {
+          const linked = Array.isArray(data) ? data : [];
+          if (linked.length > 0) {
+            setLinkedDocs(linked);
+            setLoadingDocs(false);
+          } else if (task.assignedToAgentId || task.agent_name) {
+            // No explicit links — show docs authored by the assigned agent
+            return fetch(`/api/docs`)
+              .then((res) => res.json())
+              .then((allDocs) => {
+                const agentId = task.assignedToAgentId;
+                const agentName = task.agent_name;
+                const agentDocs = (Array.isArray(allDocs) ? allDocs : []).filter(
+                  (d: LinkedDoc & { authorAgentId?: string }) =>
+                    (agentId && d.authorAgentId === agentId) ||
+                    (agentName && d.agent === agentName)
+                );
+                setLinkedDocs(agentDocs);
+                setLoadingDocs(false);
+              });
+          } else {
+            setLinkedDocs([]);
+            setLoadingDocs(false);
+          }
+        })
+        .catch(() => {
+          setLinkedDocs([]);
+          setLoadingDocs(false);
+        });
     }
-  }, [task?.id, status]);
+  }, [task?.id, task?.assignedToAgentId, task?.agent_name, status]);
 
   const handleAddComment = async () => {
     if (!task?.id || !newComment.trim()) return;
@@ -284,7 +311,7 @@ export default function TaskEditModal({
               {loadingDocs ? (
                 <p className="text-xs text-gray-500 py-2">Loading deliverables...</p>
               ) : linkedDocs.length === 0 ? (
-                <p className="text-xs text-gray-600 py-2">No linked documents. Link a document to this task from the Docs page.</p>
+                <p className="text-xs text-gray-600 py-2">No documents found for this task.</p>
               ) : (
                 <div className="space-y-2">
                   {linkedDocs.map((doc) => (
