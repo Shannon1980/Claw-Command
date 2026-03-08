@@ -56,7 +56,11 @@ export async function GET(request: NextRequest) {
              t.status, t.priority, t.due_date, t.outcome, t.project, t.ticket_ref,
              t.parent_opportunity_id, t.parent_application_id,
              t.created_at, t.updated_at,
-             a.name as agent_name, a.emoji as agent_emoji, a.domain as agent_domain
+             a.name as agent_name, a.emoji as agent_emoji, a.domain as agent_domain,
+             COALESCE((
+               SELECT COUNT(*)::int FROM docs d
+               WHERE d.linked_to::text LIKE '%' || t.id || '%'
+             ), 0) as linked_doc_count
       FROM tasks t
       LEFT JOIN agents a ON t.assigned_to_agent_id = a.id
     `;
@@ -109,6 +113,7 @@ export async function GET(request: NextRequest) {
       ...row,
       agent_name: row.agent_name ?? "Shannon",
       agent_emoji: row.agent_emoji ?? "👤",
+      linked_doc_count: parseInt(String(row.linked_doc_count ?? "0"), 10),
     }));
     return NextResponse.json(rows);
   } catch (error) {

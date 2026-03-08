@@ -29,6 +29,14 @@ interface LinkedDoc {
   updatedAt: string;
 }
 
+interface AvailableDoc {
+  id: string;
+  title: string;
+  type: string;
+  agent: string;
+  agentEmoji: string;
+}
+
 interface TaskEditModalProps {
   task: Task | null;
   agents: Agent[];
@@ -51,6 +59,14 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
   { value: "medium", label: "Medium" },
   { value: "low", label: "Low" },
 ];
+
+const REVIEW_STATUS_COLORS: Record<string, string> = {
+  approved: "bg-green-500/20 text-green-400",
+  needs_changes: "bg-amber-500/20 text-amber-400",
+  reviewed: "bg-blue-500/20 text-blue-400",
+  rejected: "bg-red-500/20 text-red-400",
+  pending_review: "bg-gray-700 text-gray-400",
+};
 
 export default function TaskEditModal({
   task,
@@ -78,6 +94,12 @@ export default function TaskEditModal({
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [reviewingDocId, setReviewingDocId] = useState<string | null>(null);
   const [reviewingDocContent, setReviewingDocContent] = useState<string | null>(null);
+  const [showDocPicker, setShowDocPicker] = useState(false);
+  const [availableDocs, setAvailableDocs] = useState<AvailableDoc[]>([]);
+  const [loadingAvailableDocs, setLoadingAvailableDocs] = useState(false);
+  const [activeTab, setActiveTab] = useState<"details" | "documents" | "comments">("details");
+
+  const showDocsSection = !isCreate && (status === "review" || status === "quality_review" || status === "done");
 
   useEffect(() => {
     if (task?.id) {
@@ -89,9 +111,8 @@ export default function TaskEditModal({
   }, [task?.id]);
 
   useEffect(() => {
-    if (task?.id && status === "done") {
+    if (task?.id && (status === "review" || status === "quality_review" || status === "done")) {
       setLoadingDocs(true);
-      // First try explicitly linked docs, then fall back to agent's docs
       fetch(`/api/docs?linkedType=task&linkedId=${task.id}`)
         .then((res) => res.json())
         .then((data) => {
@@ -100,7 +121,6 @@ export default function TaskEditModal({
             setLinkedDocs(linked);
             setLoadingDocs(false);
           } else if (task.assignedToAgentId || task.agent_name) {
-            // No explicit links — show docs authored by the assigned agent
             return fetch(`/api/docs`)
               .then((res) => res.json())
               .then((allDocs) => {
@@ -214,11 +234,55 @@ export default function TaskEditModal({
     }
   };
 
+  const handleOpenDocPicker = async () => {
+    setShowDocPicker(true);
+    setLoadingAvailableDocs(true);
+    try {
+      const res = await fetch("/api/docs");
+      const allDocs = await res.json();
+      const docs = (Array.isArray(allDocs) ? allDocs : []).filter(
+        (d: AvailableDoc) => !linkedDocs.some((ld) => ld.id === d.id)
+      );
+      setAvailableDocs(docs);
+    } catch {
+      setAvailableDocs([]);
+    } finally {
+      setLoadingAvailableDocs(false);
+    }
+  };
+
+  const handleLinkDoc = async (doc: AvailableDoc) => {
+    if (!task?.id) return;
+    try {
+      await fetch(`/api/docs/${doc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          linkedTo: [{ type: "task", id: task.id, name: task.title }],
+        }),
+      });
+      setLinkedDocs((prev) => [
+        ...prev,
+        {
+          id: doc.id,
+          title: doc.title,
+          type: doc.type,
+          status: "draft",
+          agent: doc.agent,
+          agentEmoji: doc.agentEmoji,
+          reviewStatus: "pending_review",
+          updatedAt: new Date().toISOString(),
+        },
+      ]);
+      setAvailableDocs((prev) => prev.filter((d) => d.id !== doc.id));
+    } catch { /* ignore */ }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
-      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-800 rounded-lg p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-6">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-800 rounded-lg p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-100">
             {isCreate ? "Add Task" : "Edit Task"}
           </h2>
@@ -229,89 +293,177 @@ export default function TaskEditModal({
           </button>
         </div>
 
-        <div className="space-y-4">
-          <Field label="Title">
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" className="input-field" />
-          </Field>
-
-          <Field label="Description">
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Task description" rows={3} className="input-field resize-none" />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Status">
-              <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)} className="input-field">
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Priority">
-              <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} className="input-field">
-                {PRIORITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <Field label="Assigned to">
-            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="input-field">
-              <option value="">Me (Shannon)</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>
-              ))}
-            </select>
-          </Field>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Due Date">
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="input-field" />
-            </Field>
-            <Field label="Project">
-              <input type="text" value={project} onChange={(e) => setProject(e.target.value)} placeholder="Project name" className="input-field" />
-            </Field>
-          </div>
-
-          <Field label="Ticket Ref">
-            <input type="text" value={ticketRef} onChange={(e) => setTicketRef(e.target.value)} placeholder="e.g. GH-123" className="input-field" />
-          </Field>
-
-          <Field label="Output / Deliverable">
-            <textarea value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="Task output, deliverable link, or summary..." rows={2} className="input-field resize-none" />
-          </Field>
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="depends-on-shannon" checked={dependsOnShannon} onChange={(e) => setDependsOnShannon(e.target.checked)} className="rounded border-gray-600 bg-gray-800 text-amber-500 focus:ring-amber-500" />
-            <label htmlFor="depends-on-shannon" className="text-sm text-gray-300">Needs my approval</label>
-          </div>
-
-          {/* Review actions */}
-          {!isCreate && (
-            <div className="flex gap-2 pt-2">
-              {task.status !== "review" && task.status !== "done" && (
-                <button onClick={handleRequestReview} disabled={saving} className="px-3 py-1.5 text-xs font-mono bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 disabled:opacity-50">
-                  Request Review
-                </button>
+        {/* Tabs */}
+        {!isCreate && (
+          <div className="flex gap-1 mb-4 border-b border-gray-800 pb-1">
+            <button
+              onClick={() => setActiveTab("details")}
+              className={`px-3 py-1.5 text-xs font-mono rounded-t transition-colors ${
+                activeTab === "details"
+                  ? "bg-gray-800 text-gray-100 border-b-2 border-blue-500"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Details
+            </button>
+            <button
+              onClick={() => setActiveTab("documents")}
+              className={`px-3 py-1.5 text-xs font-mono rounded-t transition-colors flex items-center gap-1.5 ${
+                activeTab === "documents"
+                  ? "bg-gray-800 text-gray-100 border-b-2 border-purple-500"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Documents
+              {linkedDocs.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                  {linkedDocs.length}
+                </span>
               )}
-              {(task.status === "review" || task.status === "quality_review") && (
-                <button onClick={handleApprove} disabled={saving} className="px-3 py-1.5 text-xs font-mono bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 disabled:opacity-50">
-                  Approve
-                </button>
+            </button>
+            <button
+              onClick={() => setActiveTab("comments")}
+              className={`px-3 py-1.5 text-xs font-mono rounded-t transition-colors flex items-center gap-1.5 ${
+                activeTab === "comments"
+                  ? "bg-gray-800 text-gray-100 border-b-2 border-cyan-500"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Comments
+              {comments.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
+                  {comments.length}
+                </span>
               )}
+            </button>
+          </div>
+        )}
+
+        {/* Details Tab */}
+        {(isCreate || activeTab === "details") && (
+          <div className="space-y-4">
+            <Field label="Title">
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" className="input-field" />
+            </Field>
+
+            <Field label="Description">
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Task description — what needs to be done and why" rows={3} className="input-field resize-none" />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Status">
+                <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)} className="input-field">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Priority">
+                <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} className="input-field">
+                  {PRIORITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </Field>
             </div>
-          )}
 
-          {/* Deliverable Review */}
-          {!isCreate && status === "done" && (
-            <div className="border-t border-gray-800 pt-4">
-              <label className="block text-xs font-medium text-gray-400 mb-2">
-                Deliverables
-              </label>
+            <Field label="Assigned to">
+              <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="input-field">
+                <option value="">Me (Shannon)</option>
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>
+                ))}
+              </select>
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Due Date">
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="input-field" />
+              </Field>
+              <Field label="Project">
+                <input type="text" value={project} onChange={(e) => setProject(e.target.value)} placeholder="Project name" className="input-field" />
+              </Field>
+            </div>
+
+            <Field label="Ticket Ref">
+              <input type="text" value={ticketRef} onChange={(e) => setTicketRef(e.target.value)} placeholder="e.g. GH-123" className="input-field" />
+            </Field>
+
+            <Field label="Output / Deliverable">
+              <textarea value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="Task output, deliverable link, or summary..." rows={2} className="input-field resize-none" />
+            </Field>
+
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="depends-on-shannon" checked={dependsOnShannon} onChange={(e) => setDependsOnShannon(e.target.checked)} className="rounded border-gray-600 bg-gray-800 text-amber-500 focus:ring-amber-500" />
+              <label htmlFor="depends-on-shannon" className="text-sm text-gray-300">Needs my approval</label>
+            </div>
+
+            {/* Review actions */}
+            {!isCreate && (
+              <div className="flex gap-2 pt-2">
+                {task.status !== "review" && task.status !== "done" && (
+                  <button onClick={handleRequestReview} disabled={saving} className="px-3 py-1.5 text-xs font-mono bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 disabled:opacity-50">
+                    Request Review
+                  </button>
+                )}
+                {(task.status === "review" || task.status === "quality_review") && (
+                  <button onClick={handleApprove} disabled={saving} className="px-3 py-1.5 text-xs font-mono bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 disabled:opacity-50">
+                    Approve
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Review status notice for review items */}
+            {!isCreate && (status === "review" || status === "quality_review") && linkedDocs.length === 0 && !loadingDocs && (
+              <div className="px-3 py-2 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                <p className="text-xs text-amber-400 font-medium">No deliverable attached</p>
+                <p className="text-[11px] text-amber-400/70 mt-0.5">
+                  Switch to the Documents tab to link a deliverable for review.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Documents Tab */}
+        {!isCreate && activeTab === "documents" && (
+          <div className="space-y-4">
+            {/* Linked Documents */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-xs font-medium text-gray-400">
+                  Linked Documents
+                  {showDocsSection && (
+                    <span className="ml-2 text-[10px] text-purple-400">(deliverables for review)</span>
+                  )}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleOpenDocPicker}
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 rounded hover:bg-cyan-500/20 transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Link Document
+                </button>
+              </div>
+
               {loadingDocs ? (
-                <p className="text-xs text-gray-500 py-2">Loading deliverables...</p>
+                <p className="text-xs text-gray-500 py-2">Loading documents...</p>
               ) : linkedDocs.length === 0 ? (
-                <p className="text-xs text-gray-600 py-2">No documents found for this task.</p>
+                <div className="text-center py-6 border border-dashed border-gray-700 rounded-lg">
+                  <svg className="w-8 h-8 mx-auto text-gray-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-xs text-gray-600">No documents linked to this task.</p>
+                  {(status === "review" || status === "quality_review") && (
+                    <p className="text-[11px] text-amber-500 mt-1">
+                      Link a deliverable document for the reviewer.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-2">
                   {linkedDocs.map((doc) => (
@@ -319,11 +471,7 @@ export default function TaskEditModal({
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-gray-200">{doc.agentEmoji} {doc.title}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                          doc.reviewStatus === "approved" ? "bg-green-500/20 text-green-400" :
-                          doc.reviewStatus === "needs_changes" ? "bg-amber-500/20 text-amber-400" :
-                          doc.reviewStatus === "reviewed" ? "bg-blue-500/20 text-blue-400" :
-                          doc.reviewStatus === "rejected" ? "bg-red-500/20 text-red-400" :
-                          "bg-gray-700 text-gray-400"
+                          REVIEW_STATUS_COLORS[doc.reviewStatus] || REVIEW_STATUS_COLORS.pending_review
                         }`}>
                           {doc.reviewStatus?.replace(/_/g, " ") || "pending"}
                         </span>
@@ -365,31 +513,83 @@ export default function TaskEditModal({
                 </div>
               )}
             </div>
-          )}
 
-          {/* Comments */}
-          {!isCreate && (
-            <div className="border-t border-gray-800 pt-4">
-              <label className="block text-xs font-medium text-gray-400 mb-2">Comments</label>
-              <div className="space-y-2 max-h-32 overflow-y-auto mb-2">
-                {comments.map((c) => (
-                  <div key={c.id} className="text-sm px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50">
-                    <div className="text-xs text-gray-500 mb-1">
-                      {c.author} &middot; {new Date(c.created_at).toLocaleString()}
-                    </div>
-                    <div className="text-gray-200 whitespace-pre-wrap">{c.content}</div>
+            {/* Document Picker */}
+            {showDocPicker && (
+              <div className="border border-gray-700 rounded-lg p-3 bg-gray-800/30">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-400">Select a document to link</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowDocPicker(false)}
+                    className="text-xs text-gray-500 hover:text-gray-300"
+                  >
+                    Close
+                  </button>
+                </div>
+                {loadingAvailableDocs ? (
+                  <p className="text-xs text-gray-500 py-2">Loading documents...</p>
+                ) : availableDocs.length === 0 ? (
+                  <p className="text-xs text-gray-600 py-2">No additional documents available to link.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {availableDocs.map((doc) => (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => handleLinkDoc(doc)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-left bg-gray-800/50 border border-gray-700/50 rounded hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-colors"
+                      >
+                        <div>
+                          <span className="text-sm text-gray-200">{doc.agentEmoji} {doc.title}</span>
+                          <div className="text-[10px] text-gray-500">{doc.agent} &middot; {doc.type}</div>
+                        </div>
+                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-              <div className="flex gap-2">
-                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm placeholder-gray-500" />
-                <button type="button" onClick={handleAddComment} disabled={!newComment.trim() || addingComment} className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg disabled:opacity-50">
-                  Add
-                </button>
+            )}
+
+            {/* Output / Deliverable summary */}
+            {outcome && (
+              <div className="border-t border-gray-800 pt-3">
+                <label className="block text-xs font-medium text-gray-400 mb-1">Deliverable Summary</label>
+                <div className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 whitespace-pre-wrap">
+                  {outcome}
+                </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Comments Tab */}
+        {!isCreate && activeTab === "comments" && (
+          <div className="space-y-3">
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {comments.length === 0 && (
+                <p className="text-xs text-gray-600 py-4 text-center">No comments yet.</p>
+              )}
+              {comments.map((c) => (
+                <div key={c.id} className="text-sm px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                  <div className="text-xs text-gray-500 mb-1">
+                    {c.author} &middot; {new Date(c.created_at).toLocaleString()}
+                  </div>
+                  <div className="text-gray-200 whitespace-pre-wrap">{c.content}</div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+            <div className="flex gap-2">
+              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm placeholder-gray-500" />
+              <button type="button" onClick={handleAddComment} disabled={!newComment.trim() || addingComment} className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg disabled:opacity-50">
+                Add
+              </button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 px-3 py-2 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-sm">{error}</div>
