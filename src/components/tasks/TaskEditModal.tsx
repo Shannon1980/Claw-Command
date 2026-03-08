@@ -13,9 +13,12 @@ interface TaskComment {
   id: string;
   task_id: string;
   author: string;
+  author_name?: string;
+  author_emoji?: string;
   content: string;
   parent_comment_id?: string | null;
   created_at: string;
+  replies?: TaskComment[];
 }
 
 interface LinkedDoc {
@@ -90,6 +93,7 @@ export default function TaskEditModal({
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [addingComment, setAddingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [reviewingDocId, setReviewingDocId] = useState<string | null>(null);
@@ -104,9 +108,15 @@ export default function TaskEditModal({
   useEffect(() => {
     if (task?.id) {
       fetch(`/api/tasks/${task.id}/comments`)
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load comments");
+          return res.json();
+        })
         .then((data) => setComments(Array.isArray(data) ? data : []))
-        .catch(() => setComments([]));
+        .catch(() => {
+          setComments([]);
+          setCommentError("Could not load comments");
+        });
     }
   }, [task?.id]);
 
@@ -149,6 +159,7 @@ export default function TaskEditModal({
   const handleAddComment = async () => {
     if (!task?.id || !newComment.trim()) return;
     setAddingComment(true);
+    setCommentError(null);
     try {
       const res = await fetch(`/api/tasks/${task.id}/comments`, {
         method: "POST",
@@ -159,8 +170,13 @@ export default function TaskEditModal({
         const c = await res.json();
         setComments((prev) => [...prev, c]);
         setNewComment("");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setCommentError(data.error || `Failed to add comment (HTTP ${res.status})`);
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      setCommentError("Network error — could not add comment");
+    } finally {
       setAddingComment(false);
     }
   };
@@ -345,9 +361,9 @@ export default function TaskEditModal({
               }`}
             >
               Comments
-              {comments.length > 0 && (
+              {countAllComments(comments) > 0 && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
-                  {comments.length}
+                  {countAllComments(comments)}
                 </span>
               )}
             </button>
@@ -607,24 +623,24 @@ export default function TaskEditModal({
         {!isCreate && activeTab === "comments" && (
           <div className="space-y-3">
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {comments.length === 0 && (
+              {comments.length === 0 && !commentError && (
                 <p className="text-xs text-gray-600 py-4 text-center">No comments yet.</p>
               )}
               {comments.map((c) => (
-                <div key={c.id} className="text-sm px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50">
-                  <div className="text-xs text-gray-500 mb-1">
-                    {c.author} &middot; {new Date(c.created_at).toLocaleString()}
-                  </div>
-                  <div className="text-gray-200 whitespace-pre-wrap">{c.content}</div>
-                </div>
+                <CommentItem key={c.id} comment={c} />
               ))}
             </div>
             <div className="flex gap-2">
-              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm placeholder-gray-500" />
+              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 text-sm placeholder-gray-500" />
               <button type="button" onClick={handleAddComment} disabled={!newComment.trim() || addingComment} className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg disabled:opacity-50">
-                Add
+                {addingComment ? "Adding..." : "Add"}
               </button>
             </div>
+            {commentError && (
+              <div className="px-3 py-2 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-xs">
+                {commentError}
+              </div>
+            )}
           </div>
         )}
 
@@ -668,6 +684,33 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
       {children}
+    </div>
+  );
+}
+
+function countAllComments(comments: TaskComment[]): number {
+  return comments.reduce(
+    (sum, c) => sum + 1 + (c.replies ? countAllComments(c.replies) : 0),
+    0
+  );
+}
+
+function CommentItem({ comment, depth = 0 }: { comment: TaskComment; depth?: number }) {
+  return (
+    <div style={depth > 0 ? { marginLeft: 16 } : undefined}>
+      <div className="text-sm px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50">
+        <div className="text-xs text-gray-500 mb-1">
+          {comment.author_emoji ?? "👤"} {comment.author_name ?? comment.author} &middot; {new Date(comment.created_at).toLocaleString()}
+        </div>
+        <div className="text-gray-200 whitespace-pre-wrap">{comment.content}</div>
+      </div>
+      {comment.replies && comment.replies.length > 0 && depth < 5 && (
+        <div className="mt-1 space-y-1 border-l border-gray-700 ml-2 pl-2">
+          {comment.replies.map((reply) => (
+            <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
