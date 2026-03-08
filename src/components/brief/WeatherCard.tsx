@@ -5,7 +5,7 @@ import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
 import WeatherForecastModal from "./WeatherForecastModal";
 
 export default function WeatherCard() {
-  const { weather, forecast, loading, error } = useWeather();
+  const { weather, forecast, hourly, loading, error } = useWeather();
   const [modalOpen, setModalOpen] = useState(false);
 
   if (loading) {
@@ -61,6 +61,7 @@ export default function WeatherCard() {
         onClose={() => setModalOpen(false)}
         weather={weather}
         forecast={forecast}
+        hourly={hourly}
       />
     </>
   );

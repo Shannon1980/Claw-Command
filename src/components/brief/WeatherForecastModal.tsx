@@ -1,13 +1,17 @@
 "use client";
 
-import type { ForecastDay, WeatherData } from "@/lib/hooks/useWeather";
+import { useState } from "react";
+import type { ForecastDay, HourlyForecast, WeatherData } from "@/lib/hooks/useWeather";
 import { getWeatherEmoji } from "@/lib/hooks/useWeather";
+
+type ModalTab = "hourly" | "10day";
 
 interface WeatherForecastModalProps {
   isOpen: boolean;
   onClose: () => void;
   weather: WeatherData | null;
   forecast: ForecastDay[];
+  hourly: HourlyForecast[];
 }
 
 function formatDayName(dateStr: string, index: number): string {
@@ -27,12 +31,24 @@ function formatTime(isoStr: string): string {
   return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+function formatHour(isoStr: string): string {
+  const date = new Date(isoStr);
+  const now = new Date();
+  if (date.getHours() === now.getHours() && date.getDate() === now.getDate()) {
+    return "Now";
+  }
+  return date.toLocaleTimeString("en-US", { hour: "numeric" });
+}
+
 export default function WeatherForecastModal({
   isOpen,
   onClose,
   weather,
   forecast,
+  hourly,
 }: WeatherForecastModalProps) {
+  const [activeTab, setActiveTab] = useState<ModalTab>("hourly");
+
   if (!isOpen) return null;
 
   return (
@@ -146,66 +162,150 @@ export default function WeatherForecastModal({
           </div>
         )}
 
-        {/* 10-Day Forecast */}
-        <div className="px-5 py-4">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            10-Day Forecast
-          </h3>
-
-          <div className="space-y-1">
-            {forecast.map((day, i) => (
-              <div
-                key={day.date}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-900/50 transition-colors"
-              >
-                {/* Day name */}
-                <div className="w-10 text-sm font-medium text-gray-300 shrink-0">
-                  {formatDayName(day.date, i)}
-                </div>
-
-                {/* Date */}
-                <div className="w-12 text-xs text-gray-500 shrink-0">
-                  {formatDateShort(day.date)}
-                </div>
-
-                {/* Weather icon */}
-                <div className="w-8 text-center text-lg shrink-0">
-                  {getWeatherEmoji(day.icon)}
-                </div>
-
-                {/* Precipitation */}
-                <div className="w-10 text-xs text-blue-400 shrink-0 text-right">
-                  {day.precipitationProbability > 0
-                    ? `${day.precipitationProbability}%`
-                    : ""}
-                </div>
-
-                {/* Temperature bar */}
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-xs text-gray-500 w-8 text-right">
-                    {day.low}&deg;
-                  </span>
-                  <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden relative">
-                    <TempBar
-                      low={day.low}
-                      high={day.high}
-                      minTemp={Math.min(...forecast.map((d) => d.low))}
-                      maxTemp={Math.max(...forecast.map((d) => d.high))}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-gray-200 w-8">
-                    {day.high}&deg;
-                  </span>
-                </div>
-
-                {/* Wind */}
-                <div className="w-14 text-right text-[10px] text-gray-600 shrink-0">
-                  {day.windSpeedMax} mph
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Tab Switcher */}
+        <div className="px-5 pt-4 pb-2 flex gap-2">
+          <button
+            onClick={() => setActiveTab("hourly")}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === "hourly"
+                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
+            }`}
+          >
+            Hourly
+          </button>
+          <button
+            onClick={() => setActiveTab("10day")}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === "10day"
+                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
+            }`}
+          >
+            10-Day
+          </button>
         </div>
+
+        {/* Hourly Forecast */}
+        {activeTab === "hourly" && (
+          <div className="px-5 py-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Next 24 Hours
+            </h3>
+
+            {/* Scrollable horizontal strip */}
+            <div className="flex gap-1 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin scrollbar-thumb-gray-700">
+              {hourly.map((h) => (
+                <div
+                  key={h.time}
+                  className="flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-lg bg-gray-900/50 shrink-0 min-w-[60px]"
+                >
+                  <span className="text-[10px] text-gray-500 font-medium">
+                    {formatHour(h.time)}
+                  </span>
+                  <span className="text-base">{getWeatherEmoji(h.icon)}</span>
+                  <span className="text-sm font-semibold text-gray-200">
+                    {h.temperature}&deg;
+                  </span>
+                  {h.precipitationProbability > 0 && (
+                    <span className="text-[10px] text-blue-400">
+                      {h.precipitationProbability}%
+                    </span>
+                  )}
+                  <span className="text-[10px] text-gray-600">
+                    {h.windSpeed} mph
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Detailed hourly list */}
+            <div className="mt-4 space-y-0.5">
+              {hourly.map((h) => (
+                <div
+                  key={h.time + "-row"}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-900/50 transition-colors"
+                >
+                  <div className="w-12 text-xs font-medium text-gray-400 shrink-0">
+                    {formatHour(h.time)}
+                  </div>
+                  <div className="w-6 text-center text-sm shrink-0">
+                    {getWeatherEmoji(h.icon)}
+                  </div>
+                  <div className="w-10 text-sm font-semibold text-gray-200 shrink-0">
+                    {h.temperature}&deg;
+                  </div>
+                  <div className="flex-1 text-xs text-gray-500 truncate">
+                    {h.description}
+                  </div>
+                  <div className="w-10 text-xs text-blue-400 text-right shrink-0">
+                    {h.precipitationProbability > 0
+                      ? `${h.precipitationProbability}%`
+                      : ""}
+                  </div>
+                  <div className="w-12 text-[10px] text-gray-600 text-right shrink-0">
+                    {h.windSpeed} mph
+                  </div>
+                  <div className="w-12 text-[10px] text-gray-600 text-right shrink-0">
+                    {h.humidity}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 10-Day Forecast */}
+        {activeTab === "10day" && (
+          <div className="px-5 py-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              10-Day Forecast
+            </h3>
+
+            <div className="space-y-1">
+              {forecast.map((day, i) => (
+                <div
+                  key={day.date}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-900/50 transition-colors"
+                >
+                  <div className="w-10 text-sm font-medium text-gray-300 shrink-0">
+                    {formatDayName(day.date, i)}
+                  </div>
+                  <div className="w-12 text-xs text-gray-500 shrink-0">
+                    {formatDateShort(day.date)}
+                  </div>
+                  <div className="w-8 text-center text-lg shrink-0">
+                    {getWeatherEmoji(day.icon)}
+                  </div>
+                  <div className="w-10 text-xs text-blue-400 shrink-0 text-right">
+                    {day.precipitationProbability > 0
+                      ? `${day.precipitationProbability}%`
+                      : ""}
+                  </div>
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-8 text-right">
+                      {day.low}&deg;
+                    </span>
+                    <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden relative">
+                      <TempBar
+                        low={day.low}
+                        high={day.high}
+                        minTemp={Math.min(...forecast.map((d) => d.low))}
+                        maxTemp={Math.max(...forecast.map((d) => d.high))}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-200 w-8">
+                      {day.high}&deg;
+                    </span>
+                  </div>
+                  <div className="w-14 text-right text-[10px] text-gray-600 shrink-0">
+                    {day.windSpeedMax} mph
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-800/50 text-[10px] text-gray-600 text-center">

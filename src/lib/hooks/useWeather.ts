@@ -28,10 +28,23 @@ export interface ForecastDay {
   sunset: string;
 }
 
+export interface HourlyForecast {
+  time: string;
+  temperature: number;
+  feelsLike: number;
+  humidity: number;
+  precipitationProbability: number;
+  weatherCode: number;
+  description: string;
+  icon: string;
+  windSpeed: number;
+}
+
 const BURTONSVILLE_LAT = 39.11;
 const BURTONSVILLE_LON = -76.93;
 const CACHE_KEY = "weather_cache";
 const FORECAST_CACHE_KEY = "weather_forecast_cache";
+const HOURLY_CACHE_KEY = "weather_hourly_cache";
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 function weatherCodeToInfo(code: number): { description: string; icon: string } {
@@ -81,6 +94,7 @@ export function getWeatherEmoji(icon: string): string {
 export function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [forecast, setForecast] = useState<ForecastDay[]>([]);
+  const [hourly, setHourly] = useState<HourlyForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,12 +104,15 @@ export function useWeather() {
       try {
         const cached = localStorage.getItem(CACHE_KEY);
         const cachedForecast = localStorage.getItem(FORECAST_CACHE_KEY);
-        if (cached && cachedForecast) {
+        const cachedHourly = localStorage.getItem(HOURLY_CACHE_KEY);
+        if (cached && cachedForecast && cachedHourly) {
           const { data, timestamp } = JSON.parse(cached);
           const { data: forecastData, timestamp: fTimestamp } = JSON.parse(cachedForecast);
-          if (Date.now() - timestamp < CACHE_TTL && Date.now() - fTimestamp < CACHE_TTL) {
+          const { data: hourlyData, timestamp: hTimestamp } = JSON.parse(cachedHourly);
+          if (Date.now() - timestamp < CACHE_TTL && Date.now() - fTimestamp < CACHE_TTL && Date.now() - hTimestamp < CACHE_TTL) {
             setWeather(data);
             setForecast(forecastData);
+            setHourly(hourlyData);
             setLoading(false);
             return;
           }
@@ -105,7 +122,7 @@ export function useWeather() {
       }
 
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${BURTONSVILLE_LAT}&longitude=${BURTONSVILLE_LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=10`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${BURTONSVILLE_LAT}&longitude=${BURTONSVILLE_LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=10`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("Weather API error");
         const json = await res.json();
@@ -143,10 +160,32 @@ export function useWeather() {
           };
         });
 
+        const hourlyRaw = json.hourly;
+        const now = new Date();
+        const hourlyData: HourlyForecast[] = hourlyRaw.time
+          .map((time: string, i: number) => {
+            const hourInfo = weatherCodeToInfo(hourlyRaw.weather_code[i]);
+            return {
+              time,
+              temperature: Math.round(hourlyRaw.temperature_2m[i]),
+              feelsLike: Math.round(hourlyRaw.apparent_temperature[i]),
+              humidity: hourlyRaw.relative_humidity_2m[i],
+              precipitationProbability: hourlyRaw.precipitation_probability?.[i] ?? 0,
+              weatherCode: hourlyRaw.weather_code[i],
+              description: hourInfo.description,
+              icon: hourInfo.icon,
+              windSpeed: Math.round(hourlyRaw.wind_speed_10m[i]),
+            };
+          })
+          .filter((h: HourlyForecast) => new Date(h.time) >= now)
+          .slice(0, 24);
+
         setWeather(data);
         setForecast(forecastData);
+        setHourly(hourlyData);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
         localStorage.setItem(FORECAST_CACHE_KEY, JSON.stringify({ data: forecastData, timestamp: Date.now() }));
+        localStorage.setItem(HOURLY_CACHE_KEY, JSON.stringify({ data: hourlyData, timestamp: Date.now() }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch weather");
       } finally {
@@ -159,5 +198,5 @@ export function useWeather() {
     return () => clearInterval(interval);
   }, []);
 
-  return { weather, forecast, loading, error };
+  return { weather, forecast, hourly, loading, error };
 }
