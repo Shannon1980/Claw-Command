@@ -17,7 +17,10 @@ async function ensureSchema() {
 
 export async function GET(_request: NextRequest) {
   if (!pool) {
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
   }
 
   try {
@@ -53,6 +56,9 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json(rows);
   } catch (error) {
     console.error("[Sessions API] Error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to fetch sessions" },
+      { status: 500 }
+    );
   }
 }

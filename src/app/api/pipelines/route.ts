@@ -29,7 +29,7 @@ async function ensureSchema() {
 }
 
 export async function GET() {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     await ensureSchema();
@@ -39,7 +39,7 @@ export async function GET() {
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error("[Pipelines API] GET error:", error);
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
   }
 }
 

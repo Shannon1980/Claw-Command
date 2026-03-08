@@ -19,38 +19,37 @@ export async function GET(request: NextRequest) {
   const startParam = searchParams.get("start");
   const endParam = searchParams.get("end");
 
-  try {
-    if (pool) {
-      let query = `SELECT id, title, domain, start_time, end_time, protected, description
-                   FROM calendar_events`;
-      const params: string[] = [];
-
-      if (startParam && endParam) {
-        query += ` WHERE start_time < $2 AND end_time > $1`;
-        params.push(startParam, endParam);
-      }
-
-      query += ` ORDER BY start_time ASC`;
-
-      const result = await pool.query(query, params.length > 0 ? params : undefined);
-
-      if (result.rows.length > 0) {
-        const events = result.rows.map((row) => {
-          const e = rowToEvent(row);
-          return {
-            ...e,
-            startTime: new Date(e.startTime as string),
-            endTime: new Date(e.endTime as string),
-          };
-        });
-        return NextResponse.json(events);
-      }
-    }
-  } catch (error) {
-    console.error("[Calendar Events API] Error:", error);
+  if (!pool) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
 
-  return NextResponse.json([]);
+  try {
+    let query = `SELECT id, title, domain, start_time, end_time, protected, description
+                 FROM calendar_events`;
+    const params: string[] = [];
+
+    if (startParam && endParam) {
+      query += ` WHERE start_time < $2 AND end_time > $1`;
+      params.push(startParam, endParam);
+    }
+
+    query += ` ORDER BY start_time ASC`;
+
+    const result = await pool.query(query, params.length > 0 ? params : undefined);
+
+    const events = result.rows.map((row) => {
+      const e = rowToEvent(row);
+      return {
+        ...e,
+        startTime: new Date(e.startTime as string),
+        endTime: new Date(e.endTime as string),
+      };
+    });
+    return NextResponse.json(events);
+  } catch (error) {
+    console.error("[Calendar Events API] Error:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {

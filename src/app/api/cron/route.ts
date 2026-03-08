@@ -52,7 +52,7 @@ function mapRow(row: Record<string, unknown>) {
 }
 
 export async function GET() {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     await ensureSchema();
@@ -62,7 +62,7 @@ export async function GET() {
     return NextResponse.json(result.rows.map(mapRow));
   } catch (error) {
     console.error("[Cron API] GET error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
   }
 }
 

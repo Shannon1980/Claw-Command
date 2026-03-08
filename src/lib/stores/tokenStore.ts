@@ -88,10 +88,15 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
     try {
       const params = buildDateParams(get().dateRange);
       const res = await fetch(`/api/tokens/summary${params ? `?${params}` : ""}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        set({ error: `Failed to fetch token summary (${res.status})` });
+        return;
+      }
       const data = await res.json();
-      set({ summary: data });
-    } catch { /* silent */ }
+      set({ summary: data, error: null });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "Failed to fetch token summary" });
+    }
   },
 
   fetchByAgent: async () => {
@@ -101,7 +106,7 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
       if (!res.ok) return;
       const data = await res.json();
       set({ byAgent: Array.isArray(data) ? data : [] });
-    } catch { /* silent */ }
+    } catch { /* non-critical */ }
   },
 
   fetchByModel: async () => {
@@ -111,7 +116,7 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
       if (!res.ok) return;
       const data = await res.json();
       set({ byModel: Array.isArray(data) ? data : [] });
-    } catch { /* silent */ }
+    } catch { /* non-critical */ }
   },
 
   fetchDaily: async (days = 30) => {
@@ -127,7 +132,7 @@ export const useTokenStore = create<TokenStore>()((set, get) => ({
       if (!res.ok) return;
       const data = await res.json();
       set({ daily: Array.isArray(data) ? data : [] });
-    } catch { /* silent */ }
+    } catch { /* non-critical */ }
   },
 
   fetchAll: async (overrideRange?: DateRange | null) => {

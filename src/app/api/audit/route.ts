@@ -21,13 +21,13 @@ async function ensureSchema() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     await ensureSchema();
   } catch (err) {
     console.error("[Audit API] Schema error:", err);
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to fetch data" }, { status: 500 });
   }
 
   const searchParams = request.nextUrl.searchParams;

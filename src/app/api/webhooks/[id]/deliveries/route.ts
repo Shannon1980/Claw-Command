@@ -7,7 +7,7 @@ export async function GET(
 ) {
   const { id: webhookId } = await context.params;
 
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     const result = await pool.query(

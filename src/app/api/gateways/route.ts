@@ -2,7 +2,7 @@ import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     const result = await pool.query(`SELECT * FROM gateways ORDER BY created_at DESC`);

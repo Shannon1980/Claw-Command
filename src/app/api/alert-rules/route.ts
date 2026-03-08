@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { emitNotification } from "@/lib/events/emitActivity";
 
 export async function GET() {
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     const result = await pool.query(`SELECT * FROM alert_rules ORDER BY name`);

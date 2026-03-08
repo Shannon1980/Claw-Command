@@ -7,7 +7,7 @@ export async function GET(
 ) {
   const { id } = await context.params;
 
-  if (!pool) return NextResponse.json([]);
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   try {
     const result = await pool.query(
@@ -25,7 +25,7 @@ export async function GET(
       completedAt: r.completed_at,
       durationMs: r.duration_ms,
     })));
-  } catch {
-    return NextResponse.json([]);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
   }
 }

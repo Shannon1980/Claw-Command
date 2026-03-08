@@ -18,6 +18,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(res.rows);
   } catch (err) {
     console.error("[Email API] List actions error:", err);
-    return NextResponse.json([]);
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to fetch data" }, { status: 500 });
   }
 }

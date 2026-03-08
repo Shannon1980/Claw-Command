@@ -20,7 +20,10 @@ async function ensureSchema() {
 
 export async function GET() {
   if (!pool) {
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
   }
 
   try {
@@ -41,7 +44,10 @@ export async function GET() {
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error("[Agents GET] Error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to fetch agents" },
+      { status: 500 }
+    );
   }
 }
 

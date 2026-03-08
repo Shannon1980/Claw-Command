@@ -23,7 +23,10 @@ function mapRow(row: Record<string, unknown>) {
 
 export async function GET(request: NextRequest) {
   if (!pool) {
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
   }
 
   const { searchParams } = new URL(request.url);
@@ -69,6 +72,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result.rows.map(mapRow));
   } catch (error) {
     console.error("[Logs API] Error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to fetch logs" },
+      { status: 500 }
+    );
   }
 }

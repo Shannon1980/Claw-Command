@@ -3,20 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
   if (!pool) {
-    return NextResponse.json({
-      activeSessions: 0,
-      totalSessions: 0,
-      agentsOnline: 0,
-      totalAgents: 0,
-      tasksRunning: 0,
-      totalTasks: 0,
-      errors24h: 0,
-      auditEvents24h: 0,
-      auditEvents7d: 0,
-      webhooksConfigured: 0,
-      unreadNotifications: 0,
-      tasksByStatus: {},
-    });
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
   }
 
   try {
@@ -84,19 +74,9 @@ export async function GET(_request: NextRequest) {
     });
   } catch (error) {
     console.error("[Overview Stats] Error:", error);
-    return NextResponse.json({
-      activeSessions: 0,
-      totalSessions: 0,
-      agentsOnline: 0,
-      totalAgents: 0,
-      tasksRunning: 0,
-      totalTasks: 0,
-      errors24h: 0,
-      auditEvents24h: 0,
-      auditEvents7d: 0,
-      webhooksConfigured: 0,
-      unreadNotifications: 0,
-      tasksByStatus: {},
-    });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to fetch stats" },
+      { status: 500 }
+    );
   }
 }
