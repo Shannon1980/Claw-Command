@@ -13,9 +13,44 @@ const EXCLUDED_FILES = [
   "HEARTBEAT.md",
 ];
 
+// Repo documentation files that should NOT appear as business documents
+const EXCLUDED_REPO_FILES = [
+  "README.md", "readme.md", "Readme.md",
+  "CONTRIBUTING.md", "contributing.md",
+  "LICENSE.md", "license.md", "LICENSE",
+  "CHANGELOG.md", "changelog.md", "CHANGES.md",
+  "CODE_OF_CONDUCT.md", "SECURITY.md",
+  "PULL_REQUEST_TEMPLATE.md", "ISSUE_TEMPLATE.md",
+  "TODO.md", "ROADMAP.md", "ARCHITECTURE.md",
+  "INSTALL.md", "SETUP.md", "DEVELOPMENT.md",
+  "DEPLOY.md", "MIGRATION.md",
+  ".gitignore", ".eslintrc", ".prettierrc",
+  "package.json", "tsconfig.json",
+];
+
+// Filename patterns that indicate repo/technical docs rather than business docs
+const REPO_DOC_PATTERNS = [
+  /^api-/i,              // API documentation
+  /^component/i,         // Component docs
+  /^implementation/i,    // Implementation notes
+  /^spec-/i,             // Technical specifications
+  /^design-/i,           // Technical design docs
+  /^checklist-/i,        // Dev checklists
+  /^agent-/i,            // Agent system configs
+  /^subagent-/i,         // Subagent definitions
+  /^dashboard-/i,        // Dashboard configs
+  /^task-/i,             // Task system definitions
+  /^sam-/i,              // SAM system docs
+  /^\./, // Hidden/dot files
+];
+
+function isRepoDoc(filename: string): boolean {
+  if (EXCLUDED_REPO_FILES.includes(filename)) return true;
+  return REPO_DOC_PATTERNS.some((pattern) => pattern.test(filename));
+}
+
 function guessAgent(filename: string, content: string): string {
   const fn = filename.toLowerCase();
-  const c = (content || "").toLowerCase().slice(0, 500);
   if (fn.includes("cpars") || fn.includes("seas") || fn.includes("skyward"))
     return "skylar";
   if (
@@ -39,27 +74,6 @@ function guessAgent(filename: string, content: string): string {
     fn.includes("competitive")
   )
     return "bertha";
-  if (
-    fn.includes("safe") ||
-    fn.includes("itbiz") ||
-    fn.includes("lesson") ||
-    fn.includes("teaching")
-  )
-    return "bob";
-  if (
-    fn.includes("agent") ||
-    fn.includes("subagent") ||
-    fn.includes("dashboard") ||
-    fn.includes("task")
-  )
-    return "bob";
-  if (
-    fn.includes("api-") ||
-    fn.includes("component") ||
-    fn.includes("implementation") ||
-    fn.includes("sam-")
-  )
-    return "forge";
   if (fn.includes("depa")) return "depa";
   if (
     fn.includes("pta") ||
@@ -88,26 +102,9 @@ function guessType(filename: string): string {
     return "certification_doc";
   if (fn.includes("cpars") || fn.includes("report") || fn.includes("seas"))
     return "report";
-  if (
-    fn.includes("spec") ||
-    fn.includes("api-") ||
-    fn.includes("design") ||
-    fn.includes("checklist")
-  )
-    return "reference";
-  if (
-    fn.includes("safe") ||
-    fn.includes("lesson") ||
-    fn.includes("teaching")
-  )
-    return "teaching";
-  if (
-    fn.includes("agent") ||
-    fn.includes("task") ||
-    fn.includes("dashboard")
-  )
-    return "internal";
-  return "document";
+  if (fn.includes("template"))
+    return "template";
+  return "report";
 }
 
 function guessStatus(content: string): string {
@@ -166,7 +163,8 @@ export async function POST(request: NextRequest) {
       .filter(
         (f) =>
           (f.endsWith(".md") || f.endsWith(".txt")) &&
-          !EXCLUDED_FILES.includes(f)
+          !EXCLUDED_FILES.includes(f) &&
+          !isRepoDoc(f)
       );
 
     const docs = files.map((f) => {
