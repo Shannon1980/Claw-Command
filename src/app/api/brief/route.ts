@@ -1,10 +1,27 @@
 import { pool } from "@/lib/db/client";
 import { NextResponse } from "next/server";
-import type {
-  OvernightSummary,
-  DomainStatus,
-  Priority,
-} from "@/lib/mock-brief";
+
+interface OvernightSummary {
+  tasksCompleted: number;
+  newAlerts: number;
+  pendingApprovals: number;
+}
+
+interface DomainStatus {
+  name: string;
+  icon: string;
+  activeTasks: number;
+  blockers: string[];
+  keyUpdates: string[];
+}
+
+interface Priority {
+  id: string;
+  title: string;
+  domain: string;
+  urgency: "critical" | "high" | "medium";
+  dueDate?: string;
+}
 
 
 const DOMAIN_CONFIG: Record<string, { name: string; icon: string }> = {

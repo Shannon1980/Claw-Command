@@ -178,4 +178,4 @@ Tasks can be pushed to AI agents via the OpenClaw gateway for execution. Convers
 
 ## Navigation
 
-Tasks appears in the main **COMMAND** section of the sidebar navigation (`src/components/layout/Navigation.tsx`) with a checklist icon, alongside Overview, Daily Brief, Agents, Chat, Email, Docs, and Ops Brief.
+Tasks appears in the main **COMMAND** section of the sidebar navigation (`src/components/layout/Navigation.tsx`) with a checklist icon, alongside Overview, Daily Brief, Agents, Chat, Email, and Docs.

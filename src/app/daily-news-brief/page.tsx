@@ -11,7 +11,7 @@ import type {
   DailyNewsBriefData,
 } from "@/lib/hooks/useNewsBrief";
 import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
-import WeatherForecastModal from "@/components/brief/WeatherForecastModal";
+import WeatherForecastModal from "@/components/weather/WeatherForecastModal";
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
