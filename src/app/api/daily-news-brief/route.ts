@@ -186,7 +186,7 @@ async function fetchAllLiveNews() {
       usNews: [] as NewsItem[],
       technologyNews: [] as NewsItem[],
       businessNews: [] as NewsItem[],
-      scienceNews: [] as NewsItem[],
+      entertainmentNews: [] as NewsItem[],
       healthNews: [] as NewsItem[],
       redditNews: redditResult.items,
       hackerNews: hackerNewsResult.items,
@@ -194,13 +194,13 @@ async function fetchAllLiveNews() {
     };
   }
 
-  const [aiResult, generalResult, technologyResult, businessResult, scienceResult, healthResult] =
+  const [aiResult, generalResult, technologyResult, businessResult, entertainmentResult, healthResult] =
     await Promise.all([
       fetchAINews(),
       fetchCategoryNews("general"),
       fetchCategoryNews("technology"),
       fetchCategoryNews("business"),
-      fetchCategoryNews("science"),
+      fetchCategoryNews("entertainment"),
       fetchCategoryNews("health"),
     ]);
 
@@ -208,7 +208,7 @@ async function fetchAllLiveNews() {
   if (generalResult.error) newsErrors.push(`Headlines: ${generalResult.error}`);
   if (technologyResult.error) newsErrors.push(`Technology: ${technologyResult.error}`);
   if (businessResult.error) newsErrors.push(`Business: ${businessResult.error}`);
-  if (scienceResult.error) newsErrors.push(`Science: ${scienceResult.error}`);
+  if (entertainmentResult.error) newsErrors.push(`Entertainment: ${entertainmentResult.error}`);
   if (healthResult.error) newsErrors.push(`Health: ${healthResult.error}`);
 
   return {
@@ -217,7 +217,7 @@ async function fetchAllLiveNews() {
     usNews: generalResult.items.slice(0, 5),
     technologyNews: technologyResult.items,
     businessNews: businessResult.items,
-    scienceNews: scienceResult.items,
+    entertainmentNews: entertainmentResult.items,
     healthNews: healthResult.items,
     redditNews: redditResult.items,
     hackerNews: hackerNewsResult.items,
@@ -302,7 +302,7 @@ export async function GET(request: NextRequest) {
       localNews: [],
       technologyNews: liveNews.technologyNews,
       businessNews: liveNews.businessNews,
-      scienceNews: liveNews.scienceNews,
+      entertainmentNews: liveNews.entertainmentNews,
       healthNews: liveNews.healthNews,
       redditNews: liveNews.redditNews,
       hackerNews: liveNews.hackerNews,
@@ -343,7 +343,7 @@ export async function GET(request: NextRequest) {
         localNews: [] as NewsItem[],
         technologyNews: liveNews.technologyNews,
         businessNews: liveNews.businessNews,
-        scienceNews: liveNews.scienceNews,
+        entertainmentNews: liveNews.entertainmentNews,
         healthNews: liveNews.healthNews,
         redditNews: liveNews.redditNews,
         hackerNews: liveNews.hackerNews,
@@ -377,7 +377,7 @@ export async function GET(request: NextRequest) {
       localNews: row.local_news || [],
       technologyNews: row.world_news?.filter((n: NewsItem) => n.category === "technology") || [],
       businessNews: row.world_news?.filter((n: NewsItem) => n.category === "business") || [],
-      scienceNews: row.world_news?.filter((n: NewsItem) => n.category === "science") || [],
+      entertainmentNews: row.world_news?.filter((n: NewsItem) => n.category === "entertainment") || [],
       healthNews: row.world_news?.filter((n: NewsItem) => n.category === "health") || [],
       redditNews: redditResult.status === "fulfilled" ? redditResult.value : [],
       hackerNews: hnResult.status === "fulfilled" ? hnResult.value : [],
@@ -402,7 +402,7 @@ export async function GET(request: NextRequest) {
       localNews: [],
       technologyNews: [] as NewsItem[],
       businessNews: [] as NewsItem[],
-      scienceNews: [] as NewsItem[],
+      entertainmentNews: [] as NewsItem[],
       healthNews: [] as NewsItem[],
       redditNews: [] as RedditNewsItem[],
       hackerNews: [] as HackerNewsItem[],
@@ -451,7 +451,7 @@ export async function POST(request: NextRequest) {
         ...liveNews.worldNews,
         ...liveNews.technologyNews,
         ...liveNews.businessNews,
-        ...liveNews.scienceNews,
+        ...liveNews.entertainmentNews,
         ...liveNews.healthNews,
       ];
     const usNews = (body.usNews as NewsItem[]) || liveNews.usNews;

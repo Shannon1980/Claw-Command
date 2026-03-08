@@ -273,12 +273,22 @@ function NewsCard({ item }: { item: NewsItem }) {
               {item.source}
             </span>
           </div>
+          <div className="flex items-center gap-2 mt-2">
+            {item.publishedAt && (
+              <span className="text-[10px] text-gray-500">
+                {new Date(item.publishedAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+            )}
           {item.url && (
             <a
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 mt-2 text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
             >
               Read full article
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -286,6 +296,7 @@ function NewsCard({ item }: { item: NewsItem }) {
               </svg>
             </a>
           )}
+          </div>
         </div>
       </div>
     </div>
@@ -782,19 +793,19 @@ export default function DailyNewsBriefPage() {
               )}
             </Section>
 
-            {/* ── Science News ── */}
+            {/* ── Entertainment News ── */}
             <Section
-              title="Science"
-              icon="🔬"
-              badge={`${data.scienceNews?.length || 0} items`}
+              title="Entertainment"
+              icon="🎬"
+              badge={`${data.entertainmentNews?.length || 0} items`}
               defaultOpen={false}
               priority="medium"
             >
-              {!data.scienceNews?.length ? (
-                <p className="text-xs text-gray-500">No science news available</p>
+              {!data.entertainmentNews?.length ? (
+                <p className="text-xs text-gray-500">No entertainment news available</p>
               ) : (
                 <div className="space-y-2">
-                  {data.scienceNews.map((item, i) => (
+                  {data.entertainmentNews.map((item, i) => (
                     <NewsCard key={i} item={item} />
                   ))}
                 </div>
