@@ -51,7 +51,7 @@ export const NEWS_CATEGORIES = [
   "business",
   "technology",
   "science",
-  "health",
+  "politics",
   "sports",
   "entertainment",
 ] as const;
@@ -90,7 +90,7 @@ const GNEWS_CATEGORY_MAP: Record<string, string> = {
   business: "business",
   technology: "technology",
   science: "science",
-  health: "health",
+  politics: "nation",
   sports: "sports",
   entertainment: "entertainment",
 };
@@ -161,7 +161,7 @@ const GUARDIAN_SECTION_MAP: Record<string, string> = {
   business: "business",
   technology: "technology",
   science: "science",
-  health: "society",
+  politics: "politics",
   sports: "sport",
   entertainment: "culture",
 };

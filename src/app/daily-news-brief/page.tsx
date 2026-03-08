@@ -846,19 +846,19 @@ export default function DailyNewsBriefPage() {
               )}
             </Section>
 
-            {/* ── Health News ── */}
+            {/* ── Politics News (Iran / Middle East) ── */}
             <Section
-              title="Health"
-              icon="🏥"
-              badge={`${data.healthNews?.length || 0} items`}
-              defaultOpen={false}
-              priority="medium"
+              title="Politics"
+              icon="🏛️"
+              badge={`${data.politicsNews?.length || 0} items`}
+              defaultOpen={true}
+              priority="high"
             >
-              {!data.healthNews?.length ? (
-                <p className="text-xs text-gray-500">No health news available</p>
+              {!data.politicsNews?.length ? (
+                <p className="text-xs text-gray-500">No politics news available</p>
               ) : (
                 <div className="space-y-2">
-                  {data.healthNews.map((item, i) => (
+                  {data.politicsNews.map((item, i) => (
                     <NewsCard key={i} item={item} />
                   ))}
                 </div>

@@ -67,7 +67,7 @@ export interface DailyNewsBriefData {
   technologyNews: NewsItem[];
   businessNews: NewsItem[];
   entertainmentNews: NewsItem[];
-  healthNews: NewsItem[];
+  politicsNews: NewsItem[];
   redditNews: RedditNewsItem[];
   hackerNews: HackerNewsItem[];
   standupSummary: {
@@ -106,7 +106,7 @@ const EMPTY_DATA: DailyNewsBriefData = {
   technologyNews: [],
   businessNews: [],
   entertainmentNews: [],
-  healthNews: [],
+  politicsNews: [],
   redditNews: [],
   hackerNews: [],
   standupSummary: null,

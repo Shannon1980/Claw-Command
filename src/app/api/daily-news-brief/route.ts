@@ -108,6 +108,9 @@ function mapArticleToNewsItem(
 const AI_SEARCH_TERMS =
   "artificial intelligence OR machine learning OR ChatGPT OR GPT OR LLM OR generative AI OR Claude OR OpenAI OR deep learning";
 
+const POLITICS_SEARCH_TERMS =
+  "Iran war OR Iran conflict OR Iran sanctions OR Iran military OR Iran nuclear OR US Iran relations OR Middle East conflict Iran";
+
 interface FetchResult {
   items: NewsItem[];
   error?: string;
@@ -130,8 +133,36 @@ async function fetchAINews(): Promise<FetchResult> {
   }
 }
 
+async function fetchPoliticsNews(): Promise<FetchResult> {
+  try {
+    // Fetch both category-based politics and Iran-specific search results
+    const [categoryRes, searchRes] = await Promise.all([
+      fetchCategoryNews("politics"),
+      searchNews(POLITICS_SEARCH_TERMS, { sortBy: "publishedAt", pageSize: 10 }),
+    ]);
+    const searchItems = searchRes.articles
+      .filter((a) => a.title !== "[Removed]")
+      .map((a) => mapArticleToNewsItem(a, "politics"));
+    // Merge: Iran-specific results first, then general politics, deduplicated
+    const seen = new Set<string>();
+    const merged: NewsItem[] = [];
+    for (const item of [...searchItems, ...categoryRes.items]) {
+      const key = item.title.toLowerCase().slice(0, 60);
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(item);
+      }
+    }
+    return { items: merged, error: categoryRes.error };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[DailyNewsBrief] Politics news fetch failed:", msg);
+    return { items: [], error: msg };
+  }
+}
+
 async function fetchCategoryNews(
-  category: "general" | "business" | "technology" | "science" | "health" | "sports" | "entertainment"
+  category: "general" | "business" | "technology" | "science" | "politics" | "sports" | "entertainment"
 ): Promise<FetchResult> {
   try {
     const res = await fetchTopHeadlines({ category, pageSize: 10 });
@@ -187,21 +218,21 @@ async function fetchAllLiveNews() {
       technologyNews: [] as NewsItem[],
       businessNews: [] as NewsItem[],
       entertainmentNews: [] as NewsItem[],
-      healthNews: [] as NewsItem[],
+      politicsNews: [] as NewsItem[],
       redditNews: redditResult.items,
       hackerNews: hackerNewsResult.items,
       newsErrors,
     };
   }
 
-  const [aiResult, generalResult, technologyResult, businessResult, entertainmentResult, healthResult] =
+  const [aiResult, generalResult, technologyResult, businessResult, entertainmentResult, politicsResult] =
     await Promise.all([
       fetchAINews(),
       fetchCategoryNews("general"),
       fetchCategoryNews("technology"),
       fetchCategoryNews("business"),
       fetchCategoryNews("entertainment"),
-      fetchCategoryNews("health"),
+      fetchPoliticsNews(),
     ]);
 
   if (aiResult.error) newsErrors.push(`AI news: ${aiResult.error}`);
@@ -209,7 +240,7 @@ async function fetchAllLiveNews() {
   if (technologyResult.error) newsErrors.push(`Technology: ${technologyResult.error}`);
   if (businessResult.error) newsErrors.push(`Business: ${businessResult.error}`);
   if (entertainmentResult.error) newsErrors.push(`Entertainment: ${entertainmentResult.error}`);
-  if (healthResult.error) newsErrors.push(`Health: ${healthResult.error}`);
+  if (politicsResult.error) newsErrors.push(`Politics: ${politicsResult.error}`);
 
   return {
     aiNews: aiResult.items,
@@ -218,7 +249,7 @@ async function fetchAllLiveNews() {
     technologyNews: technologyResult.items,
     businessNews: businessResult.items,
     entertainmentNews: entertainmentResult.items,
-    healthNews: healthResult.items,
+    politicsNews: politicsResult.items,
     redditNews: redditResult.items,
     hackerNews: hackerNewsResult.items,
     newsErrors,
@@ -303,7 +334,7 @@ export async function GET(request: NextRequest) {
       technologyNews: liveNews.technologyNews,
       businessNews: liveNews.businessNews,
       entertainmentNews: liveNews.entertainmentNews,
-      healthNews: liveNews.healthNews,
+      politicsNews: liveNews.politicsNews,
       redditNews: liveNews.redditNews,
       hackerNews: liveNews.hackerNews,
       standupSummary: null,
@@ -344,7 +375,7 @@ export async function GET(request: NextRequest) {
         technologyNews: liveNews.technologyNews,
         businessNews: liveNews.businessNews,
         entertainmentNews: liveNews.entertainmentNews,
-        healthNews: liveNews.healthNews,
+        politicsNews: liveNews.politicsNews,
         redditNews: liveNews.redditNews,
         hackerNews: liveNews.hackerNews,
         standupSummary: internal.standup,
@@ -378,7 +409,7 @@ export async function GET(request: NextRequest) {
       technologyNews: row.world_news?.filter((n: NewsItem) => n.category === "technology") || [],
       businessNews: row.world_news?.filter((n: NewsItem) => n.category === "business") || [],
       entertainmentNews: row.world_news?.filter((n: NewsItem) => n.category === "entertainment") || [],
-      healthNews: row.world_news?.filter((n: NewsItem) => n.category === "health") || [],
+      politicsNews: row.world_news?.filter((n: NewsItem) => n.category === "politics") || [],
       redditNews: redditResult.status === "fulfilled" ? redditResult.value : [],
       hackerNews: hnResult.status === "fulfilled" ? hnResult.value : [],
       standupSummary: row.standup_summary,
@@ -403,7 +434,7 @@ export async function GET(request: NextRequest) {
       technologyNews: [] as NewsItem[],
       businessNews: [] as NewsItem[],
       entertainmentNews: [] as NewsItem[],
-      healthNews: [] as NewsItem[],
+      politicsNews: [] as NewsItem[],
       redditNews: [] as RedditNewsItem[],
       hackerNews: [] as HackerNewsItem[],
       standupSummary: null,
@@ -452,7 +483,8 @@ export async function POST(request: NextRequest) {
         ...liveNews.technologyNews,
         ...liveNews.businessNews,
         ...liveNews.entertainmentNews,
-        ...liveNews.healthNews,
+        ...liveNews.politicsNews,
+
       ];
     const usNews = (body.usNews as NewsItem[]) || liveNews.usNews;
     const localNews = (body.localNews as NewsItem[]) || [];
