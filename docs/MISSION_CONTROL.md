@@ -160,3 +160,68 @@ curl -X POST "https://your-claw-command.vercel.app/api/mc/agents/veronica/heartb
 curl -H "Authorization: Bearer YOUR_API_KEY" \
   "https://your-claw-command.vercel.app/api/mc/tasks/queue?agent=veronica"
 ```
+
+---
+
+## MC Shell Endpoints
+
+The MC shell provides additional domain-specific endpoints under `/api/mission-control/`:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/mission-control/opportunities` | GET, POST | Opportunities |
+| `/api/mission-control/teaching-tasks` | GET, POST | Teaching tasks |
+| `/api/mission-control/blockers` | GET, POST | Blockers/dependencies |
+| `/api/mission-control/blockers/:id` | PATCH | Update blocker status |
+| `/api/mission-control/agents` | GET | Agents |
+| `/api/mission-control/schedule` | GET, POST | Schedule blocks |
+| `/api/mission-control/memory` | GET | Memories (seeded from `memory/*.md`) |
+| `/api/mission-control/memory/remember` | POST | Add memory item |
+| `/api/mission-control/recall?q=` | GET | Recall by query |
+| `/api/mission-control/seed` | POST | Seed all domains (memory + default data when DB empty) |
+
+### Memory Seeding
+
+- Memory is seeded from `memory/*.md` files at project root.
+- First `GET /api/mission-control/memory` auto-seeds if empty.
+- `POST /api/mission-control/seed` seeds memory from files and, when DB is available and empty, inserts default opportunities, teaching tasks, blockers, and schedule.
+
+### Extension Bridge
+
+`dispatchMCAction()` from `@/lib/mission-control/extensionBridge`:
+
+- `recall(query)` | `remember(content, source?)`
+- `createOpportunity(title, stage?)` | `createTeachingTask(title, status?)` | `createBlocker(title, blockerType?)`
+
+## Data Sync from OpenClaw
+
+The sync runs **inside OpenClaw** (not as an external script), because only OpenClaw has access to session data via internal tools.
+
+### Automatic Sync (via Heartbeat)
+
+Bob (Chief of Staff) pushes agent status to the dashboard on each heartbeat cycle.
+
+**Endpoint:** `POST /api/sync/push`
+
+**Payload:**
+```json
+{
+  "agents": [
+    { "id": "bob", "name": "Bob", "emoji": "\ud83e\udd16", "domain": "vorentoe", "status": "active", "currentTask": "..." }
+  ],
+  "activities": [
+    { "id": "...", "actorAgentId": "bob", "eventType": "task_started", "resourceType": "task", "resourceId": "...", "details": "..." }
+  ]
+}
+```
+
+### Security
+
+Optional: Set `SYNC_SECRET_KEY` in Vercel env vars and include `syncKey` in payload.
+
+### Agent Status Logic
+
+- **active**: Agent has an OpenClaw session updated within the last 5 minutes
+- **idle**: No recent session activity
+- **blocked**: Manually set when a task is blocked
+- **waiting_for_shannon**: Set when a task requires Shannon's approval
