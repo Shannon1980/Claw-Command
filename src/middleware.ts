@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Public paths that don't require auth
+// NOTE: Vercel Cron endpoints are included here so cron requests always reach
+// the route handler, which performs its own CRON_SECRET validation.
 const PUBLIC_PATHS = [
   "/api/auth/login",
   "/api/auth/logout",
@@ -10,6 +12,10 @@ const PUBLIC_PATHS = [
   "/api/agent-context",
   "/api/docs",
   "/api/sync/docs",
+  "/api/cron/scheduler",
+  "/api/heartbeat-all",
+  "/api/email/worker/run",
+  "/api/opportunity-engine/scan",
   "/_next/",
   "/favicon.ico",
 ];

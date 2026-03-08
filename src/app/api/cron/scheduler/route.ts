@@ -3,13 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { isDue, computeNextRun } from "@/lib/cron/next-run";
 
 function getBaseUrl(): string {
-  return (
+  const url =
     process.env.NEXTAUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "http://localhost:3000"
-  );
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+  if (!url) {
+    console.warn("[Cron Scheduler] No base URL configured (NEXTAUTH_URL, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_BASE_URL, or VERCEL_URL). Falling back to http://localhost:3000 — cron jobs calling internal endpoints will fail in production.");
+  }
+  return url || "http://localhost:3000";
 }
 
 /**
@@ -51,6 +53,9 @@ async function runScheduler(request: NextRequest) {
       `SELECT * FROM cron_jobs WHERE enabled = true`
     );
 
+    // Collect due jobs first, then run them in parallel to avoid timeouts
+    const dueJobs: Array<{ job: typeof jobsResult.rows[0]; endpoint: string; method: string; payload: unknown }> = [];
+
     for (const job of jobsResult.rows) {
       const schedule = job.schedule as string;
       const nextRunAt = (job.next_run_at as string) || null;
@@ -77,12 +82,19 @@ async function runScheduler(request: NextRequest) {
         continue;
       }
 
+      dueJobs.push({ job, endpoint, method: method || "POST", payload });
+    }
+
+    const baseUrl = getBaseUrl();
+
+    // Execute all due jobs in parallel
+    await Promise.all(dueJobs.map(async ({ job, endpoint, method, payload }) => {
       const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const startedAt = now.toISOString();
       const startMs = Date.now();
 
       try {
-        await pool.query(
+        await pool!.query(
           `INSERT INTO cron_runs (id, job_id, status, started_at) VALUES ($1, $2, 'running', $3)`,
           [runId, job.id, startedAt]
         );
@@ -90,7 +102,6 @@ async function runScheduler(request: NextRequest) {
         // non-critical
       }
 
-      const baseUrl = getBaseUrl();
       const url = endpoint.startsWith("http")
         ? endpoint
         : `${baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
@@ -100,10 +111,7 @@ async function runScheduler(request: NextRequest) {
         headers["Authorization"] = `Bearer ${cronSecret}`;
       }
 
-      const fetchOptions: RequestInit = {
-        method: method || "POST",
-        headers,
-      };
+      const fetchOptions: RequestInit = { method, headers };
       if (payload && method !== "GET") {
         fetchOptions.body = JSON.stringify(payload);
       }
@@ -115,7 +123,7 @@ async function runScheduler(request: NextRequest) {
         resultData = await response.json().catch(() => ({ status: response.status }));
         runStatus = response.ok ? "success" : "error";
         if (!response.ok) {
-          errors.push(`${job.name}: ${response.status}`);
+          errors.push(`${job.name}: HTTP ${response.status}`);
         }
       } catch (fetchErr) {
         const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
@@ -127,18 +135,19 @@ async function runScheduler(request: NextRequest) {
       const completedAt = new Date().toISOString();
 
       // Calculate next run time
+      const schedule = job.schedule as string;
       const nextRun = computeNextRun(schedule, now);
       const nextRunIso = nextRun ? nextRun.toISOString() : null;
 
       // Update job
-      await pool.query(
+      await pool!.query(
         `UPDATE cron_jobs SET last_run_at = $1, next_run_at = $2, run_count = run_count + 1, updated_at = $3 WHERE id = $4`,
         [completedAt, nextRunIso, completedAt, job.id]
       );
 
       // Update run record
       try {
-        await pool.query(
+        await pool!.query(
           `UPDATE cron_runs SET status = $1, result = $2, completed_at = $3, duration_ms = $4 WHERE id = $5`,
           [runStatus, JSON.stringify(resultData), completedAt, durationMs, runId]
         );
@@ -147,7 +156,7 @@ async function runScheduler(request: NextRequest) {
       }
 
       triggered.push(job.name);
-    }
+    }));
 
     return NextResponse.json({
       ok: true,

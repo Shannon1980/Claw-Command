@@ -1,7 +1,15 @@
 import { pool } from "@/lib/db/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { scanAllSources } from "@/lib/opportunity-engine/scanner";
 import type { QualifiedOpportunity } from "@/lib/opportunity-engine/types";
+
+function verifyCronAuth(request: NextRequest): NextResponse | null {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) return null;
+  const authHeader = request.headers.get("authorization");
+  if (authHeader === `Bearer ${cronSecret}`) return null;
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
 
 let schemaReady = false;
 
@@ -25,11 +33,15 @@ function ensureSchema(): Promise<void> {
 }
 
 // GET for Vercel cron, POST for manual triggers
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
   return runScan();
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
   return runScan();
 }
 
