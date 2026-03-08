@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useOpportunityEngine } from "@/lib/hooks/useOpportunityEngine";
 import type { QualifiedOpportunity, ActionRouting } from "@/lib/opportunity-engine/types";
 import type { OpportunityAnalysis } from "@/lib/opportunity-engine/analyze";
@@ -44,7 +44,7 @@ function ChannelBadge({ channel }: { channel: string }) {
 }
 
 function SourceBadge({ source }: { source: string }) {
-  const labels: Record<string, string> = { sam_gov: "SAM.gov", fpds_ng: "FPDS-NG", emaryland: "eMaryland", eva_virginia: "eVA", dc_ocp: "DC OCP", naspo: "NASPO" };
+  const labels: Record<string, string> = { sam_gov: "SAM.gov", montgomery_county_md: "MoCo MD", emma_msrb: "EMMA/MSRB", fpds_ng: "FPDS-NG", emaryland: "eMaryland", eva_virginia: "eVA", dc_ocp: "DC OCP", naspo: "NASPO" };
   return <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700 font-mono">{labels[source] || source}</span>;
 }
 
@@ -614,6 +614,13 @@ export default function OpportunityEnginePage() {
   const [activeTab, setActiveTab] = useState<ViewTab>("capture");
   const [pageMode, setPageMode] = useState<PageMode>("pipeline");
 
+  // Auto-switch to "all" tab after a successful scan so the user sees all found opportunities
+  useEffect(() => {
+    if (lastScanResult && lastScanResult.totalInserted > 0) {
+      setActiveTab("all");
+    }
+  }, [lastScanResult]);
+
   const getTabOpps = (): QualifiedOpportunity[] => {
     switch (activeTab) {
       case "capture": return queue.captureNowDirect;
@@ -681,12 +688,17 @@ export default function OpportunityEnginePage() {
 
         {lastScanResult && (
           <div className="mb-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-cyan-400">&#10003;</span>
               <span>
                 Scan complete{lastScanResult.totalInserted > 0 ? ` — ${lastScanResult.totalInserted} new opportunities found` : " — no new opportunities found"}.
-                {lastScanResult.message && <span className="text-cyan-400/60 ml-1 text-xs font-mono">{lastScanResult.message}</span>}
               </span>
+              {lastScanResult.actionBreakdown && lastScanResult.totalInserted > 0 && (
+                <span className="text-[10px] font-mono text-cyan-400/70">
+                  ({lastScanResult.actionBreakdown.capture} capture, {lastScanResult.actionBreakdown.teamSkyward + lastScanResult.actionBreakdown.teamVorentoe} team, {lastScanResult.actionBreakdown.watch} watch, {lastScanResult.actionBreakdown.pass} pass)
+                </span>
+              )}
+              {lastScanResult.message && <span className="text-cyan-400/60 text-xs font-mono">{lastScanResult.message}</span>}
             </div>
             <button onClick={dismissScanResult} className="text-cyan-400/60 hover:text-cyan-400 transition-colors text-xs ml-4 shrink-0">Dismiss</button>
           </div>
@@ -743,20 +755,44 @@ export default function OpportunityEnginePage() {
             </div>
 
             {/* Opportunity List */}
-            {scanning ? (
+            {loading && !scanning ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-gray-600 border-t-cyan-400 animate-spin" />
+                <p className="text-sm text-gray-500">Loading opportunity pipeline...</p>
+              </div>
+            ) : scanning ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <ScanningOverlay />
+              </div>
+            ) : tabOpps.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                <p className="text-sm font-medium text-gray-400 mb-1">No opportunities in this category</p>
+                <p className="text-xs text-gray-600 font-mono mb-4">
+                  {activeTab === "all"
+                    ? "Click \"Scan Sources\" to pull opportunities from SAM.gov, MoCo, EMMA, and other sources."
+                    : `No ${activeTab === "capture" ? "Capture Now" : activeTab === "team_skyward" ? "Team Skyward" : activeTab === "team_vorentoe" ? "Team Vorentoe" : "Watch"} opportunities found. Try the "All" tab to see all scanned results.`}
+                </p>
+                {activeTab !== "all" && (
+                  <button
+                    onClick={() => setActiveTab("all")}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 bg-gray-900 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors font-mono"
+                  >
+                    View All Opportunities
+                  </button>
+                )}
+                {activeTab === "all" && (
+                  <button
+                    onClick={triggerScan}
+                    disabled={scanning}
+                    className="px-4 py-2 text-sm bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/30 transition-colors font-mono"
+                  >
+                    Scan Sources
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {tabOpps.map((opp) => <OpportunityDetailCard key={opp.id} opp={opp} />)}
-              </div>
-            )}
-
-            {tabOpps.length === 0 && !loading && !scanning && (
-              <div className="text-center py-12 text-gray-600">
-                <p className="text-sm">No opportunities in this queue.</p>
-                <p className="text-xs mt-1 font-mono">Run a scan or switch tabs.</p>
               </div>
             )}
 
