@@ -50,6 +50,7 @@ async function ensureSchema() {
       ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS ops_engine_action TEXT NOT NULL DEFAULT '';
       ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'direct';
       ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS attachments TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS passed_at TEXT;
     EXCEPTION WHEN others THEN NULL;
     END $$;
   `);
@@ -73,6 +74,7 @@ export async function GET() {
               a.name as owner_name, a.emoji as owner_emoji
        FROM opportunities o
        LEFT JOIN agents a ON o.owner_agent_id = a.id
+       WHERE o.passed_at IS NULL
        ORDER BY o.stage, o.value_usd DESC`
     );
 

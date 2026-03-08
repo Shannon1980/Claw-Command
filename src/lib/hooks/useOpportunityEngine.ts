@@ -83,5 +83,15 @@ export function useOpportunityEngine() {
     };
   }, [refresh]);
 
-  return { queue, loading, scanning, error, lastScanResult, refresh, triggerScan, dismissScanResult };
+  const passOpportunity = useCallback(async (id: string) => {
+    const res = await fetch(`/api/opportunity-engine/${id}/pass`, {
+      method: "POST",
+    });
+    if (res.ok) {
+      await refresh();
+    }
+    return res.ok;
+  }, [refresh]);
+
+  return { queue, loading, scanning, error, lastScanResult, refresh, triggerScan, dismissScanResult, passOpportunity };
 }

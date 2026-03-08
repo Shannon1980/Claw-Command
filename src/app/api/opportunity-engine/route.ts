@@ -29,8 +29,16 @@ async function ensureSchema() {
       win_themes TEXT NOT NULL DEFAULT '[]',
       dedupe_hash TEXT NOT NULL UNIQUE,
       scanned_at TEXT NOT NULL,
-      qualified_at TEXT NOT NULL
+      qualified_at TEXT NOT NULL,
+      passed_at TEXT
     );
+  `);
+  // Add column if table already existed without it
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE qualified_opportunities ADD COLUMN IF NOT EXISTS passed_at TEXT;
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
   `);
   schemaReady = true;
 }
@@ -72,7 +80,7 @@ export async function GET() {
     await ensureSchema();
 
     const res = await pool.query(
-      `SELECT * FROM qualified_opportunities ORDER BY fit_score DESC, win_probability DESC`
+      `SELECT * FROM qualified_opportunities WHERE passed_at IS NULL ORDER BY fit_score DESC, win_probability DESC`
     );
 
     const all = res.rows.map(rowToOpportunity);

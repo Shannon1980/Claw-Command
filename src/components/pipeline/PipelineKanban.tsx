@@ -98,10 +98,12 @@ export function OpportunityKanban({
   stages,
   opportunities,
   onStageChange,
+  onPass,
 }: {
   stages: readonly string[];
   opportunities: Opportunity[];
   onStageChange?: (id: string, stage: string) => void | Promise<boolean>;
+  onPass?: (id: string) => void;
 }) {
   const handleDrop = async (id: string, newStage: string) => {
     if (onStageChange) {
@@ -117,7 +119,7 @@ export function OpportunityKanban({
           key={stage}
           stage={stage}
           items={opportunities.filter((o) => o.stage === stage)}
-          renderCard={(opp) => <OpportunityCard opp={opp} />}
+          renderCard={(opp) => <OpportunityCard opp={opp} onPass={onPass} />}
           getKey={(o) => o.id}
           getValue={(o) => o.valueUsd}
           onDrop={handleDrop}
