@@ -10,6 +10,7 @@ import {
   detectSegment,
 } from "./scoring";
 import { computeDedupeHash } from "./dedup";
+import { isRelevantOpportunity } from "./relevance-filter";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ export async function scanSamGov(
   const opportunities: QualifiedOpportunity[] = [];
   let totalFound = 0;
   let duplicatesSkipped = 0;
+  let filteredOut = 0;
 
   try {
     // Fetch active solicitations posted in the last 30 days
@@ -120,6 +122,13 @@ export async function scanSamGov(
         : 999;
 
       if (daysUntilClose < 0) continue; // Skip expired
+
+      // Filter out opportunities that don't align with Vorentoe/Skyward
+      const relevance = isRelevantOpportunity(naicsCodes, opp.description || opp.title);
+      if (!relevance.relevant) {
+        filteredOut++;
+        continue;
+      }
 
       // Detect market segment
       const { isFederal, isMongoCounty } = detectSegment(
@@ -195,6 +204,7 @@ export async function scanSamGov(
         o.action === "CAPTURE_NOW" || o.action === "CAPTURE_NOW_TEAM_SKYWARD" || o.action === "CAPTURE_NOW_TEAM_VORENTOE"
     ).length,
     duplicatesSkipped,
+    filteredCount: filteredOut,
   };
 }
 

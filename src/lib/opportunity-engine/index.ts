@@ -19,6 +19,8 @@ export {
 } from "./scoring";
 
 export { computeDedupeHash } from "./dedup";
+export { isRelevantOpportunity, COMBINED_NAICS, CAPABILITY_KEYWORDS } from "./relevance-filter";
+export type { RelevanceResult } from "./relevance-filter";
 export { scanSamGov, scanAllSources } from "./scanner";
 export { scanMontgomeryCounty } from "./scanner-moco";
 export { scanEmma } from "./scanner-emma";

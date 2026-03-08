@@ -4,24 +4,10 @@ import type {
   ActionRouting,
   OpportunityChannel,
 } from "./types";
+import { COMBINED_NAICS, CAPABILITY_KEYWORDS, VORENTOE_NAICS } from "./relevance-filter";
 
-// ─── Vorentoe NAICS Codes (IT/AI/Gov Services) ─────────────────────────────
-
-export const VORENTOE_NAICS = [
-  "541511", // Custom Computer Programming Services
-  "541512", // Computer Systems Design Services
-  "541513", // Computer Facilities Management Services
-  "541519", // Other Computer Related Services
-  "541611", // Administrative Management Consulting
-  "541612", // Human Resources Consulting
-  "541613", // Marketing Consulting
-  "541614", // Process/Logistics Consulting
-  "541618", // Other Management Consulting
-  "541690", // Other Scientific and Technical Consulting
-  "541715", // R&D in the Physical, Engineering, and Life Sciences
-  "518210", // Data Processing/Hosting
-  "611430", // Professional/Management Development Training
-];
+// Re-export for backward compatibility
+export { VORENTOE_NAICS };
 
 // ─── Montgomery County Focus ────────────────────────────────────────────────
 
@@ -67,9 +53,9 @@ export function calculateFitScore(
   description: string,
   isFederal: boolean
 ): { score: number; breakdown: FitBreakdown } {
-  // NAICS Match (40%)
+  // NAICS Match (40%) — checks against combined Vorentoe + Skyward codes
   const naicsOverlap = naicsCodes.filter((code) =>
-    VORENTOE_NAICS.some(
+    COMBINED_NAICS.some(
       (v) => code.startsWith(v.slice(0, 4)) || v.startsWith(code.slice(0, 4))
     )
   );
@@ -97,24 +83,7 @@ export function calculateFitScore(
 
   // Capability Match (30%)
   const descLower = description.toLowerCase();
-  const capKeywords = [
-    "it ",
-    "information technology",
-    "software",
-    "cloud",
-    "ai ",
-    "artificial intelligence",
-    "data",
-    "cybersecurity",
-    "digital",
-    "modernization",
-    "migration",
-    "consulting",
-    "management",
-    "training",
-    "support services",
-  ];
-  const capMatches = capKeywords.filter((k) => descLower.includes(k)).length;
+  const capMatches = CAPABILITY_KEYWORDS.filter((k) => descLower.includes(k)).length;
   const capabilityMatch = Math.min(10, (capMatches / 4) * 10);
 
   const breakdown: FitBreakdown = {

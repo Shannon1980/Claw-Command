@@ -5,6 +5,7 @@ import {
   routeAction,
 } from "./scoring";
 import { computeDedupeHash } from "./dedup";
+import { isRelevantOpportunity } from "./relevance-filter";
 
 // ─── Montgomery County MD Procurement Scanner ──────────────────────────────
 // Uses the Montgomery County MD Open Data / eProcurement API
@@ -33,6 +34,7 @@ export async function scanMontgomeryCounty(
   const opportunities: QualifiedOpportunity[] = [];
   let totalFound = 0;
   let duplicatesSkipped = 0;
+  let filteredOut = 0;
 
   try {
     // Fetch open solicitations from Montgomery County Open Data
@@ -85,6 +87,13 @@ export async function scanMontgomeryCounty(
 
       const description = sol.description || title;
       const naicsCodes: string[] = [];
+
+      // Filter out opportunities that don't align with Vorentoe/Skyward
+      const relevance = isRelevantOpportunity(naicsCodes, description);
+      if (!relevance.relevant) {
+        filteredOut++;
+        continue;
+      }
 
       const { score: fitScore, breakdown: fitBreakdown } = calculateFitScore(
         naicsCodes,
@@ -151,5 +160,6 @@ export async function scanMontgomeryCounty(
         o.action === "CAPTURE_NOW_TEAM_VORENTOE"
     ).length,
     duplicatesSkipped,
+    filteredCount: filteredOut,
   };
 }

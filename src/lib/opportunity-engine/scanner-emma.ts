@@ -5,6 +5,7 @@ import {
   routeAction,
 } from "./scoring";
 import { computeDedupeHash } from "./dedup";
+import { isRelevantOpportunity } from "./relevance-filter";
 
 // ─── EMMA (Electronic Municipal Market Access) Scanner ─────────────────────
 // EMMA is operated by the MSRB (Municipal Securities Rulemaking Board)
@@ -40,6 +41,7 @@ export async function scanEmma(
   const opportunities: QualifiedOpportunity[] = [];
   let totalFound = 0;
   let duplicatesSkipped = 0;
+  let filteredOut = 0;
 
   try {
     // Search for recent municipal issues, particularly MD-related
@@ -101,6 +103,13 @@ export async function scanEmma(
         issue.description ||
         `${issue.issueType || "Municipal"} issue: ${title}`;
       const naicsCodes: string[] = [];
+
+      // Filter out opportunities that don't align with Vorentoe/Skyward
+      const relevance = isRelevantOpportunity(naicsCodes, description);
+      if (!relevance.relevant) {
+        filteredOut++;
+        continue;
+      }
 
       // Municipal bond issues can signal upcoming IT/consulting needs
       const isMongoCounty = agency.toLowerCase().includes("montgomery");
@@ -175,5 +184,6 @@ export async function scanEmma(
         o.action === "CAPTURE_NOW_TEAM_VORENTOE"
     ).length,
     duplicatesSkipped,
+    filteredCount: filteredOut,
   };
 }
