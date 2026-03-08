@@ -8,6 +8,7 @@ import {
   alerts,
   skywardWorkstreams,
 } from "./schema";
+import { seedMemoriesWithDrizzle } from "./seed-memories";
 
 const now = new Date().toISOString();
 
@@ -353,6 +354,10 @@ export async function seed() {
       .onConflictDoNothing();
   }
   console.log(`  ✅ ${activityList.length} activities seeded`);
+
+  // --- Memories ---
+  const memoryCount = await seedMemoriesWithDrizzle(db);
+  console.log(`  ✅ ${memoryCount} memories seeded`);
 
   console.log("🎉 Seed complete!");
 }

@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 import { emitNotification } from "@/lib/events/emitActivity";
+import { seedMemoriesFromFiles } from "@/lib/db/seed-memories";
 
 let schemaReady = false;
 
@@ -48,6 +49,13 @@ export async function GET(request: NextRequest) {
 
   try {
     await ensureSchema();
+
+    // Auto-seed from memory/*.md files if the table is empty
+    const countResult = await pool.query("SELECT COUNT(*) FROM mc_memories");
+    const count = parseInt(countResult.rows[0].count, 10);
+    if (count === 0) {
+      await seedMemoriesFromFiles(pool);
+    }
   } catch (err) {
     console.error("[Memory API] Schema error:", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to fetch data" }, { status: 500 });
