@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Opportunity, formatUsd, SOURCE_LABELS } from "@/lib/mock-pipeline";
 import ApprovalBadge from "@/components/shared/ApprovalBadge";
 
-function ActionBadge({ action }: { action: string }) {
+function ActionBadge({ action, onPass }: { action: string; onPass?: () => void }) {
   if (!action) return null;
   const styles: Record<string, string> = {
     CAPTURE_NOW: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -20,6 +20,19 @@ function ActionBadge({ action }: { action: string }) {
     WATCH: "WATCH",
     PASS: "PASS",
   };
+
+  if (onPass) {
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); onPass(); }}
+        className={`text-[10px] px-1.5 py-0.5 rounded border font-mono font-bold cursor-pointer hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 transition-colors ${styles[action] || styles.PASS}`}
+        title="Pass on this opportunity"
+      >
+        PASS
+      </button>
+    );
+  }
+
   return (
     <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono font-bold ${styles[action] || styles.PASS}`}>
       {labels[action] || action}
@@ -64,7 +77,7 @@ export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onP
             opp.title
           )}
         </h4>
-        {opp.opsEngineAction && <ActionBadge action={opp.opsEngineAction} />}
+        {opp.opsEngineAction && <ActionBadge action={opp.opsEngineAction} onPass={onPass ? () => onPass(opp.id) : undefined} />}
       </div>
 
       {/* Source & Agency */}
@@ -133,14 +146,6 @@ export default function OpportunityCard({ opp, onPass }: { opp: Opportunity; onP
         </span>
         <div className="flex items-center gap-2">
           <ApprovalBadge approval={opp.shannonApproval} />
-          {onPass && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onPass(opp.id); }}
-              className="text-[10px] text-gray-500 hover:text-red-400 transition-colors font-mono font-bold"
-            >
-              Pass
-            </button>
-          )}
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
             className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors font-mono"

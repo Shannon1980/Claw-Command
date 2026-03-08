@@ -11,7 +11,7 @@ type PageMode = "pipeline" | "analyze";
 
 // ─── Shared Components ─────────────────────────────────────────────────────
 
-function ActionBadge({ action }: { action: ActionRouting }) {
+function ActionBadge({ action, onPass }: { action: ActionRouting; onPass?: () => void }) {
   const styles: Record<ActionRouting, string> = {
     CAPTURE_NOW: "bg-green-500/20 text-green-400 border-green-500/30",
     CAPTURE_NOW_TEAM_SKYWARD: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
@@ -26,6 +26,19 @@ function ActionBadge({ action }: { action: ActionRouting }) {
     WATCH: "WATCH",
     PASS: "PASS",
   };
+
+  if (onPass) {
+    return (
+      <button
+        onClick={onPass}
+        className={`text-[10px] px-2 py-0.5 rounded border font-mono font-bold cursor-pointer hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 transition-colors ${styles[action]}`}
+        title="Pass on this opportunity"
+      >
+        PASS
+      </button>
+    );
+  }
+
   return (
     <span className={`text-[10px] px-2 py-0.5 rounded border font-mono font-bold ${styles[action]}`}>
       {labels[action]}
@@ -141,7 +154,7 @@ function OpportunityDetailCard({ opp, onPass }: { opp: QualifiedOpportunity; onP
             opp.title
           )}
         </h4>
-        <ActionBadge action={opp.action} />
+        <ActionBadge action={opp.action} onPass={onPass ? () => onPass(opp.id) : undefined} />
       </div>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-lg font-bold text-cyan-400 font-mono">{formatUsd(opp.amount)}</span>
@@ -164,14 +177,6 @@ function OpportunityDetailCard({ opp, onPass }: { opp: QualifiedOpportunity; onP
           >
             {pushing ? "Sending..." : "Send to Deals"}
           </button>
-          {onPass && (
-            <button
-              onClick={() => onPass(opp.id)}
-              className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium bg-gray-500/10 text-gray-400 border-gray-500/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-colors"
-            >
-              Pass
-            </button>
-          )}
           <a href="/deals" className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors font-mono">
             View Deals
           </a>
