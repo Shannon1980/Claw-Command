@@ -45,7 +45,6 @@ export default function CommandPalette({ onClose }: CommandPaletteProps) {
     { id: "nav-pipelines", label: "Go to Pipelines", category: "Navigate", action: () => navigate("/orchestration"), keywords: "pipeline orchestration workflow" },
     { id: "nav-webhooks", label: "Go to Webhooks", category: "Navigate", action: () => navigate("/webhooks"), keywords: "webhook integration" },
     { id: "nav-alerts", label: "Go to Alerts", category: "Navigate", action: () => navigate("/alerts"), keywords: "alert rule notification" },
-    { id: "nav-brief", label: "Go to Brief", category: "Navigate", action: () => navigate("/brief"), keywords: "brief daily" },
     { id: "nav-deals", label: "Go to Deals", category: "Navigate", action: () => navigate("/deals"), keywords: "deals pipeline opportunity bd" },
     { id: "nav-certs", label: "Go to Certifications", category: "Navigate", action: () => navigate("/certifications"), keywords: "certification mbe" },
     { id: "nav-calendar", label: "Go to Calendar", category: "Navigate", action: () => navigate("/calendar"), keywords: "calendar event" },
