@@ -47,12 +47,15 @@ export default function SkillsPage() {
   const fetchSkills = useCallback(async () => {
     try {
       const res = await fetch("/api/skills");
+      // Check gateway status from response header
+      const gwStatus = res.headers.get("X-Gateway-Status");
+      setGatewayOffline(gwStatus === "offline");
+
       if (res.status === 503) {
-        setGatewayOffline(true);
+        setError("No database or gateway available");
         setSkills([]);
         return;
       }
-      setGatewayOffline(false);
       const data = await res.json();
       setSkills(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -241,11 +244,11 @@ export default function SkillsPage() {
           </div>
         </div>
 
-        {/* Gateway Offline Banner */}
+        {/* Gateway Offline Banner — informational, skills still work via DB */}
         {gatewayOffline && (
-          <div className="mb-6 p-4 bg-amber-900/20 border border-amber-600/30 rounded-lg flex items-center gap-3">
+          <div className="mb-6 p-3 bg-gray-900/50 border border-gray-700/50 rounded-lg flex items-center gap-3">
             <svg
-              className="w-5 h-5 text-amber-400 shrink-0"
+              className="w-4 h-4 text-gray-500 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -254,19 +257,13 @@ export default function SkillsPage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <div>
-              <p className="text-sm font-medium text-amber-300">
-                OpenClaw Gateway Offline
-              </p>
-              <p className="text-xs text-amber-400/70 mt-0.5">
-                Cannot reach the OpenClaw gateway. Skills management requires a
-                running gateway. Check that OpenClaw is running and
-                OPENCLAW_URL is configured.
-              </p>
-            </div>
+            <p className="text-xs text-gray-400">
+              OpenClaw gateway offline — showing locally stored skills.
+              Changes will sync when the gateway reconnects.
+            </p>
           </div>
         )}
 
