@@ -44,6 +44,42 @@ export async function PATCH(
       updates.push(`owner_agent_id = $${paramIndex++}`);
       values.push(body.owner_agent_id);
     }
+    if (body.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(body.description);
+    }
+    if (body.solicitation_number !== undefined) {
+      updates.push(`solicitation_number = $${paramIndex++}`);
+      values.push(body.solicitation_number);
+    }
+    if (body.set_aside_type !== undefined) {
+      updates.push(`set_aside_type = $${paramIndex++}`);
+      values.push(body.set_aside_type);
+    }
+    if (body.naics_codes !== undefined) {
+      updates.push(`naics_codes = $${paramIndex++}`);
+      values.push(JSON.stringify(body.naics_codes));
+    }
+    if (body.fit_score !== undefined) {
+      updates.push(`fit_score = $${paramIndex++}`);
+      values.push(body.fit_score);
+    }
+    if (body.win_themes !== undefined) {
+      updates.push(`win_themes = $${paramIndex++}`);
+      values.push(JSON.stringify(body.win_themes));
+    }
+    if (body.ops_engine_action !== undefined) {
+      updates.push(`ops_engine_action = $${paramIndex++}`);
+      values.push(body.ops_engine_action);
+    }
+    if (body.channel !== undefined) {
+      updates.push(`channel = $${paramIndex++}`);
+      values.push(body.channel);
+    }
+    if (body.attachments !== undefined) {
+      updates.push(`attachments = $${paramIndex++}`);
+      values.push(JSON.stringify(body.attachments));
+    }
 
     if (updates.length === 0) {
       return NextResponse.json(
