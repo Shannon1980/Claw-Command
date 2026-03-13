@@ -47,6 +47,7 @@ export default function OverviewPage() {
   const [gatewayCheckNote, setGatewayCheckNote] = useState<string | null>(null);
   const [lastSuccessfulGatewayCheck, setLastSuccessfulGatewayCheck] = useState<string | null>(null);
   const [gatewayCheckFailureStreak, setGatewayCheckFailureStreak] = useState(0);
+  const [gatewayCopyNote, setGatewayCopyNote] = useState<string | null>(null);
   const gatewayLastUpdate = gateway.state.lastUpdate?.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -113,6 +114,27 @@ export default function OverviewPage() {
       setGatewayCheckNote("Gateway check failed. See error details below.");
     } finally {
       setIsCheckingGateway(false);
+    }
+  };
+
+  const copyGatewayDiagnostics = async () => {
+    const diagnostics = [
+      `Gateway connection: ${gatewayConnection}`,
+      `Gateway last update: ${gatewayLastUpdate ?? "--:--:--"}`,
+      `Gateway active agents: ${gatewayMetrics.activeAgents}`,
+      `Gateway queue length: ${gatewayMetrics.queueLength}`,
+      `Gateway total tokens: ${gatewayMetrics.totalTokens}`,
+      `Last successful manual check: ${lastSuccessfulGatewayCheck ?? "none"}`,
+      `Failure streak: ${gatewayCheckFailureStreak}`,
+      `Error code: ${gateway.state.error?.code ?? "none"}`,
+      `Error message: ${gateway.state.error?.message ?? "none"}`,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(diagnostics);
+      setGatewayCopyNote("Diagnostics copied to clipboard.");
+    } catch {
+      setGatewayCopyNote("Copy failed. Clipboard permissions may be blocked.");
     }
   };
 
@@ -193,6 +215,12 @@ export default function OverviewPage() {
             >
               {isCheckingGateway ? "Checking…" : "Check Gateway Now"}
             </button>
+            <button
+              onClick={copyGatewayDiagnostics}
+              className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500"
+            >
+              Copy Diagnostics
+            </button>
             <Link
               href="/settings"
               className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors"
@@ -240,6 +268,9 @@ export default function OverviewPage() {
           <p className="mt-1 text-[11px] font-mono text-gray-500">
             Last successful check: <span className="text-gray-300">{lastSuccessfulGatewayCheck}</span>
           </p>
+        )}
+        {gatewayCopyNote && (
+          <p className="mt-1 text-[11px] font-mono text-cyan-300">{gatewayCopyNote}</p>
         )}
         {gatewayCheckFailureStreak >= 2 && (
           <p className="mt-1 text-[11px] font-mono text-amber-300">
