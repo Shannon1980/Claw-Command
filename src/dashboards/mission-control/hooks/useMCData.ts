@@ -10,6 +10,30 @@ import type {
   MemoryItem,
 } from "@/lib/mission-control/mc_types";
 
+type SecurityFinding = {
+  code: string;
+  severity: "info" | "warn" | "critical";
+  message: string;
+  fix?: string;
+};
+
+type GatewayStatusPayload = {
+  security?: {
+    ok: boolean;
+    blockers: number;
+    warnings: number;
+    findings: SecurityFinding[];
+  };
+};
+
+type DecisionItem = {
+  id: string;
+  title: string;
+  choice: string;
+  status: string;
+  updated_at?: string;
+};
+
 const BASE = "/api/mission-control";
 
 export function useMCOpportunities() {
@@ -130,4 +154,55 @@ export function useMCMemory() {
     load();
   }, [load]);
   return { memories: data, loading, refresh: load };
+}
+
+export function useMCSecurityPosture() {
+  const [data, setData] = useState<GatewayStatusPayload["security"]>();
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/gateway/status`);
+      const json = (await res.json()) as GatewayStatusPayload;
+      setData(json.security);
+    } catch {
+      setData(undefined);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { security: data, loading, refresh: load };
+}
+
+export function useMCDecisions() {
+  const [data, setData] = useState<DecisionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/decisions`);
+      if (!res.ok) {
+        setData([]);
+        return;
+      }
+
+      const json = (await res.json()) as { items?: DecisionItem[] };
+      setData(Array.isArray(json.items) ? json.items : []);
+    } catch {
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { decisions: data, loading, refresh: load };
 }
