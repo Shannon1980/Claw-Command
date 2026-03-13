@@ -10,6 +10,7 @@ import NotificationCenter from "@/components/layout/NotificationCenter";
 import CommandPalette from "@/components/layout/CommandPalette";
 import SettingsDropdown from "@/components/layout/SettingsDropdown";
 import ChatFlyout from "@/components/chat/ChatFlyout";
+import ConnectionStatus from "@/components/layout/ConnectionStatus";
 import { useWeather, getWeatherEmoji } from "@/lib/hooks/useWeather";
 
 export default function TopBar() {
@@ -115,11 +116,8 @@ export default function TopBar() {
 
         {/* Right: Status + Controls */}
         <div className="flex items-center gap-3">
-          {/* Live pulse */}
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="hidden sm:inline font-mono">Live</span>
-          </div>
+          {/* Gateway connection status (real-time) */}
+          <ConnectionStatus />
 
           {/* Weather + Clock */}
           {weather && (
