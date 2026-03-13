@@ -12,8 +12,6 @@ import type {
   DocumentPriority,
 } from "@/lib/docs/model";
 import { CATEGORY_OPTIONS } from "@/lib/docs/model";
-} from "@/lib/mock-docs";
-import { CATEGORY_OPTIONS } from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -68,32 +66,31 @@ export default function DocsPage() {
     try {
       setLoading(true);
       setLoadError(null);
+      setError(null);
+
       const res = await fetch("/api/docs", { cache: "no-store" });
       const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        setLoadError((data && typeof data.error === "string" && data.error) || "Failed to load documents.");
+        const message = (data && typeof data.error === "string" && data.error) || "Failed to load documents.";
+        setLoadError(message);
+        setError(message);
         return;
       }
-      if (Array.isArray(data)) {
-        setDocuments(data);
-      } else {
-        setLoadError("Unexpected response while loading documents.");
-      }
-    } catch {
-      setLoadError("Unable to reach docs service. Check your connection and try again.");
-      setError(null);
-      const res = await fetch("/api/docs", { cache: "no-store" });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error((data && (data.error as string)) || "Failed to load documents");
-      }
+
       if (!Array.isArray(data)) {
-        throw new Error("Unexpected documents response");
+        const message = "Unexpected response while loading documents.";
+        setLoadError(message);
+        setError(message);
+        return;
       }
+
       setDocuments(data);
       setLastUpdated(new Date().toISOString());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load documents");
+    } catch {
+      const message = "Unable to reach docs service. Check your connection and try again.";
+      setLoadError(message);
+      setError(message);
     } finally {
       setLoading(false);
     }
