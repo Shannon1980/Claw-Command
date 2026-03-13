@@ -11,6 +11,7 @@ import {
 import { nodesToAgents } from "@/lib/openclaw/mappers";
 import type { AgentStatus, QueueItem, GatewayMetrics } from "@/lib/gateway/types";
 import { getMcAuthStatus } from "@/lib/mc/auth";
+import { evaluateSecurityPosture } from "@/lib/security/posture";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,7 @@ export async function GET() {
   // Determine connected status: gateway online OR database available
   const connected = gatewayConnected || pool !== null;
   const mcAuth = getMcAuthStatus();
+  const security = evaluateSecurityPosture();
 
   return NextResponse.json({
     connected,
@@ -119,6 +121,7 @@ export async function GET() {
     tasks,
     metrics,
     mcAuth,
+    security,
     timestamp: new Date().toISOString(),
   });
 }
