@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface NavLink {
   href: string;
@@ -68,6 +68,7 @@ const navSections: NavSection[] = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const toggleSection = (title: string) => {
@@ -107,7 +108,11 @@ export default function Navigation() {
               key={item.href}
               href={item.href}
               title={item.label}
-              className={`flex items-center justify-center p-2 rounded-md transition-colors ${
+              onClick={(e) => {
+                e.preventDefault();
+                router.push(item.href);
+              }}
+              className={`flex items-center justify-center p-2 rounded-md transition-colors cursor-pointer ${
                 isActive(item.href)
                   ? "text-white bg-gray-800/80"
                   : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
@@ -143,6 +148,10 @@ export default function Navigation() {
                       <Link
                         key={item.href}
                         href={item.href}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          router.push(item.href);
+                        }}
                         className={`flex items-center gap-2 px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors cursor-pointer ${
                           isActive(item.href)
                             ? "text-white bg-gray-800/80 border-l-2 border-cyan-400"
