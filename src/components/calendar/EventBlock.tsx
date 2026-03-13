@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarEvent, domainColors } from "@/lib/mock-calendar";
+import { CalendarEvent, domainColors } from "@/lib/calendar/types";
 
 interface EventBlockProps {
   event: CalendarEvent;
