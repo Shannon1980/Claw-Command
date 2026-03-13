@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { LinkedItem } from "@/lib/mock-docs";
+import type { LinkedItem } from "@/lib/docs/model";
 
 interface LinkPickerProps {
   linkedItems: LinkedItem[];

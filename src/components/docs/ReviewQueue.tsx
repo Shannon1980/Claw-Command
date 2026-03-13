@@ -5,8 +5,8 @@ import type {
   DocumentPriority,
   ReviewStatus,
   DocumentCategory,
-} from "@/lib/mock-docs";
-import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/mock-docs";
+} from "@/lib/docs/model";
+import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/docs/model";
 import { priorityStyles, reviewStatusStyles, categoryStyles } from "@/lib/ui-config";
 import { getRelativeTime } from "@/lib/utils/formatting";
 

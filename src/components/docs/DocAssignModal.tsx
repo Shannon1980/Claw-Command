@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Document, AssignTarget, DocumentPriority } from "@/lib/mock-docs";
-import { PRIORITY_OPTIONS } from "@/lib/mock-docs";
+import type { Document, AssignTarget, DocumentPriority } from "@/lib/docs/model";
+import { PRIORITY_OPTIONS } from "@/lib/docs/model";
 import { useAgentStore } from "@/lib/stores/agentStore";
 
 interface Pipeline {

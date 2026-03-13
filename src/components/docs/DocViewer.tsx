@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Document, DocumentStatus, DocumentPriority, ReviewStatus, DocumentCategory, LinkedItem } from "@/lib/mock-docs";
-import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/mock-docs";
+import type { Document, DocumentStatus, DocumentPriority, ReviewStatus, DocumentCategory, LinkedItem } from "@/lib/docs/model";
+import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/docs/model";
 import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
 import LinkPicker, { linkTypeConfig } from "@/components/docs/LinkPicker";
 import DocNotes from "@/components/docs/DocNotes";

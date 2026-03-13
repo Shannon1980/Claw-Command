@@ -1,4 +1,4 @@
-import type { DocumentPriority, ReviewStatus } from "@/lib/mock-docs";
+import type { DocumentPriority, ReviewStatus } from "@/lib/docs/model";
 
 export const priorityStyles: Record<
   DocumentPriority,
