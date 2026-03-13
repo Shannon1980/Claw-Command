@@ -54,6 +54,24 @@ export const applications = pgTable("applications", {
   updatedAt: text("updated_at").notNull(),
 });
 
+// ─── DECISIONS (Strategic Log) ──────────────────────────────────────────────
+
+export const decisions = pgTable("decisions", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  context: text("context").notNull().default(""), // Problem statement / background
+  choice: text("choice").notNull(), // The selected option
+  options: text("options").notNull().default("[]"), // JSON array of rejected options
+  reason: text("reason").notNull().default(""), // Justification
+  status: text("status").notNull().default("proposed"), // proposed | approved | rejected | implemented
+  authorAgentId: text("author_agent_id")
+    .notNull()
+    .references(() => agents.id),
+  shannonApproval: boolean("shannon_approval"), // null = pending
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 // ─── TASKS ──────────────────────────────────────────────────────────────────
 
 export const tasks = pgTable("tasks", {
@@ -97,7 +115,7 @@ export const activities = pgTable("activities", {
   id: text("id").primaryKey(),
   actorAgentId: text("actor_agent_id").references(() => agents.id), // null for system events
   eventType: text("event_type").notNull(), // task_started | task_completed | approval_requested | approval_given | opportunity_staged | alert_fired
-  resourceType: text("resource_type").notNull(), // task | opportunity | application | workstream
+  resourceType: text("resource_type").notNull(), // task | opportunity | application | workstream | decision
   resourceId: text("resource_id").notNull(),
   details: text("details").notNull().default("{}"), // JSON: { old_state, new_state, message }
   createdAt: text("created_at").notNull(),
