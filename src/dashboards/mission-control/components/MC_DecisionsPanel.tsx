@@ -221,6 +221,20 @@ export default function MC_DecisionsPanel() {
                     >
                       Delete (admin)
                     </button>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[11px] text-gray-500">Set status:</span>
+                    <select
+                      value={(d.status || "proposed").toLowerCase()}
+                      onChange={(e) => handleStatusUpdate(d.id, e.target.value)}
+                      disabled={busy}
+                      className="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200"
+                    >
+                      {STATUS_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               ))
