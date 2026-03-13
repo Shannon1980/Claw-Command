@@ -1,6 +1,5 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import { SEED_DOCUMENTS } from "@/lib/mock-docs";
 import type { Document, LinkedItem } from "@/lib/mock-docs";
 import fs from "fs";
 import path from "path";
@@ -165,11 +164,9 @@ function readWorkspaceDocs(): Document[] {
   }
 }
 
-/** Get documents from best available source: workspace → seed data */
+/** Non-database fallback: workspace documents only */
 function getFallbackDocs(): Document[] {
-  const workspaceDocs = readWorkspaceDocs();
-  if (workspaceDocs.length > 0) return workspaceDocs;
-  return SEED_DOCUMENTS;
+  return readWorkspaceDocs();
 }
 
 async function ensureSchema() {
@@ -260,10 +257,6 @@ export async function GET(request: NextRequest) {
         assignments: [],
       };
     });
-
-    if (docs.length === 0 && !docType && !search) {
-      return NextResponse.json(getFallbackDocs());
-    }
 
     return NextResponse.json(docs);
   } catch (error) {
