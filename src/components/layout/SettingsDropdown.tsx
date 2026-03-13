@@ -29,8 +29,8 @@ export default function SettingsDropdown({ onClose }: SettingsDropdownProps) {
 
   return (
     <>
-      {/* Backdrop - exclude nav (w-52) so sidebar stays clickable */}
-      <div className="fixed top-10 left-52 bottom-0 right-0 z-[140]" onClick={onClose} />
+      {/* Backdrop - exclude nav (w-14 lg:w-56) so sidebar stays clickable */}
+      <div className="fixed top-10 left-14 lg:left-56 bottom-0 right-0 z-[140]" onClick={onClose} />
 
       {/* Dropdown */}
       <div className="fixed top-10 right-4 z-[150] w-56 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl overflow-hidden">

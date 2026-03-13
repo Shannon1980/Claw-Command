@@ -87,7 +87,7 @@ export default function Navigation() {
   const compactItems = useMemo(() => navSections.flatMap((section) => section.items), []);
 
   return (
-    <nav className="relative z-[100] w-14 lg:w-56 shrink-0 h-full flex flex-col bg-gray-950/95 border-r border-gray-800/80 backdrop-blur-sm isolate">
+    <nav className="relative z-[100] w-14 lg:w-56 shrink-0 h-full flex flex-col bg-gray-950/95 border-r border-gray-800/80 backdrop-blur-sm isolate pointer-events-auto">
       <div className="p-3 lg:p-4 border-b border-gray-800/60 flex items-center justify-center lg:justify-start">
         <Link
           href="/"
