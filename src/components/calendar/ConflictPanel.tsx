@@ -1,6 +1,6 @@
 "use client";
 
-import { EventConflict } from "@/lib/mock-calendar";
+import { EventConflict } from "@/lib/calendar/types";
 
 interface ConflictPanelProps {
   conflicts: EventConflict[];
