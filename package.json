@@ -11,7 +11,7 @@
     "db:check": "dotenv -e .env.local -- node scripts/check-db-connection.mjs",
     "startup:check": "dotenv -e .env.local -- node scripts/startup-check.mjs",
     "test:mc-api": "bash scripts/smoke-test-mc-api.sh",
-    "test:hardening": "tsx --test tests/hardening/**/*.test.ts"
+    "test:hardening": "tsx --test tests/hardening/*.test.ts"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
