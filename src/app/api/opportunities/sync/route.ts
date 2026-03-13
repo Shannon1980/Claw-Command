@@ -64,7 +64,9 @@ export async function POST() {
         qualifiedCount: r.qualifiedCount,
         duplicatesSkipped: r.duplicatesSkipped,
         error: r.error || null,
+        filteredCount: r.filteredCount,
       })),
+      totalFiltered: results.reduce((sum, r) => sum + r.filteredCount, 0),
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {

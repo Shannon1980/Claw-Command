@@ -74,6 +74,7 @@ export interface ScanResult {
   qualifiedCount: number;
   duplicatesSkipped: number;
   error?: string;
+  filteredCount: number;
 }
 
 export interface DashboardQueue {

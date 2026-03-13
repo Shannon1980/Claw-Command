@@ -5,6 +5,7 @@ import {
   routeAction,
 } from "./scoring";
 import { computeDedupeHash } from "./dedup";
+import { isRelevantOpportunity } from "./relevance-filter";
 
 // ─── Montgomery County MD Procurement Scanner ──────────────────────────────
 // Uses the Montgomery County MD Open Data / eProcurement API
@@ -117,6 +118,7 @@ export async function scanMontgomeryCounty(
   const opportunities: QualifiedOpportunity[] = [];
   let totalFound = 0;
   let duplicatesSkipped = 0;
+  let filteredOut = 0;
 
   try {
     // Add app token if available (increases rate limits)
@@ -307,6 +309,7 @@ export async function scanMontgomeryCounty(
       totalFound: 0,
       qualifiedCount: 0,
       duplicatesSkipped: 0,
+      filteredCount: 0,
       error: `Montgomery County scan failed: ${message}`,
     };
   }
@@ -323,5 +326,6 @@ export async function scanMontgomeryCounty(
         o.action === "CAPTURE_NOW_TEAM_VORENTOE"
     ).length,
     duplicatesSkipped,
+    filteredCount: filteredOut,
   };
 }

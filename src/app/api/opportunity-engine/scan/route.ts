@@ -86,8 +86,10 @@ async function runScan() {
           totalFound: r.totalFound,
           qualifiedCount: r.qualifiedCount,
           duplicatesSkipped: r.duplicatesSkipped,
+          filteredCount: r.filteredCount,
         })),
         totalInserted: inserted,
+        totalFiltered: results.reduce((sum, r) => sum + r.filteredCount, 0),
         actionBreakdown: {
           capture: actionCounts["CAPTURE_NOW"] || 0,
           teamSkyward: actionCounts["CAPTURE_NOW_TEAM_SKYWARD"] || 0,
@@ -138,8 +140,10 @@ async function runScan() {
         qualifiedCount: r.qualifiedCount,
         duplicatesSkipped: r.duplicatesSkipped,
         error: r.error || null,
+        filteredCount: r.filteredCount,
       })),
       totalInserted: inserted,
+      totalFiltered: results.reduce((sum, r) => sum + r.filteredCount, 0),
       actionBreakdown: {
         capture: actionCounts["CAPTURE_NOW"] || 0,
         teamSkyward: actionCounts["CAPTURE_NOW_TEAM_SKYWARD"] || 0,

@@ -1,5 +1,6 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
+import { isRelevantOpportunity } from "@/lib/opportunity-engine/relevance-filter";
 
 /**
  * POST /api/opportunity-engine/push-to-deals
@@ -40,6 +41,19 @@ export async function POST(request: NextRequest) {
 
     const opp = qRes.rows[0];
     const now = new Date().toISOString();
+
+    // Verify opportunity aligns with Vorentoe/Skyward capabilities
+    const naicsCodes = JSON.parse((opp.naics_codes as string) || "[]");
+    const relevance = isRelevantOpportunity(naicsCodes, (opp.description as string) || "");
+    if (!relevance.relevant) {
+      return NextResponse.json(
+        {
+          error: "Opportunity does not align with Vorentoe/Skyward capabilities or NAICS codes",
+          relevance,
+        },
+        { status: 422 }
+      );
+    }
 
     // Map action to pipeline stage
     const action = opp.action || "WATCH";
