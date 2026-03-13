@@ -8,7 +8,7 @@ export default function MissionHeader() {
           Mission Control
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Kanban, schedule, memory recall, and dependencies
+          Kanban, schedule, memory recall, security posture, decisions, and dependencies
         </p>
       </div>
     </header>

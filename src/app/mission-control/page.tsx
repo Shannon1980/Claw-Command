@@ -6,6 +6,8 @@ import MC_KanbanBoard from "@/dashboards/mission-control/components/MC_KanbanBoa
 import MC_SchedulePanel from "@/dashboards/mission-control/components/MC_SchedulePanel";
 import MC_MemoryRecall from "@/dashboards/mission-control/components/MC_MemoryRecall";
 import MC_Dependencies from "@/dashboards/mission-control/components/MC_Dependencies";
+import MC_SecurityPosture from "@/dashboards/mission-control/components/MC_SecurityPosture";
+import MC_DecisionsPanel from "@/dashboards/mission-control/components/MC_DecisionsPanel";
 
 export default function MissionControlPage() {
   return (
@@ -21,6 +23,12 @@ export default function MissionControlPage() {
           </div>
           <div>
             <MC_MemoryRecall />
+          </div>
+          <div>
+            <MC_SecurityPosture />
+          </div>
+          <div className="lg:col-span-2">
+            <MC_DecisionsPanel />
           </div>
           <div className="lg:col-span-2">
             <MC_Dependencies />
