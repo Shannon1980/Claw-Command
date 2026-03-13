@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useOverviewStore } from "@/lib/stores/overviewStore";
 import { useAgentStore } from "@/lib/stores/agentStore";
 import { useTaskStore } from "@/lib/stores/taskStore";
-import Link from "next/link";
 import { useGatewayContext } from "@/lib/contexts/GatewayContext";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,10 +43,13 @@ export default function OverviewPage() {
   const tasksNeedingApproval = tasks.filter((t) => t.dependsOnShannon === true).length;
   const gatewayConnection = gateway.state.connection;
   const gatewayMetrics = gateway.state.metrics;
+
   const [isCheckingGateway, setIsCheckingGateway] = useState(false);
   const [gatewayCheckNote, setGatewayCheckNote] = useState<string | null>(null);
   const [lastSuccessfulGatewayCheck, setLastSuccessfulGatewayCheck] = useState<string | null>(null);
   const [gatewayCheckFailureStreak, setGatewayCheckFailureStreak] = useState(0);
+  const [gatewayCopyNote, setGatewayCopyNote] = useState<string | null>(null);
+
   const gatewayLastUpdate = gateway.state.lastUpdate?.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -54,12 +57,37 @@ export default function OverviewPage() {
     hour12: false,
   });
 
+  const gatewayDiagnosticsText = useMemo(
+    () =>
+      [
+        `Gateway connection: ${gatewayConnection}`,
+        `Gateway last update: ${gatewayLastUpdate ?? "--:--:--"}`,
+        `Gateway active agents: ${gatewayMetrics.activeAgents}`,
+        `Gateway queue length: ${gatewayMetrics.queueLength}`,
+        `Gateway total tokens: ${gatewayMetrics.totalTokens}`,
+        `Last successful manual check: ${lastSuccessfulGatewayCheck ?? "none"}`,
+        `Failure streak: ${gatewayCheckFailureStreak}`,
+        `Error code: ${gateway.state.error?.code ?? "none"}`,
+        `Error message: ${gateway.state.error?.message ?? "none"}`,
+      ].join("\n"),
+    [
+      gatewayConnection,
+      gatewayLastUpdate,
+      gatewayMetrics.activeAgents,
+      gatewayMetrics.queueLength,
+      gatewayMetrics.totalTokens,
+      lastSuccessfulGatewayCheck,
+      gatewayCheckFailureStreak,
+      gateway.state.error?.code,
+      gateway.state.error?.message,
+    ]
+  );
+
   const tasksByStatus: Record<string, number> = {};
   for (const t of tasks) {
     tasksByStatus[t.status] = (tasksByStatus[t.status] || 0) + 1;
   }
 
-  // Items needing Shannon's attention, sorted by urgency
   const attentionItems: { label: string; count: number; href: string; color: string; urgency: number }[] = [];
   if (agentsWaiting > 0) attentionItems.push({ label: "Agents waiting for you", count: agentsWaiting, href: "/agents", color: "text-purple-400", urgency: 1 });
   if (tasksNeedingApproval > 0) attentionItems.push({ label: "Tasks needing approval", count: tasksNeedingApproval, href: "/tasks", color: "text-amber-400", urgency: 2 });
@@ -74,6 +102,14 @@ export default function OverviewPage() {
     const bi = PRIORITY_ORDER.indexOf(b);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
+
+  const actionTasks = tasks
+    .filter((t) => t.status === "blocked" || t.status === "review" || t.status === "quality_review")
+    .sort((a, b) => {
+      const rank: Record<string, number> = { blocked: 0, review: 1, quality_review: 2 };
+      return (rank[a.status] ?? 3) - (rank[b.status] ?? 3);
+    })
+    .slice(0, 8);
 
   const runGatewayCheckNow = async () => {
     if (isCheckingGateway) return;
@@ -110,37 +146,53 @@ export default function OverviewPage() {
         message: err instanceof Error ? err.message : "Manual gateway check failed",
       });
       setGatewayCheckFailureStreak((prev) => prev + 1);
-      setGatewayCheckNote("Gateway check failed. See error details below.");
+      setGatewayCheckNote("Gateway check failed. See diagnostics below.");
     } finally {
       setIsCheckingGateway(false);
     }
   };
 
+  const copyGatewayDiagnostics = async () => {
+    try {
+      await navigator.clipboard.writeText(gatewayDiagnosticsText);
+      setGatewayCopyNote("Diagnostics copied to clipboard.");
+    } catch {
+      setGatewayCopyNote("Copy failed. Clipboard permissions may be blocked.");
+    }
+  };
+
+  const exportGatewayDiagnostics = () => {
+    const blob = new Blob([`${gatewayDiagnosticsText}\n`], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gateway-diagnostics-${timestamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setGatewayCopyNote("Diagnostics exported as .txt file.");
+  };
+
   const quickActions = [
-    { label: "Daily Brief", href: "/daily-news-brief", icon: "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16v6M17 16v6m3-13V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h10a2 2 0 002-2z" },
-    { label: "Task Board", href: "/tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
-    { label: "Deals", href: "/deals", icon: "M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0-4l4-4m-4 4l-4-4" },
-    { label: "Opp Engine", href: "/opportunity-engine", icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" },
-    { label: "Certifications", href: "/certifications", icon: "M12 14l9-5-9-5-9 5 9 5z" },
-    { label: "Memory", href: "/memory", icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" },
-    { label: "Skills", href: "/skills", icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" },
-    { label: "Agents", href: "/agents", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
-    { label: "Pipelines", href: "/orchestration", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
-    { label: "Monitoring", href: "/monitoring", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
-    { label: "Alerts", href: "/alerts", icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" },
-    { label: "Spawn Agent", href: "/spawn", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
+    { label: "Task Board", href: "/tasks" },
+    { label: "Daily Brief", href: "/daily-news-brief" },
+    { label: "Agents", href: "/agents" },
+    { label: "Deals", href: "/deals" },
+    { label: "Opp Engine", href: "/opportunity-engine" },
+    { label: "Monitoring", href: "/monitoring" },
+    { label: "Certifications", href: "/certifications" },
+    { label: "Spawn Agent", href: "/spawn" },
   ];
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 max-w-[1400px] mx-auto">
-      {/* Header row with greeting + daily brief link */}
+    <div className="p-4 lg:p-6 space-y-4 max-w-[1400px] mx-auto">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold text-gray-100">
-            Command Overview
-          </h1>
+          <h1 className="text-xl font-semibold text-gray-100">Command Overview</h1>
           <p className="text-xs text-gray-500 font-mono mt-0.5" suppressHydrationWarning>
-            {agents.length} agents &middot; {tasks.length} tasks &middot; {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })} · {agents.length} agents · {tasks.length} tasks
           </p>
         </div>
         <Link
@@ -151,110 +203,26 @@ export default function OverviewPage() {
         </Link>
       </div>
 
-      {/* Gateway live detail strip */}
-      <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-mono">
-        <div className="flex items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              gatewayConnection === "connected"
-                ? "bg-green-500"
-                : gatewayConnection === "reconnecting"
-                  ? "bg-yellow-500"
-                  : gatewayConnection === "error"
-                    ? "bg-red-500"
-                    : "bg-gray-500"
-            }`}
-          />
-          <span className="text-gray-400">Gateway:</span>
-          <span className="text-gray-200 uppercase">{gatewayConnection}</span>
-        </div>
-        <div className="text-gray-400">Active agents: <span className="text-gray-200">{gatewayMetrics.activeAgents}</span></div>
-        <div className="text-gray-400">Queue: <span className="text-gray-200">{gatewayMetrics.queueLength}</span></div>
-        <div className="text-gray-400">Tokens: <span className="text-gray-200">{gatewayMetrics.totalTokens}</span></div>
-        <div className="text-gray-400">Updated: <span className="text-gray-200">{gatewayLastUpdate ?? "--:--:--"}</span></div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <StatCard label="Agents Online" value={agentsOnline} total={agents.length} color="cyan" />
+        <StatCard label="Tasks Running" value={tasksRunning} total={tasks.length} color="blue" />
+        <StatCard label="Needs Review" value={tasksNeedingReview} color="purple" />
+        <StatCard label="Blocked" value={tasksBlocked + agentsBlocked} color="amber" />
+        <StatCard label="Errors (24h)" value={stats?.errors24h ?? 0} color="red" />
+        <StatCard label="Audit Events" value={stats?.auditEvents24h ?? 0} color="gray" />
       </div>
 
-      {/* Gateway drill-down card */}
-      <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">
-              Gateway Drill-Down
-            </h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Live connection diagnostics and next-step guidance.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={runGatewayCheckNow}
-              disabled={isCheckingGateway}
-              className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isCheckingGateway ? "Checking…" : "Check Gateway Now"}
-            </button>
-            <Link
-              href="/settings"
-              className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
-              Open Settings →
-            </Link>
-          </div>
+      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider">Focus Now</h2>
+          {attentionItems.length > 0 && (
+            <span className="text-[11px] text-amber-300 font-mono">
+              {attentionItems.reduce((sum, item) => sum + item.count, 0)} actionable items
+            </span>
+          )}
         </div>
-
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div className="rounded border border-gray-800 bg-gray-950/50 p-3">
-            <p className="text-gray-500 font-mono">Connection</p>
-            <p className="text-gray-200 mt-1 uppercase">{gatewayConnection}</p>
-            {gateway.state.error?.message && (
-              <p className="text-red-300 mt-2">{gateway.state.error.message}</p>
-            )}
-            {gateway.state.error?.code && (
-              <p className="text-gray-500 font-mono mt-1">Code: {gateway.state.error.code}</p>
-            )}
-          </div>
-
-          <div className="rounded border border-gray-800 bg-gray-950/50 p-3">
-            <p className="text-gray-500 font-mono">Recommended Action</p>
-            {gatewayConnection === "connected" ? (
-              <p className="text-green-300 mt-1">Gateway healthy. No action needed.</p>
-            ) : gatewayConnection === "reconnecting" ? (
-              <p className="text-yellow-300 mt-1">
-                Reconnect in progress. If this persists, verify gateway URL/token in Settings.
-              </p>
-            ) : (
-              <p className="text-amber-300 mt-1">
-                Check gateway URL and token, then run a connection check from Settings.
-              </p>
-            )}
-            <p className="text-gray-500 mt-2">
-              Last update: <span className="text-gray-300 font-mono">{gatewayLastUpdate ?? "--:--:--"}</span>
-            </p>
-          </div>
-        </div>
-
-        {gatewayCheckNote && (
-          <p className="mt-3 text-xs font-mono text-gray-400">{gatewayCheckNote}</p>
-        )}
-        {lastSuccessfulGatewayCheck && (
-          <p className="mt-1 text-[11px] font-mono text-gray-500">
-            Last successful check: <span className="text-gray-300">{lastSuccessfulGatewayCheck}</span>
-          </p>
-        )}
-        {gatewayCheckFailureStreak >= 2 && (
-          <p className="mt-1 text-[11px] font-mono text-amber-300">
-            Repeated failures detected. Wait 15–30s, then retry. If still failing, verify gateway URL/token in Settings.
-          </p>
-        )}
-      </div>
-
-      {/* Attention Banner - only shows when there are actionable items */}
-      {attentionItems.length > 0 && (
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
-          <h2 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider mb-2.5">
-            Needs Your Attention
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {attentionItems.length > 0 ? (
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
             {attentionItems.map((item) => (
               <Link
                 key={item.label}
@@ -262,38 +230,44 @@ export default function OverviewPage() {
                 className="flex items-center justify-between px-3 py-2 bg-gray-900/60 border border-gray-800 rounded-lg hover:bg-gray-800/60 hover:border-gray-700 transition-colors"
               >
                 <span className="text-xs text-gray-300">{item.label}</span>
-                <span className={`text-sm font-bold font-mono ${item.color}`}>
-                  {item.count}
-                </span>
+                <span className={`text-sm font-bold font-mono ${item.color}`}>{item.count}</span>
               </Link>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Top Stats - compact 6-column row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard label="Agents Online" value={agentsOnline} total={agents.length} color="cyan" />
-        <StatCard label="Tasks Running" value={tasksRunning} total={tasks.length} color="blue" />
-        <StatCard label="In Review" value={tasksNeedingReview} color="purple" />
-        <StatCard label="Blocked" value={tasksBlocked + agentsBlocked} color="amber" />
-        <StatCard label="Errors (24h)" value={stats?.errors24h ?? 0} color="red" />
-        <StatCard label="Audit Events" value={stats?.auditEvents24h ?? 0} color="gray" />
+        ) : (
+          <p className="mt-2 text-xs text-green-300">No urgent blockers. You are clear to focus on planned work.</p>
+        )}
       </div>
 
-      {/* Main Grid - 2-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left column */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_1fr_0.9fr] gap-4">
         <div className="space-y-4">
-          {/* Agents sorted by who needs attention first */}
           <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">
-                Agent Status
-              </h2>
-              <Link href="/agents" className="text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-colors">
-                View all
-              </Link>
+              <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">Tasks Needing Action</h2>
+              <Link href="/tasks" className="text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-colors">Open board</Link>
+            </div>
+            {actionTasks.length > 0 ? (
+              <div className="space-y-1.5">
+                {actionTasks.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-800/40 -mx-2">
+                    <span className="text-xs text-gray-300 truncate flex-1 mr-2">{task.title}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+                      task.status === "blocked" ? "bg-amber-500/20 text-amber-400" : "bg-purple-500/20 text-purple-400"
+                    }`}>
+                      {task.status.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">No blocked or review tasks right now.</p>
+            )}
+          </div>
+
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">Agent Status</h2>
+              <Link href="/agents" className="text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-colors">View all</Link>
             </div>
             <div className="space-y-1.5">
               {agents
@@ -313,9 +287,7 @@ export default function OverviewPage() {
                       <span className="text-sm shrink-0">{agent.emoji}</span>
                       <span className="text-xs text-gray-300 truncate">{agent.name}</span>
                       {agent.taskTitle && (
-                        <span className="text-[10px] text-gray-500 truncate hidden sm:inline">
-                          - {agent.taskTitle}
-                        </span>
+                        <span className="text-[10px] text-gray-500 truncate hidden sm:inline">- {agent.taskTitle}</span>
                       )}
                     </div>
                     <span
@@ -333,46 +305,14 @@ export default function OverviewPage() {
                     </span>
                   </Link>
                 ))}
-              {agents.length === 0 && (
-                <p className="text-xs text-gray-600 font-mono">No agents registered</p>
-              )}
-            </div>
-          </div>
-
-          {/* System Health - 2-col grid for compactness */}
-          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-            <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">
-              System Health
-            </h2>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-              <HealthRow
-                label="Gateway"
-                value={health?.gatewayStatus ?? "unknown"}
-                indicator={health?.gatewayStatus === "online" ? "green" : "red"}
-              />
-              {health?.gatewayLatencyMs != null && (
-                <HealthRow label="Latency" value={`${health.gatewayLatencyMs}ms`} />
-              )}
-              {health?.uptime && <HealthRow label="Uptime" value={health.uptime} />}
-              {health?.dbSizeMb != null && (
-                <HealthRow label="DB Size" value={`${health.dbSizeMb} MB`} />
-              )}
+              {agents.length === 0 && <p className="text-xs text-gray-600 font-mono">No agents registered</p>}
             </div>
           </div>
         </div>
 
-        {/* Right column */}
         <div className="space-y-4">
-          {/* Tasks by Status with visual bars, sorted by urgency */}
           <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">
-                Tasks by Status
-              </h2>
-              <Link href="/tasks" className="text-[10px] font-mono text-gray-600 hover:text-gray-400 transition-colors">
-                Open board
-              </Link>
-            </div>
+            <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">Tasks by Status</h2>
             <div className="space-y-1.5">
               {sortedStatuses.map(([status, count]) => {
                 const total = tasks.length || 1;
@@ -381,72 +321,115 @@ export default function OverviewPage() {
                   <div key={status} className="flex items-center gap-3">
                     <div className="flex items-center gap-2 w-28 shrink-0">
                       <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLORS[status] || "bg-gray-600"}`} />
-                      <span className="text-xs text-gray-400 capitalize truncate">
-                        {status.replace(/_/g, " ")}
-                      </span>
+                      <span className="text-xs text-gray-400 capitalize truncate">{status.replace(/_/g, " ")}</span>
                     </div>
                     <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${STATUS_COLORS[status] || "bg-gray-600"}`}
-                        style={{ width: `${Math.max(pct, 2)}%` }}
-                      />
+                      <div className={`h-full rounded-full ${STATUS_COLORS[status] || "bg-gray-600"}`} style={{ width: `${Math.max(pct, 2)}%` }} />
                     </div>
                     <span className="text-xs font-mono text-gray-300 w-6 text-right">{count}</span>
                   </div>
                 );
               })}
-              {sortedStatuses.length === 0 && (
-                <p className="text-xs text-gray-600 font-mono">No tasks yet</p>
-              )}
+              {sortedStatuses.length === 0 && <p className="text-xs text-gray-600 font-mono">No tasks yet</p>}
             </div>
           </div>
 
-          {/* Inline preview of tasks that need action */}
-          {(tasksBlocked > 0 || tasksNeedingReview > 0) && (
-            <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-              <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">
-                Tasks Needing Action
-              </h2>
-              <div className="space-y-1.5">
-                {tasks
-                  .filter((t) => t.status === "blocked" || t.status === "review" || t.status === "quality_review")
-                  .slice(0, 6)
-                  .map((task) => (
-                    <div key={task.id} className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-800/40 -mx-2">
-                      <span className="text-xs text-gray-300 truncate flex-1 mr-2">{task.title}</span>
-                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                        task.status === "blocked"
-                          ? "bg-amber-500/20 text-amber-400"
-                          : "bg-purple-500/20 text-purple-400"
-                      }`}>
-                        {task.status.replace(/_/g, " ")}
-                      </span>
-                    </div>
-                  ))}
-              </div>
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+            <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">System Health</h2>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+              <HealthRow
+                label="Gateway"
+                value={health?.gatewayStatus ?? "unknown"}
+                indicator={health?.gatewayStatus === "online" ? "green" : "red"}
+              />
+              {health?.gatewayLatencyMs != null && <HealthRow label="Latency" value={`${health.gatewayLatencyMs}ms`} />}
+              {health?.uptime && <HealthRow label="Uptime" value={health.uptime} />}
+              {health?.dbSizeMb != null && <HealthRow label="DB Size" value={`${health.dbSizeMb} MB`} />}
             </div>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Quick Actions - reordered for Shannon's workflow priorities */}
-      <div>
-        <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-          {quickActions.map((action) => (
-            <Link
-              key={action.href}
-              href={action.href}
-              className="flex flex-col items-center gap-1.5 p-3 bg-gray-900/50 border border-gray-800 rounded-lg hover:bg-gray-800/60 hover:border-gray-700 transition-colors"
-            >
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={action.icon} />
-              </svg>
-              <span className="text-[10px] font-mono text-gray-400 text-center leading-tight">{action.label}</span>
-            </Link>
-          ))}
+        <div className="space-y-4">
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+            <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className="px-2.5 py-2 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-md hover:bg-gray-800/70 hover:border-gray-700 transition-colors"
+                >
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">Gateway</h2>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                gatewayConnection === "connected"
+                  ? "bg-green-500/15 text-green-300"
+                  : gatewayConnection === "reconnecting"
+                    ? "bg-amber-500/15 text-amber-300"
+                    : gatewayConnection === "error"
+                      ? "bg-red-500/15 text-red-300"
+                      : "bg-gray-800 text-gray-400"
+              }`}>
+                {gatewayConnection}
+              </span>
+            </div>
+
+            <div className="space-y-1 text-xs text-gray-400 font-mono">
+              <p>Active agents: <span className="text-gray-200">{gatewayMetrics.activeAgents}</span></p>
+              <p>Queue: <span className="text-gray-200">{gatewayMetrics.queueLength}</span></p>
+              <p>Tokens: <span className="text-gray-200">{gatewayMetrics.totalTokens}</span></p>
+              <p>Updated: <span className="text-gray-200">{gatewayLastUpdate ?? "--:--:--"}</span></p>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={runGatewayCheckNow}
+                disabled={isCheckingGateway}
+                className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isCheckingGateway ? "Checking…" : "Check Now"}
+              </button>
+              <button
+                onClick={copyGatewayDiagnostics}
+                className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500"
+              >
+                Copy
+              </button>
+              <button
+                onClick={exportGatewayDiagnostics}
+                className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500"
+              >
+                Export
+              </button>
+            </div>
+
+            {gatewayCheckNote && <p className="mt-3 text-[11px] font-mono text-gray-400">{gatewayCheckNote}</p>}
+            {lastSuccessfulGatewayCheck && (
+              <p className="mt-1 text-[11px] font-mono text-gray-500">
+                Last successful check: <span className="text-gray-300">{lastSuccessfulGatewayCheck}</span>
+              </p>
+            )}
+            {gatewayCopyNote && <p className="mt-1 text-[11px] font-mono text-cyan-300">{gatewayCopyNote}</p>}
+            {gatewayCheckFailureStreak >= 2 && (
+              <p className="mt-1 text-[11px] font-mono text-amber-300">
+                Repeated failures detected. Verify gateway URL/token in Settings.
+              </p>
+            )}
+
+            <details className="mt-3 border-t border-gray-800 pt-2">
+              <summary className="cursor-pointer text-[11px] text-gray-500 hover:text-gray-300 font-mono">
+                Diagnostics details
+              </summary>
+              <pre className="mt-2 whitespace-pre-wrap text-[10px] text-gray-500 font-mono">{gatewayDiagnosticsText}</pre>
+            </details>
+          </div>
         </div>
       </div>
     </div>
@@ -475,14 +458,10 @@ function StatCard({
   };
   return (
     <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3">
-      <p className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">
-        {label}
-      </p>
+      <p className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">{label}</p>
       <p className={`text-xl font-bold font-mono mt-0.5 ${colorMap[color] || "text-gray-300"}`}>
         {value}
-        {total != null && (
-          <span className="text-xs text-gray-600 ml-1">/ {total}</span>
-        )}
+        {total != null && <span className="text-xs text-gray-600 ml-1">/ {total}</span>}
       </p>
     </div>
   );
@@ -502,11 +481,7 @@ function HealthRow({
       <span className="text-xs text-gray-500">{label}</span>
       <div className="flex items-center gap-1.5">
         {indicator && (
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              indicator === "green" ? "bg-green-500" : "bg-red-500"
-            }`}
-          />
+          <span className={`w-1.5 h-1.5 rounded-full ${indicator === "green" ? "bg-green-500" : "bg-red-500"}`} />
         )}
         <span className="text-xs font-mono text-gray-300 capitalize">{value}</span>
       </div>
