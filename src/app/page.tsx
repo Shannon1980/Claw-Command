@@ -45,6 +45,8 @@ export default function OverviewPage() {
   const gatewayMetrics = gateway.state.metrics;
   const [isCheckingGateway, setIsCheckingGateway] = useState(false);
   const [gatewayCheckNote, setGatewayCheckNote] = useState<string | null>(null);
+  const [lastSuccessfulGatewayCheck, setLastSuccessfulGatewayCheck] = useState<string | null>(null);
+  const [gatewayCheckFailureStreak, setGatewayCheckFailureStreak] = useState(0);
   const gatewayLastUpdate = gateway.state.lastUpdate?.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -92,12 +94,22 @@ export default function OverviewPage() {
       }
 
       gateway.setConnectionStatus(data.connected ? "connected" : "disconnected");
+      setGatewayCheckFailureStreak(0);
+      setLastSuccessfulGatewayCheck(
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+      );
       setGatewayCheckNote(data.connected ? "Gateway check complete: connected" : "Gateway check complete: offline");
     } catch (err) {
       gateway.setConnectionStatus("error", {
         code: "MANUAL_CHECK_FAILED",
         message: err instanceof Error ? err.message : "Manual gateway check failed",
       });
+      setGatewayCheckFailureStreak((prev) => prev + 1);
       setGatewayCheckNote("Gateway check failed. See error details below.");
     } finally {
       setIsCheckingGateway(false);
@@ -223,6 +235,16 @@ export default function OverviewPage() {
 
         {gatewayCheckNote && (
           <p className="mt-3 text-xs font-mono text-gray-400">{gatewayCheckNote}</p>
+        )}
+        {lastSuccessfulGatewayCheck && (
+          <p className="mt-1 text-[11px] font-mono text-gray-500">
+            Last successful check: <span className="text-gray-300">{lastSuccessfulGatewayCheck}</span>
+          </p>
+        )}
+        {gatewayCheckFailureStreak >= 2 && (
+          <p className="mt-1 text-[11px] font-mono text-amber-300">
+            Repeated failures detected. Wait 15–30s, then retry. If still failing, verify gateway URL/token in Settings.
+          </p>
         )}
       </div>
 
