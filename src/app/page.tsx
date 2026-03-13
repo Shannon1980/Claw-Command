@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useOverviewStore } from "@/lib/stores/overviewStore";
 import { useAgentStore } from "@/lib/stores/agentStore";
 import { useTaskStore } from "@/lib/stores/taskStore";
@@ -43,6 +43,8 @@ export default function OverviewPage() {
   const tasksNeedingApproval = tasks.filter((t) => t.dependsOnShannon === true).length;
   const gatewayConnection = gateway.state.connection;
   const gatewayMetrics = gateway.state.metrics;
+  const [isCheckingGateway, setIsCheckingGateway] = useState(false);
+  const [gatewayCheckNote, setGatewayCheckNote] = useState<string | null>(null);
   const gatewayLastUpdate = gateway.state.lastUpdate?.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -70,6 +72,37 @@ export default function OverviewPage() {
     const bi = PRIORITY_ORDER.indexOf(b);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
+
+  const runGatewayCheckNow = async () => {
+    if (isCheckingGateway) return;
+    setIsCheckingGateway(true);
+    setGatewayCheckNote(null);
+
+    try {
+      const res = await fetch("/api/gateway/status", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      gateway.updateMetrics(data.metrics ?? gateway.state.metrics);
+
+      if (data.agents) {
+        Object.entries(data.agents).forEach(([agentId, status]) => {
+          gateway.updateAgentStatus(agentId, status as any);
+        });
+      }
+
+      gateway.setConnectionStatus(data.connected ? "connected" : "disconnected");
+      setGatewayCheckNote(data.connected ? "Gateway check complete: connected" : "Gateway check complete: offline");
+    } catch (err) {
+      gateway.setConnectionStatus("error", {
+        code: "MANUAL_CHECK_FAILED",
+        message: err instanceof Error ? err.message : "Manual gateway check failed",
+      });
+      setGatewayCheckNote("Gateway check failed. See error details below.");
+    } finally {
+      setIsCheckingGateway(false);
+    }
+  };
 
   const quickActions = [
     { label: "Daily Brief", href: "/daily-news-brief", icon: "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16v6M17 16v6m3-13V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h10a2 2 0 002-2z" },
@@ -140,12 +173,21 @@ export default function OverviewPage() {
               Live connection diagnostics and next-step guidance.
             </p>
           </div>
-          <Link
-            href="/settings"
-            className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors"
-          >
-            Open Settings →
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={runGatewayCheckNow}
+              disabled={isCheckingGateway}
+              className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isCheckingGateway ? "Checking…" : "Check Gateway Now"}
+            </button>
+            <Link
+              href="/settings"
+              className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              Open Settings →
+            </Link>
+          </div>
         </div>
 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -178,6 +220,10 @@ export default function OverviewPage() {
             </p>
           </div>
         </div>
+
+        {gatewayCheckNote && (
+          <p className="mt-3 text-xs font-mono text-gray-400">{gatewayCheckNote}</p>
+        )}
       </div>
 
       {/* Attention Banner - only shows when there are actionable items */}
