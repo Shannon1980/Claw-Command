@@ -5,6 +5,7 @@ import { useOverviewStore } from "@/lib/stores/overviewStore";
 import { useAgentStore } from "@/lib/stores/agentStore";
 import { useTaskStore } from "@/lib/stores/taskStore";
 import Link from "next/link";
+import { useGatewayContext } from "@/lib/contexts/GatewayContext";
 
 const STATUS_COLORS: Record<string, string> = {
   inbox: "bg-gray-600",
@@ -22,6 +23,7 @@ export default function OverviewPage() {
   const { stats, health, fetchStats, fetchHealth } = useOverviewStore();
   const { agents, fetchAgents } = useAgentStore();
   const { tasks, fetchTasks } = useTaskStore();
+  const gateway = useGatewayContext();
 
   useEffect(() => {
     fetchStats();
@@ -39,6 +41,15 @@ export default function OverviewPage() {
     (t) => t.status === "review" || t.status === "quality_review"
   ).length;
   const tasksNeedingApproval = tasks.filter((t) => t.dependsOnShannon === true).length;
+  const gatewayConnection = gateway.state.connection;
+  const gatewayMetrics = gateway.state.metrics;
+  const gatewayLastUpdate = gateway.state.lastUpdate?.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
   const tasksByStatus: Record<string, number> = {};
   for (const t of tasks) {
     tasksByStatus[t.status] = (tasksByStatus[t.status] || 0) + 1;
@@ -93,6 +104,29 @@ export default function OverviewPage() {
         >
           Open Daily Brief
         </Link>
+      </div>
+
+      {/* Gateway live detail strip */}
+      <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              gatewayConnection === "connected"
+                ? "bg-green-500"
+                : gatewayConnection === "reconnecting"
+                  ? "bg-yellow-500"
+                  : gatewayConnection === "error"
+                    ? "bg-red-500"
+                    : "bg-gray-500"
+            }`}
+          />
+          <span className="text-gray-400">Gateway:</span>
+          <span className="text-gray-200 uppercase">{gatewayConnection}</span>
+        </div>
+        <div className="text-gray-400">Active agents: <span className="text-gray-200">{gatewayMetrics.activeAgents}</span></div>
+        <div className="text-gray-400">Queue: <span className="text-gray-200">{gatewayMetrics.queueLength}</span></div>
+        <div className="text-gray-400">Tokens: <span className="text-gray-200">{gatewayMetrics.totalTokens}</span></div>
+        <div className="text-gray-400">Updated: <span className="text-gray-200">{gatewayLastUpdate ?? "--:--:--"}</span></div>
       </div>
 
       {/* Attention Banner - only shows when there are actionable items */}
