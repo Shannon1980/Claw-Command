@@ -111,6 +111,21 @@ export default function OverviewPage() {
     })
     .slice(0, 8);
 
+  const now = Date.now();
+  const shannonNext24hTasks = tasks
+    .filter((t) => {
+      if (!t.dependsOnShannon || t.status === "done") return false;
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate).getTime();
+      if (Number.isNaN(due)) return false;
+      return due >= now && due <= now + 24 * 60 * 60 * 1000;
+    })
+    .sort((a, b) => {
+      const ad = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      const bd = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      return ad - bd;
+    });
+
   const runGatewayCheckNow = async () => {
     if (isCheckingGateway) return;
     setIsCheckingGateway(true);
@@ -210,6 +225,51 @@ export default function OverviewPage() {
         <StatCard label="Blocked" value={tasksBlocked + agentsBlocked} color="amber" />
         <StatCard label="Errors (24h)" value={stats?.errors24h ?? 0} color="red" />
         <StatCard label="Audit Events" value={stats?.auditEvents24h ?? 0} color="gray" />
+      </div>
+
+      <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-mono font-bold text-blue-300 uppercase tracking-wider">
+            Needs Shannon (next 24h)
+          </h2>
+          <Link
+            href="/tasks"
+            className="text-[11px] font-mono text-blue-300 hover:text-blue-200 transition-colors"
+          >
+            Open task board →
+          </Link>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-4 items-start">
+          <div className="rounded-lg border border-blue-500/30 bg-gray-950/60 px-4 py-3 min-w-28 text-center">
+            <p className="text-[11px] font-mono text-blue-300 uppercase tracking-wider">Count</p>
+            <p className="text-3xl font-semibold text-gray-100 mt-1">{shannonNext24hTasks.length}</p>
+          </div>
+
+          <div className="space-y-2">
+            {shannonNext24hTasks.length === 0 ? (
+              <p className="text-xs text-gray-400">No Shannon-dependent tasks due in the next 24 hours.</p>
+            ) : (
+              shannonNext24hTasks.slice(0, 5).map((task) => (
+                <Link
+                  key={task.id}
+                  href="/tasks"
+                  className="block px-3 py-2 rounded border border-gray-800 bg-gray-900/60 hover:bg-gray-800/60 transition-colors"
+                >
+                  <p className="text-xs text-gray-200 truncate">{task.title}</p>
+                  <p className="text-[11px] text-gray-500 font-mono mt-0.5">
+                    Due {task.dueDate ? new Date(task.dueDate).toLocaleString() : "TBD"}
+                  </p>
+                </Link>
+              ))
+            )}
+            {shannonNext24hTasks.length > 5 && (
+              <p className="text-[11px] text-gray-500 font-mono">
+                +{shannonNext24hTasks.length - 5} more due soon
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
