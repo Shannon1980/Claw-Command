@@ -7,6 +7,18 @@ export interface AuthUser {
   role: string;
 }
 
+const ROLE_ORDER: Record<string, number> = {
+  viewer: 1,
+  operator: 2,
+  admin: 3,
+};
+
+export function hasRoleAtLeast(userRole: string, minimumRole: string): boolean {
+  const userRank = ROLE_ORDER[userRole] ?? 0;
+  const minimumRank = ROLE_ORDER[minimumRole] ?? Number.MAX_SAFE_INTEGER;
+  return userRank >= minimumRank;
+}
+
 /**
  * Validates the session token from cookies or API key from headers.
  * Returns the authenticated user or null if unauthenticated.
@@ -93,5 +105,23 @@ export async function requireRole(
   if (!roles.includes(result.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  return result;
+}
+
+/**
+ * Require a minimum role level.
+ * Hierarchy: viewer < operator < admin.
+ */
+export async function requireMinRole(
+  request: NextRequest,
+  minimumRole: "viewer" | "operator" | "admin"
+): Promise<AuthUser | NextResponse> {
+  const result = await requireAuth(request);
+  if (result instanceof NextResponse) return result;
+
+  if (!hasRoleAtLeast(result.role, minimumRole)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   return result;
 }

@@ -212,6 +212,12 @@ export async function POST() {
         description TEXT, owner_agent_id TEXT, dependencies TEXT DEFAULT '[]',
         shannon_approval BOOLEAN, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS decisions (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, context TEXT NOT NULL DEFAULT '', choice TEXT NOT NULL,
+        options TEXT NOT NULL DEFAULT '[]', reason TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'proposed',
+        author_agent_id TEXT, shannon_approval BOOLEAN,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT DEFAULT '',
         assigned_to_agent_id TEXT, depends_on_shannon BOOLEAN DEFAULT false,
@@ -275,6 +281,10 @@ export async function POST() {
         content TEXT NOT NULL, created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS audit_events (
+        id TEXT PRIMARY KEY, user_id TEXT, action TEXT NOT NULL, resource_type TEXT NOT NULL,
+        resource_id TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}', ip_address TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS audit_log (
         id TEXT PRIMARY KEY, user_id TEXT, action TEXT NOT NULL, resource_type TEXT NOT NULL,
         resource_id TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}', ip_address TEXT, created_at TEXT NOT NULL
       );

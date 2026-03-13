@@ -14,6 +14,23 @@ import { pool } from "@/lib/db/client";
 // Default OpenClaw RPC port
 const DEFAULT_URL = "http://localhost:18789";
 
+function getGatewayToken(): string | null {
+  return (
+    process.env.OPENCLAW_GATEWAY_TOKEN ||
+    process.env.OPENCLAW_TOKEN ||
+    process.env.GATEWAY_TOKEN ||
+    null
+  );
+}
+
+function getRpcHeaders(): HeadersInit {
+  const token = getGatewayToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 /**
  * Resolve the effective gateway base URL.
  * Priority: OPENCLAW_URL env var > first online DB gateway > first DB gateway > DEFAULT_URL
@@ -21,6 +38,9 @@ const DEFAULT_URL = "http://localhost:18789";
 export async function getBaseUrl(): Promise<string> {
   if (process.env.OPENCLAW_URL) {
     return process.env.OPENCLAW_URL;
+  }
+  if (process.env.OPENCLAW_GATEWAY_URL) {
+    return process.env.OPENCLAW_GATEWAY_URL;
   }
 
   if (pool) {
@@ -41,20 +61,34 @@ export async function getBaseUrl(): Promise<string> {
 }
 
 export function isConfigured(): boolean {
-  return true; // Assume configured for now, or check env var
+  return Boolean(process.env.OPENCLAW_URL || process.env.OPENCLAW_GATEWAY_URL || pool);
 }
 
 // ─── Gateway RPC helpers ────────────────────────────────────────────────────
 
 export async function isGatewayOnline(): Promise<boolean> {
+  const base = await getBaseUrl();
   try {
-    const res = await fetch(await getBaseUrl(), {
+    const rpcRes = await fetch(base, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getRpcHeaders(),
       body: JSON.stringify({ jsonrpc: "2.0", method: "node.list", id: Date.now() }),
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(2500),
     });
-    return res.ok;
+    if (rpcRes.ok) return true;
+  } catch {
+    // fall through
+  }
+
+  // Fallback for deployments exposing only /health
+  try {
+    const healthUrl = base.endsWith("/health") ? base : `${base.replace(/\/$/, "")}/health`;
+    const healthRes = await fetch(healthUrl, {
+      method: "GET",
+      headers: getGatewayToken() ? { Authorization: `Bearer ${getGatewayToken()}` } : undefined,
+      signal: AbortSignal.timeout(2500),
+    });
+    return healthRes.ok;
   } catch {
     return false;
   }
@@ -65,7 +99,7 @@ async function rpc<T>(method: string, params: Record<string, unknown> = {}): Pro
   try {
     const res = await fetch(base, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getRpcHeaders(),
       body: JSON.stringify({ jsonrpc: "2.0", method, params, id: Date.now() }),
       // Add a reasonable timeout
       signal: AbortSignal.timeout(5000),
@@ -331,7 +365,7 @@ export async function chatCompletion(
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getRpcHeaders(),
     body: JSON.stringify({ ...request, stream: true }),
   });
 

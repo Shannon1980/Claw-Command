@@ -26,7 +26,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    gatewayUrl: process.env.OPENCLAW_GATEWAY_URL || "",
+    gatewayUrl: process.env.OPENCLAW_GATEWAY_URL || process.env.OPENCLAW_URL || "",
     authUser: masked,
     tokenBudget: process.env.TOKEN_BUDGET_MONTHLY_USD || "",
     alertThreshold: process.env.TOKEN_ALERT_THRESHOLD_PCT || "",

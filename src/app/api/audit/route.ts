@@ -16,6 +16,17 @@ async function ensureSchema() {
       ip_address TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      action TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      details TEXT NOT NULL DEFAULT '{}',
+      ip_address TEXT,
+      created_at TEXT NOT NULL
+    );
   `);
   schemaReady = true;
 }
@@ -61,8 +72,8 @@ export async function GET(request: NextRequest) {
     const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
 
     const result = await pool.query(
-      `SELECT a.id, a.action, a.resource_type, a.resource_id, a.details, a.created_at, u.username
-       FROM audit_events a
+      `SELECT a.id, a.user_id, a.action, a.resource_type, a.resource_id, a.details, a.created_at, u.username
+       FROM audit_log a
        LEFT JOIN users u ON u.id = a.user_id
        ${where}
        ORDER BY a.created_at DESC
