@@ -1,6 +1,6 @@
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
-import type { Document, LinkedItem } from "@/lib/mock-docs";
+import type { Document, LinkedItem } from "@/lib/docs/model";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -63,7 +63,7 @@ function isRepoDoc(filename: string): boolean {
   return REPO_DOC_PATTERNS.some((pattern) => pattern.test(filename));
 }
 
-function guessAgent(filename: string, content: string): string {
+function guessAgent(filename: string): string {
   const fn = filename.toLowerCase();
   if (fn.includes("cpars") || fn.includes("seas") || fn.includes("skyward")) return "skylar";
   if (fn.includes("mbe") || fn.includes("cert") || fn.includes("wosb") || fn.includes("lsbrp")) return "veronica";
@@ -137,7 +137,7 @@ function readWorkspaceDocs(): Document[] {
         stat = fs.statSync(filePath);
       } catch { /* ignore */ }
 
-      const agentId = guessAgent(f, content);
+      const agentId = guessAgent(f);
       const meta = AGENT_META[agentId] || AGENT_META.bob;
 
       return {
@@ -164,6 +164,7 @@ function readWorkspaceDocs(): Document[] {
   }
 }
 
+/** Get documents from best available source for local/dev runtime */
 /** Non-database fallback: workspace documents only */
 function getFallbackDocs(): Document[] {
   return readWorkspaceDocs();
@@ -194,12 +195,14 @@ async function ensureSchema() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!pool) return NextResponse.json(getFallbackDocs());
+  if (!pool) {
+    return NextResponse.json(getFallbackDocs());
+  }
 
   try {
     await ensureSchema();
   } catch {
-    return NextResponse.json(getFallbackDocs());
+    return NextResponse.json({ error: "Unable to initialize docs schema" }, { status: 500 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -207,10 +210,9 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search");
 
   try {
-    // Use minimal columns to avoid schema drift (linked_to, etc. may not exist)
     const baseQuery =
       "SELECT d.id, d.title, d.filename, d.doc_type, d.content, d.author_agent_id, " +
-      "d.status, d.file_path, d.created_at, d.updated_at " +
+      "d.status, d.file_path, d.linked_to, d.version_history, d.priority, d.review_status, d.category, d.notes, d.assignments, d.created_at, d.updated_at " +
       "FROM docs d";
     let query = baseQuery;
     const conditions: string[] = [];
@@ -224,7 +226,6 @@ export async function GET(request: NextRequest) {
       params.push("%" + search + "%");
       conditions.push("(d.title ILIKE $" + params.length + " OR d.content ILIKE $" + params.length + ")");
     }
-    // Skip linkedType, reviewStatus, category, priority filters - those columns may not exist in deployed schema
 
     if (conditions.length > 0) {
       query += " WHERE " + conditions.join(" AND ");
@@ -248,20 +249,20 @@ export async function GET(request: NextRequest) {
         updatedAt: row.updated_at,
         agent: meta.name,
         agentEmoji: meta.emoji,
-        linkedTo: [] as LinkedItem[],
-        versionHistory: [{ timestamp: row.updated_at as string, summary: "Synced" }],
-        priority: "medium",
-        reviewStatus: "pending_review",
-        category: "uncategorized",
-        notes: [],
-        assignments: [],
+        linkedTo: (row.linked_to as LinkedItem[]) || [],
+        versionHistory: (row.version_history as { timestamp: string; summary: string }[]) || [],
+        priority: (row.priority as string) || "medium",
+        reviewStatus: (row.review_status as string) || "pending_review",
+        category: (row.category as string) || "uncategorized",
+        notes: (row.notes as unknown[]) || [],
+        assignments: (row.assignments as unknown[]) || [],
       };
     });
 
     return NextResponse.json(docs);
   } catch (error) {
     console.error("[Docs API] Error:", error);
-    return NextResponse.json(getFallbackDocs());
+    return NextResponse.json({ error: "Failed to fetch documents" }, { status: 500 });
   }
 }
 

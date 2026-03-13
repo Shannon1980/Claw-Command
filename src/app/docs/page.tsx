@@ -10,8 +10,8 @@ import type {
   LinkedItem,
   AssignTarget,
   DocumentPriority,
-} from "@/lib/mock-docs";
-import { CATEGORY_OPTIONS } from "@/lib/mock-docs";
+} from "@/lib/docs/model";
+import { CATEGORY_OPTIONS } from "@/lib/docs/model";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -24,6 +24,7 @@ type TabMode = "all" | "queue";
 export default function DocsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,19 +65,32 @@ export default function DocsPage() {
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       setError(null);
+
       const res = await fetch("/api/docs", { cache: "no-store" });
       const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error((data && (data.error as string)) || "Failed to load documents");
+        const message = (data && typeof data.error === "string" && data.error) || "Failed to load documents.";
+        setLoadError(message);
+        setError(message);
+        return;
       }
+
       if (!Array.isArray(data)) {
-        throw new Error("Unexpected documents response");
+        const message = "Unexpected response while loading documents.";
+        setLoadError(message);
+        setError(message);
+        return;
       }
+
       setDocuments(data);
       setLastUpdated(new Date().toISOString());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load documents");
+    } catch {
+      const message = "Unable to reach docs service. Check your connection and try again.";
+      setLoadError(message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -375,6 +389,12 @@ export default function DocsPage() {
           </div>
         </div>
 
+        {loadError && (
+          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+            {loadError}
+          </div>
+        )}
+
         {/* Tabs: Queue vs All */}
         <div className="flex items-center gap-1 mb-6 bg-gray-900 border border-gray-800 rounded-lg p-0.5 w-fit">
           <button
@@ -508,6 +528,10 @@ export default function DocsPage() {
             <div className="text-center py-12">
               <p className="text-gray-500 text-sm">Loading documents...</p>
             </div>
+          ) : loadError && documents.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-red-300 text-sm">Could not load review queue.</p>
+            </div>
           ) : (
             <ReviewQueue
               documents={filteredDocs}
@@ -520,6 +544,16 @@ export default function DocsPage() {
           loading && documents.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-sm">Loading documents...</p>
+            </div>
+          ) : loadError && documents.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-red-300 text-sm mb-3">Unable to load documents.</p>
+              <button
+                onClick={() => fetchDocuments()}
+                className="px-4 py-2 bg-red-600/20 text-red-300 border border-red-500/30 rounded-lg text-sm font-medium hover:bg-red-600/30 transition-colors"
+              >
+                Retry
+              </button>
             </div>
           ) : filteredDocs.length === 0 ? (
             <div className="text-center py-16">
