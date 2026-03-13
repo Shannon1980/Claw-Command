@@ -305,6 +305,7 @@ export async function scanAllSources(
         totalFound: 0,
         qualifiedCount: 0,
         duplicatesSkipped: 0,
+        filteredCount: 0,
         error: `${source} scanner crashed: ${reason}`,
       });
     }

@@ -198,6 +198,7 @@ export async function scanEmma(
       totalFound: 0,
       qualifiedCount: 0,
       duplicatesSkipped: 0,
+      filteredCount: 0,
       error: `EMMA scan failed: ${message}`,
     };
   }
