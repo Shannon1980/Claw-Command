@@ -118,10 +118,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(rows);
   } catch (error) {
     console.error("[Tasks API] Error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch tasks" },
-      { status: 500 }
-    );
+    // Return empty array on error so UI doesn't break (e.g. DB unavailable on Vercel)
+    return NextResponse.json([]);
   }
 }
 

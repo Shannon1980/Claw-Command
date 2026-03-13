@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Opportunity, formatUsd, SOURCE_LABELS } from "@/lib/mock-pipeline";
+import { formatUsd, SOURCE_LABELS } from "@/lib/pipeline/config";
+import type { Opportunity } from "@/lib/pipeline/types";
 import ApprovalBadge from "@/components/shared/ApprovalBadge";
 
 function ActionBadge({ action, onPass }: { action: string; onPass?: () => void }) {

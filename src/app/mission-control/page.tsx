@@ -18,7 +18,7 @@ export default function MissionControlPage() {
       <MissionHeader />
       <main className="max-w-7xl mx-auto px-6 py-6">
         <div className="mb-4 rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs text-gray-300">
-          Dashboard loaded: <span className="font-mono text-gray-100">{loadedAt}</span>
+          Dashboard loaded: <span className="font-mono text-gray-100" suppressHydrationWarning>{loadedAt}</span>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="lg:col-span-2">

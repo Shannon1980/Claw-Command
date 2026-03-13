@@ -12,6 +12,8 @@ import type {
   DocumentPriority,
 } from "@/lib/docs/model";
 import { CATEGORY_OPTIONS } from "@/lib/docs/model";
+} from "@/lib/mock-docs";
+import { CATEGORY_OPTIONS } from "@/lib/mock-docs";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -25,6 +27,8 @@ export default function DocsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
@@ -77,6 +81,19 @@ export default function DocsPage() {
       }
     } catch {
       setLoadError("Unable to reach docs service. Check your connection and try again.");
+      setError(null);
+      const res = await fetch("/api/docs", { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error((data && (data.error as string)) || "Failed to load documents");
+      }
+      if (!Array.isArray(data)) {
+        throw new Error("Unexpected documents response");
+      }
+      setDocuments(data);
+      setLastUpdated(new Date().toISOString());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load documents");
     } finally {
       setLoading(false);
     }
@@ -290,6 +307,13 @@ export default function DocsPage() {
 
   const agents = ["all", ...new Set(documents.map((d) => d.agent).filter(Boolean))];
 
+  const formattedLastUpdated = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
   // Collect all unique linked items across documents for filtering
   const allLinkedItems: { key: string; label: string }[] = [];
   const seenLinks = new Set<string>();
@@ -317,6 +341,9 @@ export default function DocsPage() {
                   ({documents.filter((d) => d.reviewStatus === "pending_review").length} pending review)
                 </span>
               )}
+              {formattedLastUpdated && (
+                <span className="ml-2 text-gray-600">• Updated {formattedLastUpdated}</span>
+              )}
             </p>
           </div>
 
@@ -327,6 +354,11 @@ export default function DocsPage() {
             {syncStatus.error && (
               <span className="text-xs text-amber-400 max-w-xs" title={syncStatus.error}>
                 {syncStatus.error}
+              </span>
+            )}
+            {error && (
+              <span className="text-xs text-red-400 max-w-xs" title={error}>
+                {error}
               </span>
             )}
             <button

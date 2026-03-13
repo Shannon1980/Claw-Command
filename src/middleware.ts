@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/api/gateway/",
   "/api/agent-context",
   "/api/docs",
+  "/api/sync",
   "/api/sync/docs",
   "/api/cron/scheduler",
   "/api/heartbeat-all",

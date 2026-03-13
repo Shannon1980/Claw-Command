@@ -62,7 +62,7 @@ export default function TopBar() {
 
   return (
     <>
-      <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-gray-950/80 border-b border-gray-800/60 backdrop-blur-sm">
+      <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-gray-950/80 border-b border-gray-800/60 backdrop-blur-sm pointer-events-auto">
         {/* Left: Search trigger */}
         <button
           onClick={() => setCommandPaletteOpen(true)}
@@ -121,11 +121,11 @@ export default function TopBar() {
 
           {/* Weather + Clock */}
           {weather && (
-            <span className="text-[11px] font-mono text-gray-400">
+            <span className="text-[11px] font-mono text-gray-400" suppressHydrationWarning>
               {getWeatherEmoji(weather.icon)} {weather.temperature}&deg;F
             </span>
           )}
-          <span className="text-[11px] font-mono text-gray-500">{clock}</span>
+          <span className="text-[11px] font-mono text-gray-500" suppressHydrationWarning>{clock}</span>
 
           {/* Chat */}
           <ChatFlyout compact />

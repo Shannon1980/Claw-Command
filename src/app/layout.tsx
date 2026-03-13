@@ -35,7 +35,7 @@ export default function RootLayout({
       >
         <Providers>
           <Navigation />
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="relative z-0 flex-1 flex flex-col min-w-0">
             <TopBar />
             <main className="flex-1 overflow-auto scroll-smooth">{children}</main>
           </div>
