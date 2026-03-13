@@ -257,7 +257,7 @@ export default function OverviewPage() {
                   className="block px-3 py-2 rounded border border-gray-800 bg-gray-900/60 hover:bg-gray-800/60 transition-colors"
                 >
                   <p className="text-xs text-gray-200 truncate">{task.title}</p>
-                  <p className="text-[11px] text-gray-500 font-mono mt-0.5">
+                  <p className="text-[11px] text-gray-500 font-mono mt-0.5" suppressHydrationWarning>
                     Due {task.dueDate ? new Date(task.dueDate).toLocaleString() : "TBD"}
                   </p>
                 </Link>
@@ -449,7 +449,7 @@ export default function OverviewPage() {
               <p>Active agents: <span className="text-gray-200">{gatewayMetrics.activeAgents}</span></p>
               <p>Queue: <span className="text-gray-200">{gatewayMetrics.queueLength}</span></p>
               <p>Tokens: <span className="text-gray-200">{gatewayMetrics.totalTokens}</span></p>
-              <p>Updated: <span className="text-gray-200">{gatewayLastUpdate ?? "--:--:--"}</span></p>
+              <p>Updated: <span className="text-gray-200" suppressHydrationWarning>{gatewayLastUpdate ?? "--:--:--"}</span></p>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">

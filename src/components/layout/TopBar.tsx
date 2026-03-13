@@ -121,11 +121,11 @@ export default function TopBar() {
 
           {/* Weather + Clock */}
           {weather && (
-            <span className="text-[11px] font-mono text-gray-400">
+            <span className="text-[11px] font-mono text-gray-400" suppressHydrationWarning>
               {getWeatherEmoji(weather.icon)} {weather.temperature}&deg;F
             </span>
           )}
-          <span className="text-[11px] font-mono text-gray-500">{clock}</span>
+          <span className="text-[11px] font-mono text-gray-500" suppressHydrationWarning>{clock}</span>
 
           {/* Chat */}
           <ChatFlyout compact />

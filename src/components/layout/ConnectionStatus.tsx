@@ -29,7 +29,7 @@ export default function ConnectionStatus() {
         )}
         <span className={`relative inline-flex rounded-full h-2 w-2 ${config.color}`} />
       </span>
-      <span className="text-gray-400 font-medium tracking-wide uppercase text-[10px]">
+      <span className="text-gray-400 font-medium tracking-wide uppercase text-[10px]" suppressHydrationWarning>
         {config.label}
       </span>
     </div>
