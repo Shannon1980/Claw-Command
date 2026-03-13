@@ -93,6 +93,32 @@ export default function MC_DecisionsPanel() {
     }
   }
 
+  async function handleDelete(id: string) {
+    const confirmed = window.confirm("Delete this decision? This action cannot be undone.");
+    if (!confirmed) return;
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/decisions/${id}`, { method: "DELETE" });
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setMessage("Delete denied: admin role required.");
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        setMessage(data.error || "Failed to delete decision.");
+        return;
+      }
+
+      setMessage("Decision deleted.");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="mc-panel p-4">
       <div className="flex items-center justify-between mb-3">
@@ -170,6 +196,31 @@ export default function MC_DecisionsPanel() {
                     </span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1 line-clamp-2">Choice: {d.choice}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-500">Set status:</span>
+                      <select
+                        value={(d.status || "proposed").toLowerCase()}
+                        onChange={(e) => handleStatusUpdate(d.id, e.target.value)}
+                        disabled={busy}
+                        className="bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200"
+                      >
+                        {STATUS_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(d.id)}
+                      disabled={busy}
+                      className="px-2 py-1 text-[11px] rounded border border-red-500/40 text-red-300 hover:bg-red-500/20 disabled:opacity-60"
+                    >
+                      Delete (admin)
+                    </button>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-[11px] text-gray-500">Set status:</span>
                     <select
