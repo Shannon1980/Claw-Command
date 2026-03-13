@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { DocNote } from "@/lib/mock-docs";
+import type { DocNote } from "@/lib/docs/model";
 
 interface DocNotesProps {
   docId: string;

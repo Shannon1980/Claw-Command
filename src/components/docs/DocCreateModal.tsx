@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DocumentType, LinkedItem } from "@/lib/mock-docs";
+import { DocumentType, LinkedItem } from "@/lib/docs/model";
 import LinkPicker from "@/components/docs/LinkPicker";
 import { useAgentStore } from "@/lib/stores/agentStore";
 

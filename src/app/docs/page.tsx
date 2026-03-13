@@ -10,8 +10,8 @@ import type {
   LinkedItem,
   AssignTarget,
   DocumentPriority,
-} from "@/lib/mock-docs";
-import { CATEGORY_OPTIONS, SEED_DOCUMENTS } from "@/lib/mock-docs";
+} from "@/lib/docs/model";
+import { CATEGORY_OPTIONS } from "@/lib/docs/model";
 import DocCard from "@/components/docs/DocCard";
 import DocViewer from "@/components/docs/DocViewer";
 import DocCreateModal from "@/components/docs/DocCreateModal";
@@ -22,8 +22,9 @@ type ViewMode = "grid" | "list";
 type TabMode = "all" | "queue";
 
 export default function DocsPage() {
-  const [documents, setDocuments] = useState<Document[]>(SEED_DOCUMENTS);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
@@ -62,13 +63,20 @@ export default function DocsPage() {
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/docs");
+      setLoadError(null);
+      const res = await fetch("/api/docs", { cache: "no-store" });
       const data = await res.json().catch(() => null);
-      if (res.ok && Array.isArray(data)) {
-        setDocuments(data.length > 0 ? data : SEED_DOCUMENTS);
+      if (!res.ok) {
+        setLoadError((data && typeof data.error === "string" && data.error) || "Failed to load documents.");
+        return;
+      }
+      if (Array.isArray(data)) {
+        setDocuments(data);
+      } else {
+        setLoadError("Unexpected response while loading documents.");
       }
     } catch {
-      // Keep seed docs on fetch failure
+      setLoadError("Unable to reach docs service. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -134,29 +142,6 @@ export default function DocsPage() {
 
   const handleDeleteDoc = (id: string) => {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
-  };
-
-  const handleDuplicate = async (doc: Document) => {
-    try {
-      const res = await fetch("/api/docs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `${doc.title} (copy)`,
-          type: doc.type,
-          content: doc.content,
-          authorAgentId: null,
-          linkedTo: doc.linkedTo || [],
-        }),
-      });
-      if (res.ok) {
-        const created = await res.json();
-        setDocuments((prev) => [{ ...doc, ...created, updatedAt: created.updatedAt || new Date().toISOString(), createdAt: created.createdAt || new Date().toISOString() }, ...prev]);
-        setSelectedDoc(null);
-      }
-    } catch (error) {
-      console.error("Failed to duplicate:", error);
-    }
   };
 
   const handleDuplicateDoc = (doc: Document) => {
@@ -375,6 +360,12 @@ export default function DocsPage() {
           </div>
         </div>
 
+        {loadError && (
+          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+            {loadError}
+          </div>
+        )}
+
         {/* Tabs: Queue vs All */}
         <div className="flex items-center gap-1 mb-6 bg-gray-900 border border-gray-800 rounded-lg p-0.5 w-fit">
           <button
@@ -508,6 +499,10 @@ export default function DocsPage() {
             <div className="text-center py-12">
               <p className="text-gray-500 text-sm">Loading documents...</p>
             </div>
+          ) : loadError && documents.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-red-300 text-sm">Could not load review queue.</p>
+            </div>
           ) : (
             <ReviewQueue
               documents={filteredDocs}
@@ -520,6 +515,16 @@ export default function DocsPage() {
           loading && documents.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-sm">Loading documents...</p>
+            </div>
+          ) : loadError && documents.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-red-300 text-sm mb-3">Unable to load documents.</p>
+              <button
+                onClick={() => fetchDocuments()}
+                className="px-4 py-2 bg-red-600/20 text-red-300 border border-red-500/30 rounded-lg text-sm font-medium hover:bg-red-600/30 transition-colors"
+              >
+                Retry
+              </button>
             </div>
           ) : filteredDocs.length === 0 ? (
             <div className="text-center py-16">

@@ -1,9 +1,9 @@
 "use client";
 
-import type { Document, DocumentStatus, DocumentType, DocumentPriority, ReviewStatus, LinkedItem } from "@/lib/mock-docs";
+import type { Document, DocumentStatus, DocumentType, DocumentPriority, ReviewStatus, LinkedItem } from "@/lib/docs/model";
 import { linkTypeConfig } from "@/components/docs/LinkPicker";
 import { priorityStyles, reviewStatusStyles, categoryStyles } from "@/lib/ui-config";
-import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/mock-docs";
+import { PRIORITY_OPTIONS, REVIEW_STATUS_OPTIONS, CATEGORY_OPTIONS } from "@/lib/docs/model";
 import { getRelativeTime, getWordCount } from "@/lib/utils/formatting";
 
 interface DocCardProps {
