@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOverviewStore } from "@/lib/stores/overviewStore";
 import { useAgentStore } from "@/lib/stores/agentStore";
 import { useTaskStore } from "@/lib/stores/taskStore";
@@ -54,6 +54,31 @@ export default function OverviewPage() {
     second: "2-digit",
     hour12: false,
   });
+  const gatewayDiagnosticsText = useMemo(
+    () =>
+      [
+        `Gateway connection: ${gatewayConnection}`,
+        `Gateway last update: ${gatewayLastUpdate ?? "--:--:--"}`,
+        `Gateway active agents: ${gatewayMetrics.activeAgents}`,
+        `Gateway queue length: ${gatewayMetrics.queueLength}`,
+        `Gateway total tokens: ${gatewayMetrics.totalTokens}`,
+        `Last successful manual check: ${lastSuccessfulGatewayCheck ?? "none"}`,
+        `Failure streak: ${gatewayCheckFailureStreak}`,
+        `Error code: ${gateway.state.error?.code ?? "none"}`,
+        `Error message: ${gateway.state.error?.message ?? "none"}`,
+      ].join("\n"),
+    [
+      gatewayConnection,
+      gatewayLastUpdate,
+      gatewayMetrics.activeAgents,
+      gatewayMetrics.queueLength,
+      gatewayMetrics.totalTokens,
+      lastSuccessfulGatewayCheck,
+      gatewayCheckFailureStreak,
+      gateway.state.error?.code,
+      gateway.state.error?.message,
+    ]
+  );
 
   const tasksByStatus: Record<string, number> = {};
   for (const t of tasks) {
@@ -118,24 +143,26 @@ export default function OverviewPage() {
   };
 
   const copyGatewayDiagnostics = async () => {
-    const diagnostics = [
-      `Gateway connection: ${gatewayConnection}`,
-      `Gateway last update: ${gatewayLastUpdate ?? "--:--:--"}`,
-      `Gateway active agents: ${gatewayMetrics.activeAgents}`,
-      `Gateway queue length: ${gatewayMetrics.queueLength}`,
-      `Gateway total tokens: ${gatewayMetrics.totalTokens}`,
-      `Last successful manual check: ${lastSuccessfulGatewayCheck ?? "none"}`,
-      `Failure streak: ${gatewayCheckFailureStreak}`,
-      `Error code: ${gateway.state.error?.code ?? "none"}`,
-      `Error message: ${gateway.state.error?.message ?? "none"}`,
-    ].join("\n");
-
     try {
-      await navigator.clipboard.writeText(diagnostics);
+      await navigator.clipboard.writeText(gatewayDiagnosticsText);
       setGatewayCopyNote("Diagnostics copied to clipboard.");
     } catch {
       setGatewayCopyNote("Copy failed. Clipboard permissions may be blocked.");
     }
+  };
+
+  const exportGatewayDiagnostics = () => {
+    const blob = new Blob([`${gatewayDiagnosticsText}\n`], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gateway-diagnostics-${timestamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setGatewayCopyNote("Diagnostics exported as .txt file.");
   };
 
   const quickActions = [
@@ -220,6 +247,12 @@ export default function OverviewPage() {
               className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500"
             >
               Copy Diagnostics
+            </button>
+            <button
+              onClick={exportGatewayDiagnostics}
+              className="text-[11px] font-mono px-2.5 py-1 rounded border border-gray-700 text-gray-300 hover:text-gray-100 hover:border-gray-500"
+            >
+              Export .txt
             </button>
             <Link
               href="/settings"
