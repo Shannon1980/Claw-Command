@@ -129,6 +129,57 @@ export default function OverviewPage() {
         <div className="text-gray-400">Updated: <span className="text-gray-200">{gatewayLastUpdate ?? "--:--:--"}</span></div>
       </div>
 
+      {/* Gateway drill-down card */}
+      <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">
+              Gateway Drill-Down
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Live connection diagnostics and next-step guidance.
+            </p>
+          </div>
+          <Link
+            href="/settings"
+            className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors"
+          >
+            Open Settings →
+          </Link>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="rounded border border-gray-800 bg-gray-950/50 p-3">
+            <p className="text-gray-500 font-mono">Connection</p>
+            <p className="text-gray-200 mt-1 uppercase">{gatewayConnection}</p>
+            {gateway.state.error?.message && (
+              <p className="text-red-300 mt-2">{gateway.state.error.message}</p>
+            )}
+            {gateway.state.error?.code && (
+              <p className="text-gray-500 font-mono mt-1">Code: {gateway.state.error.code}</p>
+            )}
+          </div>
+
+          <div className="rounded border border-gray-800 bg-gray-950/50 p-3">
+            <p className="text-gray-500 font-mono">Recommended Action</p>
+            {gatewayConnection === "connected" ? (
+              <p className="text-green-300 mt-1">Gateway healthy. No action needed.</p>
+            ) : gatewayConnection === "reconnecting" ? (
+              <p className="text-yellow-300 mt-1">
+                Reconnect in progress. If this persists, verify gateway URL/token in Settings.
+              </p>
+            ) : (
+              <p className="text-amber-300 mt-1">
+                Check gateway URL and token, then run a connection check from Settings.
+              </p>
+            )}
+            <p className="text-gray-500 mt-2">
+              Last update: <span className="text-gray-300 font-mono">{gatewayLastUpdate ?? "--:--:--"}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Attention Banner - only shows when there are actionable items */}
       {attentionItems.length > 0 && (
         <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
