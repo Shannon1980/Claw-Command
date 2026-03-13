@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarEvent, EventConflict } from "@/lib/mock-calendar";
+import { CalendarEvent, EventConflict } from "@/lib/calendar/types";
 import EventBlock from "./EventBlock";
 
 interface WeekViewProps {
