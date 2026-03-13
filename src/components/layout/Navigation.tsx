@@ -87,7 +87,7 @@ export default function Navigation() {
   const compactItems = useMemo(() => navSections.flatMap((section) => section.items), []);
 
   return (
-    <nav className="w-14 lg:w-56 shrink-0 z-[100] h-full flex flex-col bg-gray-950/95 border-r border-gray-800/80 backdrop-blur-sm">
+    <nav className="relative z-[100] w-14 lg:w-56 shrink-0 h-full flex flex-col bg-gray-950/95 border-r border-gray-800/80 backdrop-blur-sm isolate">
       <div className="p-3 lg:p-4 border-b border-gray-800/60 flex items-center justify-center lg:justify-start">
         <Link
           href="/"
@@ -126,8 +126,9 @@ export default function Navigation() {
             return (
               <div key={section.title}>
                 <button
+                  type="button"
                   onClick={() => toggleSection(section.title)}
-                  className={`w-full px-3 py-1.5 flex items-center justify-between text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
+                  className={`w-full px-3 py-1.5 flex items-center justify-between text-[10px] font-mono font-bold tracking-widest uppercase transition-colors cursor-pointer ${
                     hasActive ? "text-gray-300" : "text-gray-600 hover:text-gray-400"
                   }`}
                 >
@@ -142,7 +143,7 @@ export default function Navigation() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex items-center gap-2 px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors ${
+                        className={`flex items-center gap-2 px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors cursor-pointer ${
                           isActive(item.href)
                             ? "text-white bg-gray-800/80 border-l-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"

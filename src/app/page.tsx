@@ -249,14 +249,18 @@ export default function OverviewPage() {
             {actionTasks.length > 0 ? (
               <div className="space-y-1.5">
                 {actionTasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-800/40 -mx-2">
+                  <Link
+                    key={task.id}
+                    href="/tasks"
+                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-800/40 -mx-2 transition-colors"
+                  >
                     <span className="text-xs text-gray-300 truncate flex-1 mr-2">{task.title}</span>
                     <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
                       task.status === "blocked" ? "bg-amber-500/20 text-amber-400" : "bg-purple-500/20 text-purple-400"
                     }`}>
                       {task.status.replace(/_/g, " ")}
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
