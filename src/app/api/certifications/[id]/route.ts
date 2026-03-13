@@ -1,7 +1,12 @@
+import {
+  Certification,
+  isCertLevel,
+  isCertStatus,
+} from "@/lib/certifications/model";
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 
-function rowToCert(row: Record<string, unknown>) {
+function rowToCert(row: Record<string, unknown>): Certification {
   const documents = (() => {
     try {
       const parsed = JSON.parse((row.documents as string) || "[]");
@@ -13,9 +18,9 @@ function rowToCert(row: Record<string, unknown>) {
   return {
     id: row.id,
     name: row.name,
-    level: row.level,
-    authority: row.authority,
-    status: row.status,
+    level: isCertLevel(row.level) ? row.level : "Federal",
+    authority: typeof row.authority === "string" ? row.authority : "",
+    status: isCertStatus(row.status) ? row.status : "NOT_STARTED",
     dueDate: row.due_date ?? undefined,
     appliedDate: row.applied_date ?? undefined,
     decisionExpected: row.decision_expected ?? undefined,
@@ -82,11 +87,19 @@ export async function PATCH(
     ];
 
     for (const [col, key] of fields) {
-      if (body[key] !== undefined) {
-        updates.push(`${col} = $${paramIndex}`);
-        values.push(body[key] ?? null);
-        paramIndex++;
+      if (body[key] === undefined) continue;
+
+      if (key === "level" && !isCertLevel(body[key])) {
+        return NextResponse.json({ error: "Invalid level" }, { status: 400 });
       }
+
+      if (key === "status" && !isCertStatus(body[key])) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      }
+
+      updates.push(`${col} = $${paramIndex}`);
+      values.push(body[key] ?? null);
+      paramIndex++;
     }
 
     if (body.documents !== undefined) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Certification, CertStatus } from "@/lib/mock-certifications";
+import { Certification, CertStatus } from "@/lib/certifications/model";
 import CertCountdown from "./CertCountdown";
 
 interface CertCardProps {

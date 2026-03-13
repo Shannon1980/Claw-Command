@@ -3,14 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   getCertificationHealth,
+  parseCertificationsApiResponse,
   Certification,
   CertStatus,
   CertLevel,
-} from "@/lib/mock-certifications";
+  CERT_LEVELS,
+} from "@/lib/certifications/model";
 import CertCard from "@/components/certifications/CertCard";
 import CertEditModal from "@/components/certifications/CertEditModal";
 
-const LEVEL_OPTIONS: CertLevel[] = ["Federal", "State", "Local"];
+const LEVEL_OPTIONS: CertLevel[] = [...CERT_LEVELS];
 const STATUS_OPTIONS: { value: CertStatus; label: string }[] = [
   { value: "NOT_STARTED", label: "Not Started" },
   { value: "IN_PROGRESS", label: "In Progress" },
@@ -24,7 +26,9 @@ export default function CertificationsPage() {
   const [certifications, setCertifications] = useState<Certification[]>([]);
   const [editingCert, setEditingCert] = useState<Certification | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
@@ -36,16 +40,37 @@ export default function CertificationsPage() {
     dueDate: "",
   });
 
-  const fetchCertifications = useCallback(async () => {
+  const fetchCertifications = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = Boolean(opts?.silent);
+
     try {
-      const res = await fetch("/api/certifications");
-      const data = await res.json();
-      setCertifications(Array.isArray(data) ? data : []);
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const res = await fetch("/api/certifications", { cache: "no-store" });
+      const payload = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          payload && typeof payload.error === "string"
+            ? payload.error
+            : "Failed to load certifications"
+        );
+      }
+
+      const parsed = parseCertificationsApiResponse(payload);
+      setCertifications(parsed.data);
+      setLastUpdated(parsed.meta.lastUpdated);
+      setError(null);
     } catch (err) {
       console.error("Failed to load certifications:", err);
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -55,7 +80,9 @@ export default function CertificationsPage() {
 
   // Auto-refresh every 15s
   useEffect(() => {
-    const interval = setInterval(fetchCertifications, 15000);
+    const interval = setInterval(() => {
+      fetchCertifications({ silent: true });
+    }, 15000);
     return () => clearInterval(interval);
   }, [fetchCertifications]);
 
@@ -83,6 +110,7 @@ export default function CertificationsPage() {
         setCertifications((prev) =>
           prev.map((c) => (c.id === saved.id ? saved : c))
         );
+        setLastUpdated(new Date().toISOString());
         setEditingCert(null);
       } else {
         const data = await res.json();
@@ -120,6 +148,7 @@ export default function CertificationsPage() {
       if (res.ok) {
         const created = await res.json();
         setCertifications((prev) => [...prev, { ...created, documents: created.documents || [] }]);
+        setLastUpdated(new Date().toISOString());
         setShowCreateForm(false);
         setCreateForm({ name: "", level: "Federal", authority: "", status: "NOT_STARTED", description: "", dueDate: "" });
         setError(null);
@@ -137,6 +166,7 @@ export default function CertificationsPage() {
       const res = await fetch(`/api/certifications/${id}`, { method: "DELETE" });
       if (res.ok) {
         setCertifications((prev) => prev.filter((c) => c.id !== id));
+        setLastUpdated(new Date().toISOString());
         setDeleteConfirm(null);
         if (editingCert?.id === id) setEditingCert(null);
       }
@@ -158,6 +188,7 @@ export default function CertificationsPage() {
             </h1>
             <p className="text-xs text-gray-500 font-mono">
               {certifications.length} certification{certifications.length !== 1 ? "s" : ""} &middot; auto-refreshes every 15s
+              {lastUpdated ? ` · last updated ${new Date(lastUpdated).toLocaleTimeString()}` : ""}
             </p>
           </div>
 
@@ -193,10 +224,10 @@ export default function CertificationsPage() {
 
             <button
               onClick={() => fetchCertifications()}
-              disabled={loading}
+              disabled={loading || refreshing}
               className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
             >
-              Refresh
+              {refreshing ? "Refreshing..." : "Refresh"}
             </button>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
@@ -299,6 +330,17 @@ export default function CertificationsPage() {
           <div className="text-center py-12">
             <p className="text-sm text-gray-500">Loading certifications...</p>
           </div>
+        ) : error && certifications.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-3xl mb-3 opacity-50">⚠️</div>
+            <p className="text-amber-300 text-sm mb-4">Could not load certifications right now.</p>
+            <button
+              onClick={() => fetchCertifications()}
+              className="px-4 py-2 bg-amber-600/20 text-amber-300 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-600/30 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
         ) : certifications.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-4xl mb-3 opacity-30">&#128203;</div>
@@ -351,6 +393,7 @@ export default function CertificationsPage() {
 
         {editingCert && (
           <CertEditModal
+            key={editingCert.id}
             certification={editingCert}
             onSave={handleSave}
             onClose={() => setEditingCert(null)}
