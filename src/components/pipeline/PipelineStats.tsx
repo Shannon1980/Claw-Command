@@ -1,6 +1,7 @@
 "use client";
 
-import { Opportunity, formatUsd } from "@/lib/mock-pipeline";
+import { formatUsd } from "@/lib/pipeline/config";
+import type { Opportunity } from "@/lib/pipeline/types";
 
 interface Props {
   opportunities: Opportunity[];
