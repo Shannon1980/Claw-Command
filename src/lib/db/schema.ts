@@ -423,6 +423,17 @@ export const auditEvents = pgTable("audit_events", {
   createdAt: text("created_at").notNull(),
 });
 
+export const auditLog = pgTable("audit_log", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  resourceType: text("resource_type").notNull(),
+  resourceId: text("resource_id").notNull(),
+  details: text("details").notNull().default("{}"), // JSON
+  ipAddress: text("ip_address"),
+  createdAt: text("created_at").notNull(),
+});
+
 // ─── NOTIFICATIONS (Notification Center) ────────────────────────────────────
 
 export const notifications = pgTable("notifications", {
