@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:push": "dotenv -e .env.local -- drizzle-kit push",
     "db:check": "dotenv -e .env.local -- node scripts/check-db-connection.mjs",
+    "startup:check": "dotenv -e .env.local -- node scripts/startup-check.mjs",
     "test:mc-api": "bash scripts/smoke-test-mc-api.sh"
   },
   "dependencies": {
