@@ -1,0 +1,44 @@
+name: Security Hardening Gates
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  hardening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      MC_API_KEY: ${{ secrets.MC_API_KEY }}
+      OPENCLAW_GATEWAY_URL: ${{ secrets.OPENCLAW_GATEWAY_URL }}
+      OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Validate required secrets are present
+        run: |
+          missing=0
+          [ -n "$MC_API_KEY" ] || { echo "❌ Missing secret: MC_API_KEY"; missing=1; }
+          [ -n "$OPENCLAW_GATEWAY_URL" ] || { echo "❌ Missing secret: OPENCLAW_GATEWAY_URL"; missing=1; }
+          [ -n "$OPENCLAW_GATEWAY_TOKEN" ] || { echo "❌ Missing secret: OPENCLAW_GATEWAY_TOKEN"; missing=1; }
+          [ "$missing" -eq 0 ] || exit 1
+
+      - name: Startup security checks
+        run: node scripts/startup-check.mjs
+
+      - name: Hardening tests
+        run: npm run test:hardening
