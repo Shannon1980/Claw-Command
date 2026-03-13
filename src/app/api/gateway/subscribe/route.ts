@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
           const event: GatewayEvent = {
             type: "connection_status",
             status: "disconnected",
-            error: { code: "NOT_CONFIGURED", message: "OPENCLAW_URL not set" },
+            error: { code: "NOT_CONFIGURED", message: "OPENCLAW_URL or OPENCLAW_GATEWAY_URL not set" },
           };
           safeSend(`data: ${JSON.stringify(event)}\n\n`);
           safeClose();
