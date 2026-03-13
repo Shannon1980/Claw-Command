@@ -1,6 +1,6 @@
 "use client";
 
-import { Application } from "@/lib/mock-pipeline";
+import type { Application } from "@/lib/pipeline/types";
 import ApprovalBadge from "@/components/shared/ApprovalBadge";
 
 export default function ApplicationCard({ app }: { app: Application }) {

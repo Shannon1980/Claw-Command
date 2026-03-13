@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { BD_STAGES, APP_STAGES, SOURCE_LABELS } from "@/lib/mock-pipeline";
+import { useMemo, useState } from "react";
+import { BD_STAGES, APP_STAGES, SOURCE_LABELS } from "@/lib/pipeline/config";
 import { OpportunityKanban, ApplicationKanban } from "@/components/pipeline/PipelineKanban";
 import PipelineStats from "@/components/pipeline/PipelineStats";
 import { usePipeline } from "@/lib/hooks/usePipeline";
@@ -17,7 +17,9 @@ export default function DealsPage() {
     opportunities,
     applications,
     loading,
+    refreshing,
     error,
+    lastUpdated,
     refresh,
     updateOpportunityStage,
     updateApplicationStage,
@@ -29,9 +31,15 @@ export default function DealsPage() {
       ? opportunities
       : opportunities.filter((o) => o.source === sourceFilter);
 
-  const activeSources = Array.from(
-    new Set(opportunities.map((o) => o.source).filter(Boolean))
-  );
+  const activeSources = Array.from(new Set(opportunities.map((o) => o.source).filter(Boolean)));
+
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdated) return "Never";
+    return new Date(lastUpdated).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, [lastUpdated]);
 
   async function handleSync() {
     setSyncing(true);
@@ -46,10 +54,8 @@ export default function DealsPage() {
               `${SOURCE_LABELS[s.source]?.label || s.source}: ${s.totalFound} found`
           )
           .join(", ");
-        setSyncResult(
-          `Synced ${data.inserted} new opportunities. ${sourceDetails}`
-        );
-        refresh();
+        setSyncResult(`Synced ${data.inserted} new opportunities. ${sourceDetails}`);
+        await refresh();
       } else {
         setSyncResult(`Sync failed: ${data.error}`);
       }
@@ -73,6 +79,9 @@ export default function DealsPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="text-[10px] font-mono text-gray-500">
+              Last updated: {lastUpdatedLabel}
+            </div>
             <a
               href="/opportunity-engine"
               className="px-3 py-1.5 text-sm font-medium text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-colors"
@@ -88,10 +97,10 @@ export default function DealsPage() {
             </button>
             <button
               onClick={refresh}
-              disabled={loading}
+              disabled={loading || refreshing}
               className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
             >
-              {loading ? "Loading..." : "Refresh"}
+              {loading || refreshing ? "Loading..." : "Refresh"}
             </button>
             <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-0.5">
               <button
@@ -125,58 +134,76 @@ export default function DealsPage() {
         )}
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
-            {error.message}
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm flex items-center justify-between gap-3">
+            <span>{error.message}</span>
+            <button onClick={refresh} className="text-xs underline underline-offset-2">
+              Retry
+            </button>
           </div>
         )}
 
-        {activeTab === "bd" ? (
-          <>
-            {/* Source Filter */}
-            {activeSources.length > 1 && (
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">
-                  Source:
-                </span>
-                <button
-                  onClick={() => setSourceFilter("all")}
-                  className={`text-xs px-2 py-1 rounded border transition-colors ${
-                    sourceFilter === "all"
-                      ? "bg-gray-700 text-gray-200 border-gray-600"
-                      : "text-gray-500 border-gray-800 hover:border-gray-600"
-                  }`}
-                >
-                  All ({opportunities.length})
-                </button>
-                {activeSources.map((src) => {
-                  const meta = SOURCE_LABELS[src] || SOURCE_LABELS.manual;
-                  const count = opportunities.filter(
-                    (o) => o.source === src
-                  ).length;
-                  return (
-                    <button
-                      key={src}
-                      onClick={() => setSourceFilter(src)}
-                      className={`text-xs px-2 py-1 rounded border transition-colors ${
-                        sourceFilter === src
-                          ? meta.color
-                          : "text-gray-500 border-gray-800 hover:border-gray-600"
-                      }`}
-                    >
-                      {meta.label} ({count})
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <PipelineStats opportunities={filteredOpportunities} />
-            <OpportunityKanban
-              stages={BD_STAGES}
-              opportunities={filteredOpportunities}
-              onStageChange={updateOpportunityStage}
-              onPass={passOpportunity}
-            />
-          </>
+        {loading ? (
+          <div className="p-8 border border-gray-800 rounded-lg bg-gray-900/40 text-sm text-gray-400">
+            Loading deals data...
+          </div>
+        ) : activeTab === "bd" ? (
+          opportunities.length === 0 ? (
+            <div className="p-8 border border-gray-800 rounded-lg bg-gray-900/40 text-sm text-gray-400">
+              No opportunities yet. Click <span className="font-mono">Sync Sources</span> to pull live opportunities.
+            </div>
+          ) : (
+            <>
+              {activeSources.length > 1 && (
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">Source:</span>
+                  <button
+                    onClick={() => setSourceFilter("all")}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${
+                      sourceFilter === "all"
+                        ? "bg-gray-700 text-gray-200 border-gray-600"
+                        : "text-gray-500 border-gray-800 hover:border-gray-600"
+                    }`}
+                  >
+                    All ({opportunities.length})
+                  </button>
+                  {activeSources.map((src) => {
+                    const meta = SOURCE_LABELS[src] || SOURCE_LABELS.manual;
+                    const count = opportunities.filter((o) => o.source === src).length;
+                    return (
+                      <button
+                        key={src}
+                        onClick={() => setSourceFilter(src)}
+                        className={`text-xs px-2 py-1 rounded border transition-colors ${
+                          sourceFilter === src
+                            ? meta.color
+                            : "text-gray-500 border-gray-800 hover:border-gray-600"
+                        }`}
+                      >
+                        {meta.label} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <PipelineStats opportunities={filteredOpportunities} />
+              {filteredOpportunities.length === 0 ? (
+                <div className="p-8 border border-gray-800 rounded-lg bg-gray-900/40 text-sm text-gray-400">
+                  No opportunities found for this source filter.
+                </div>
+              ) : (
+                <OpportunityKanban
+                  stages={BD_STAGES}
+                  opportunities={filteredOpportunities}
+                  onStageChange={updateOpportunityStage}
+                  onPass={passOpportunity}
+                />
+              )}
+            </>
+          )
+        ) : applications.length === 0 ? (
+          <div className="p-8 border border-gray-800 rounded-lg bg-gray-900/40 text-sm text-gray-400">
+            No application portfolio items yet.
+          </div>
         ) : (
           <ApplicationKanban
             stages={APP_STAGES}

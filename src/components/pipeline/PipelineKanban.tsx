@@ -1,12 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Opportunity,
-  Application,
-  STAGE_COLORS,
-  formatUsd,
-} from "@/lib/mock-pipeline";
+import { STAGE_COLORS, formatUsd } from "@/lib/pipeline/config";
+import type { Opportunity, Application } from "@/lib/pipeline/types";
 import OpportunityCard from "./OpportunityCard";
 import ApplicationCard from "./ApplicationCard";
 
