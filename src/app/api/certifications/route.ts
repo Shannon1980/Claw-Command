@@ -1,3 +1,9 @@
+import {
+  CertificationsApiResponse,
+  Certification,
+  isCertLevel,
+  isCertStatus,
+} from "@/lib/certifications/model";
 import { pool } from "@/lib/db/client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,7 +32,7 @@ async function ensureSchema() {
   schemaReady = true;
 }
 
-function rowToCert(row: Record<string, unknown>) {
+function rowToCert(row: Record<string, unknown>): Certification {
   const documents = (() => {
     try {
       const parsed = JSON.parse((row.documents as string) || "[]");
@@ -38,9 +44,9 @@ function rowToCert(row: Record<string, unknown>) {
   return {
     id: row.id,
     name: row.name,
-    level: row.level,
-    authority: row.authority,
-    status: row.status,
+    level: isCertLevel(row.level) ? row.level : "Federal",
+    authority: typeof row.authority === "string" ? row.authority : "",
+    status: isCertStatus(row.status) ? row.status : "NOT_STARTED",
     dueDate: row.due_date ?? undefined,
     appliedDate: row.applied_date ?? undefined,
     decisionExpected: row.decision_expected ?? undefined,
@@ -61,7 +67,16 @@ export async function GET() {
               decision_expected, expires_date, description, notes, documents
        FROM certifications ORDER BY level, name`
     );
-    return NextResponse.json(result.rows.map(rowToCert));
+
+    const response: CertificationsApiResponse = {
+      data: result.rows.map(rowToCert),
+      meta: {
+        lastUpdated: new Date().toISOString(),
+        source: "database",
+      },
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("[Certifications API] Error:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch data" }, { status: 500 });
@@ -82,18 +97,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
     const now = new Date().toISOString();
+    const level = isCertLevel(body.level) ? body.level : "Federal";
+    const status = isCertStatus(body.status) ? body.status : "NOT_STARTED";
+    const authority = typeof body.authority === "string" ? body.authority : "";
     const documents = JSON.stringify(
       Array.isArray(body.documents) ? body.documents : []
     );
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO certifications (id, name, level, authority, status, due_date, applied_date,
         decision_expected, expires_date, description, notes, documents, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+       RETURNING id, name, level, authority, status, due_date, applied_date,
+                 decision_expected, expires_date, description, notes, documents`,
       [
-        id, name,
-        body.level || "Federal",
-        body.authority || "",
-        body.status || "NOT_STARTED",
+        id,
+        name,
+        level,
+        authority,
+        status,
         body.dueDate ?? null,
         body.appliedDate ?? null,
         body.decisionExpected ?? null,
@@ -104,13 +125,8 @@ export async function POST(request: NextRequest) {
         now,
       ]
     );
-    return NextResponse.json({
-      id, name, level: body.level || "Federal", authority: body.authority || "",
-      status: body.status || "NOT_STARTED", documents: body.documents || [],
-      description: body.description, notes: body.notes,
-      dueDate: body.dueDate, appliedDate: body.appliedDate,
-      decisionExpected: body.decisionExpected, expiresDate: body.expiresDate,
-    });
+
+    return NextResponse.json(rowToCert(result.rows[0]));
   } catch (error) {
     console.error("[Certifications API] Create error:", error);
     return NextResponse.json(

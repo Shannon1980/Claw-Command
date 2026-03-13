@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Certification, CertStatus } from "@/lib/mock-certifications";
+import { useState } from "react";
+import { Certification, CertStatus } from "@/lib/certifications/model";
 
 const STATUS_OPTIONS: { value: CertStatus; label: string }[] = [
   { value: "NOT_STARTED", label: "Not Started" },
@@ -24,10 +24,6 @@ export default function CertEditModal({
   onClose,
 }: CertEditModalProps) {
   const [form, setForm] = useState<Certification>({ ...certification });
-
-  useEffect(() => {
-    setForm({ ...certification });
-  }, [certification]);
 
   const handleStatusChange = (status: CertStatus) => {
     setForm((prev) => ({ ...prev, status }));
