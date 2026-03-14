@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 interface NavLink {
   href: string;
@@ -68,7 +68,6 @@ const navSections: NavSection[] = [
 
 export default function Navigation() {
   const pathname = usePathname();
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const toggleSection = (title: string) => {
@@ -87,10 +86,6 @@ export default function Navigation() {
 
   const compactItems = useMemo(() => navSections.flatMap((section) => section.items), []);
 
-  const go = (href: string) => {
-    router.push(href);
-  };
-
   return (
     <nav className="relative z-[100] w-14 lg:w-56 shrink-0 h-full flex flex-col bg-gray-950/95 border-r border-gray-800/80 backdrop-blur-sm isolate pointer-events-auto">
       <div className="p-3 lg:p-4 border-b border-gray-800/60 flex items-center justify-center lg:justify-start">
@@ -108,19 +103,18 @@ export default function Navigation() {
       <div className="flex-1 overflow-y-auto py-2 space-y-1">
         <div className="lg:hidden flex flex-col gap-1 px-1">
           {compactItems.map((item) => (
-            <button
+            <Link
               key={item.href}
-              type="button"
+              href={item.href}
               title={item.label}
-              onClick={() => go(item.href)}
-              className={`w-full flex items-center justify-center p-2 rounded-md transition-colors cursor-pointer ${
+              className={`flex items-center justify-center p-2 rounded-md transition-colors cursor-pointer ${
                 isActive(item.href)
                   ? "text-white bg-gray-800/80"
                   : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
               }`}
             >
               {item.icon}
-            </button>
+            </Link>
           ))}
         </div>
 
@@ -146,11 +140,10 @@ export default function Navigation() {
                 {!isCollapsed && (
                   <div className="flex flex-col gap-0.5 mt-0.5">
                     {section.items.map((item) => (
-                      <button
+                      <Link
                         key={item.href}
-                        type="button"
-                        onClick={() => go(item.href)}
-                        className={`w-full flex items-center gap-2 px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors cursor-pointer text-left ${
+                        href={item.href}
+                        className={`flex items-center gap-2 px-3 py-1.5 ml-1 rounded text-[13px] font-medium transition-colors cursor-pointer ${
                           isActive(item.href)
                             ? "text-white bg-gray-800/80 border-l-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-200 hover:bg-gray-800/40"
@@ -158,7 +151,7 @@ export default function Navigation() {
                       >
                         {item.icon}
                         {item.label}
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 )}
