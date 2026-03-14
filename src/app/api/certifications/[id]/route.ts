@@ -16,24 +16,12 @@ function rowToCert(row: Record<string, unknown>): Certification {
     }
   })();
   return {
-    id: typeof row.id === "string" ? row.id : "",
-    name: typeof row.name === "string" ? row.name : "",
     id: String(row.id ?? ""),
     name: String(row.name ?? ""),
     level: isCertLevel(row.level) ? row.level : "Federal",
     authority: typeof row.authority === "string" ? row.authority : "",
     status: isCertStatus(row.status) ? row.status : "NOT_STARTED",
     dueDate: typeof row.due_date === "string" ? row.due_date : undefined,
-    appliedDate:
-      typeof row.applied_date === "string" ? row.applied_date : undefined,
-    decisionExpected:
-      typeof row.decision_expected === "string"
-        ? row.decision_expected
-        : undefined,
-    expiresDate:
-      typeof row.expires_date === "string" ? row.expires_date : undefined,
-    description:
-      typeof row.description === "string" ? row.description : undefined,
     appliedDate: typeof row.applied_date === "string" ? row.applied_date : undefined,
     decisionExpected: typeof row.decision_expected === "string" ? row.decision_expected : undefined,
     expiresDate: typeof row.expires_date === "string" ? row.expires_date : undefined,
