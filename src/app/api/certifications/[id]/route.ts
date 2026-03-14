@@ -16,8 +16,8 @@ function rowToCert(row: Record<string, unknown>): Certification {
     }
   })();
   return {
-    id: row.id,
-    name: row.name,
+    id: String(row.id ?? ""),
+    name: String(row.name ?? ""),
     level: isCertLevel(row.level) ? row.level : "Federal",
     authority: typeof row.authority === "string" ? row.authority : "",
     status: isCertStatus(row.status) ? row.status : "NOT_STARTED",
